@@ -1,0 +1,461 @@
+[
+ {
+  "name": "prop_bed_worn",
+  "src": "old_and_worn_out_hospital_bed.glb",
+  "scale": 0.00976,
+  "size": [
+   2.05,
+   0.722,
+   0.976
+  ],
+  "tris": 526,
+  "mb": 0.42,
+  "src_size": [
+   210.0,
+   73.95,
+   100.0
+  ]
+ },
+ {
+  "name": "prop_bed",
+  "src": "hospital_bed.glb",
+  "scale": 1.0,
+  "size": [
+   0.807,
+   1.188,
+   1.774
+  ],
+  "tris": 6000,
+  "mb": 0.81,
+  "src_size": [
+   0.81,
+   1.19,
+   1.77
+  ]
+ },
+ {
+  "name": "prop_wheelchair",
+  "src": "wheelchair_horror_game_hospital.glb",
+  "scale": 0.06049,
+  "size": [
+   0.845,
+   0.818,
+   1.05
+  ],
+  "tris": 3222,
+  "mb": 0.81,
+  "src_size": [
+   13.97,
+   13.53,
+   17.36
+  ]
+ },
+ {
+  "name": "prop_panel",
+  "src": "electrical_breaker_panel_box__lp_model.glb",
+  "scale": 1.0,
+  "size": [
+   0.792,
+   1.232,
+   0.453
+  ],
+  "tris": 3000,
+  "mb": 0.74,
+  "src_size": [
+   0.79,
+   1.23,
+   0.45
+  ]
+ },
+ {
+  "name": "prop_ivdrip",
+  "src": "crutch_and_iv_drip.glb",
+  "scale": 0.00474,
+  "size": [
+   0.812,
+   1.9,
+   0.537
+  ],
+  "tris": 4000,
+  "mb": 0.34,
+  "src_size": [
+   171.29,
+   400.83,
+   113.2
+  ]
+ },
+ {
+  "name": "prop_ivpole",
+  "src": "iv_pole.glb",
+  "scale": 0.1594,
+  "size": [
+   0.666,
+   1.9,
+   1.941
+  ],
+  "tris": 1736,
+  "mb": 0.28,
+  "src_size": [
+   4.18,
+   11.92,
+   12.18
+  ]
+ },
+ {
+  "name": "prop_firstaid",
+  "src": "first_aid_box.glb",
+  "scale": 0.01237,
+  "size": [
+   0.32,
+   0.306,
+   0.288
+  ],
+  "tris": 1396,
+  "mb": 0.29,
+  "src_size": [
+   25.88,
+   24.71,
+   23.33
+  ]
+ },
+ {
+  "name": "prop_cabinet",
+  "src": "filing_cabinet.glb",
+  "scale": 1.19591,
+  "size": [
+   0.682,
+   1.32,
+   0.832
+  ],
+  "tris": 1045,
+  "mb": 2.07,
+  "src_size": [
+   0.57,
+   0.7,
+   1.1
+  ]
+ },
+ {
+  "name": "prop_bodybag",
+  "src": "body_bag01.glb",
+  "scale": 1.0,
+  "size": [
+   0.879,
+   0.333,
+   1.993
+  ],
+  "tris": 1582,
+  "mb": 0.09,
+  "src_size": [
+   0.88,
+   0.33,
+   1.99
+  ]
+ },
+ {
+  "name": "prop_corpse",
+  "src": "corpse.glb",
+  "scale": 0.01104,
+  "size": [
+   0.727,
+   0.532,
+   1.8
+  ],
+  "tris": 5999,
+  "mb": 0.48,
+  "src_size": [
+   65.9,
+   48.24,
+   163.12
+  ]
+ },
+ {
+  "name": "prop_vending",
+  "src": "vending_machine.glb",
+  "scale": 0.79677,
+  "size": [
+   0.937,
+   1.83,
+   1.149
+  ],
+  "tris": 1625,
+  "mb": 0.19,
+  "src_size": [
+   1.18,
+   2.3,
+   1.44
+  ]
+ },
+ {
+  "name": "prop_morgue_lockers",
+  "src": "morgue_room.glb",
+  "scale": 0.57213,
+  "size": [
+   3.27,
+   2.2,
+   2.388
+  ],
+  "tris": 1660,
+  "mb": 0.18,
+  "src_size": [
+   5.72,
+   3.85,
+   4.17
+  ]
+ },
+ {
+  "name": "prop_autopsy_table",
+  "src": "morgue_room.glb",
+  "scale": 0.63722,
+  "size": [
+   1.978,
+   0.95,
+   0.731
+  ],
+  "tris": 1734,
+  "mb": 0.26,
+  "src_size": [
+   3.1,
+   1.49,
+   1.15
+  ]
+ },
+ {
+  "name": "prop_surgical_lamp",
+  "src": "morgue_room.glb",
+  "scale": 0.50839,
+  "size": [
+   1.2,
+   0.512,
+   0.618
+  ],
+  "tris": 1520,
+  "mb": 0.38,
+  "src_size": [
+   2.36,
+   1.01,
+   1.22
+  ]
+ },
+ {
+  "name": "prop_trolley",
+  "src": "morgue_room.glb",
+  "scale": 0.85479,
+  "size": [
+   0.583,
+   0.95,
+   0.606
+  ],
+  "tris": 888,
+  "mb": 0.17,
+  "src_size": [
+   0.68,
+   1.11,
+   0.71
+  ]
+ },
+ {
+  "name": "prop_sink",
+  "src": "morgue_room.glb",
+  "scale": 0.82414,
+  "size": [
+   0.557,
+   0.9,
+   0.681
+  ],
+  "tris": 618,
+  "mb": 0.14,
+  "src_size": [
+   0.68,
+   1.09,
+   0.83
+  ]
+ },
+ {
+  "name": "prop_ventilator",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   0.63,
+   1.392,
+   0.63
+  ],
+  "tris": 4000,
+  "mb": 0.35,
+  "src_size": [
+   0.63,
+   1.39,
+   0.63
+  ]
+ },
+ {
+  "name": "prop_curtain",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   1.329,
+   2.143,
+   0.429
+  ],
+  "tris": 1284,
+  "mb": 0.16,
+  "src_size": [
+   1.33,
+   2.14,
+   0.43
+  ]
+ },
+ {
+  "name": "prop_bench",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   2.026,
+   0.873,
+   0.604
+  ],
+  "tris": 1176,
+  "mb": 0.17,
+  "src_size": [
+   2.03,
+   0.87,
+   0.6
+  ]
+ },
+ {
+  "name": "prop_computer_cart",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   0.574,
+   1.492,
+   0.793
+  ],
+  "tris": 811,
+  "mb": 0.08,
+  "src_size": [
+   0.57,
+   1.49,
+   0.79
+  ]
+ },
+ {
+  "name": "prop_mop_bucket",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   0.792,
+   1.458,
+   0.483
+  ],
+  "tris": 464,
+  "mb": 0.13,
+  "src_size": [
+   0.79,
+   1.46,
+   0.48
+  ]
+ },
+ {
+  "name": "prop_water_cooler",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   0.34,
+   1.624,
+   0.38
+  ],
+  "tris": 486,
+  "mb": 0.13,
+  "src_size": [
+   0.34,
+   1.62,
+   0.38
+  ]
+ },
+ {
+  "name": "prop_extinguisher",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   0.55,
+   0.65,
+   0.305
+  ],
+  "tris": 106,
+  "mb": 0.1,
+  "src_size": [
+   0.55,
+   0.65,
+   0.31
+  ]
+ },
+ {
+  "name": "prop_reception_desk",
+  "src": "vr_ready_hospital_props.glb",
+  "scale": 1.0,
+  "size": [
+   2.985,
+   1.417,
+   0.949
+  ],
+  "tris": 402,
+  "mb": 0.11,
+  "src_size": [
+   2.99,
+   1.42,
+   0.95
+  ]
+ },
+ {
+  "name": "weapon_pipe",
+  "src": "bloody_lead_pipe.glb",
+  "scale": 0.01068,
+  "size": [
+   0.066,
+   0.62,
+   0.03
+  ],
+  "tris": 1220,
+  "mb": 0.24,
+  "src_size": [
+   6.19,
+   58.07,
+   2.78
+  ]
+ },
+ {
+  "name": "weapon_pistol",
+  "src": "9mm_pistol.glb",
+  "scale": 0.0833,
+  "size": [
+   0.2,
+   0.132,
+   0.028
+  ],
+  "tris": 4707,
+  "mb": 0.69,
+  "src_size": [
+   2.4,
+   1.58,
+   0.33
+  ]
+ },
+ {
+  "name": "weapon_crowbar",
+  "src": "crowbar.glb",
+  "scale": 0.15793,
+  "size": [
+   0.042,
+   0.76,
+   0.169
+  ],
+  "tris": 732,
+  "mb": 0.07,
+  "src_size": [
+   0.26,
+   4.81,
+   1.07
+  ]
+ }
+]

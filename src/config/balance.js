@@ -195,6 +195,12 @@ export const SURFACE = {
 
   anisotropy: 8,           // 바닥을 비스듬히 볼 때의 선명도
   viewModelDim: 0.22,      // 무기 뷰모델 색을 누르는 배수 (손전등 바로 앞이라 안 누르면 탄다)
+
+  // 외부 GLB 소품(world/PropModels.js). Sketchfab 재질은 밝은 실내등 기준이라
+  // 손전등(26cd) 아래에서는 그대로 쓰면 하얗게 탄다. 텍스처는 살리고 색만 누른다.
+  propModelDim: 0.55,
+  propModelRoughMin: 0.45,   // 너무 반질거리면 손전등 반사가 점으로 튄다
+  propModelMetalMax: 0.35,   // 환경맵이 없어서 금속도가 높으면 새까맣게 죽는다
 };
 
 /** 서랍·캐비닛 수색 (world/Interaction.js) — 아포칼립스의 기본 루프 */

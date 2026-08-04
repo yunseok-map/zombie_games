@@ -184,24 +184,27 @@ blender --background --python fbx_to_glb.py -- fbx_src public/assets/models/zomb
 > 제작자와의 제휴·후원·허가 관계가 아니며, 각 모델의 공개 라이선스 범위 안에서만 쓴다.
 > 아래 표는 그 출처를 밝히기 위한 기록이다.
 >
-> **라이선스 칸이 "확인 필요"인 항목은 각 모델 페이지에서 라이선스 종류를 확인해 채운다.**
-> CC-BY 계열이면 제작자 표기가 의무이므로, 제출 전 이 표가 곧 크레딧이 된다.
+> **라이선스 확인 완료 (2026-08-04, 개발자가 각 모델 페이지에서 확인)** —
+> 아래 19개 모델은 **전부 CC Attribution (CC BY 4.0)** 이다.
+> 제작자 표기가 의무이므로 **이 표가 곧 제출용 크레딧**이다. 게임 내 크레딧 화면에도 같은 내용을 넣는다.
+> CC-BY 는 변경(스케일·텍스처 축소·오브젝트 분리)을 허용하되 변경 사실을 밝히는 것이 권장되므로,
+> 아래 **"원본 대비 수정 내역"** 표를 반드시 채운다.
 
 ### 단품 소품
 
 | 파일(예정) | 원본 모델명 | 제작자 | 출처 링크 | 라이선스 | 용도 |
 |---|---|---|---|---|---|
-| `prop_bed_worn.glb` | Old and worn out hospital bed | Javier Pozo | https://skfb.ly/6RSGM | 확인 필요 | 병상 A (낡음) |
-| `prop_bed.glb` | Hospital Bed | Larry3d | https://skfb.ly/6XpTM | 확인 필요 | 병상 B |
-| `prop_wheelchair.glb` | wheelchair (horror game hospital) | japan3d | https://skfb.ly/E8KH | 확인 필요 | 휠체어 |
-| `prop_panel.glb` | Electrical Breaker Panel Box – LP model | Nikoleta.Zhecheva | https://skfb.ly/pzHtH | 확인 필요 | **배전반** — 기계실 자판기 대용 제거 |
-| `prop_ivdrip.glb` | Crutch and IV Drip | Matt LeMoine | https://skfb.ly/6WSTS | 확인 필요 | 링거대 + 목발 |
-| `prop_ivpole.glb` | IV Pole | *(제작자 미확인)* | https://skfb.ly/6RzEu | 확인 필요 | 링거대 B — **제작자 확인 필요** |
-| `prop_firstaid.glb` | First aid box | TahirNilin | https://skfb.ly/6XQTO | 확인 필요 | 구급상자 (수색 대상) |
-| `prop_cabinet.glb` | Filing Cabinet | matthijs001 | https://skfb.ly/6CNHM | 확인 필요 | 서류함 |
-| `prop_bodybag.glb` | Body Bag01 | AaronJC | https://skfb.ly/ozzOC | 확인 필요 | 시신 자루 — 영안실 |
-| `prop_corpse.glb` | corpse | Daniel Yang | https://skfb.ly/6YJsD | 확인 필요 | 시체 — 영안실·복도 |
-| `prop_vending.glb` | Vending Machine | RackRibs | https://skfb.ly/oGp7o | 확인 필요 | 자판기 |
+| `prop_bed_worn.glb` | Old and worn out hospital bed | Javier Pozo | https://skfb.ly/6RSGM | CC BY 4.0 | 병상 A (낡음) |
+| `prop_bed.glb` | Hospital Bed | Larry3d | https://skfb.ly/6XpTM | CC BY 4.0 | 병상 B |
+| `prop_wheelchair.glb` | wheelchair (horror game hospital) | japan3d | https://skfb.ly/E8KH | CC BY 4.0 | 휠체어 |
+| `prop_panel.glb` | Electrical Breaker Panel Box – LP model | Nikoleta.Zhecheva | https://skfb.ly/pzHtH | CC BY 4.0 | **배전반** — 기계실 자판기 대용 제거 |
+| `prop_ivdrip.glb` | Crutch and IV Drip | Matt LeMoine | https://skfb.ly/6WSTS | CC BY 4.0 | 링거대 + 목발 |
+| `prop_ivpole.glb` | IV Pole | **Mouch** | https://skfb.ly/6RzEu | CC BY 4.0 | 링거대 B |
+| `prop_firstaid.glb` | First aid box | TahirNilin | https://skfb.ly/6XQTO | CC BY 4.0 | 구급상자 (수색 대상) |
+| `prop_cabinet.glb` | Filing Cabinet | matthijs001 | https://skfb.ly/6CNHM | CC BY 4.0 | 서류함 |
+| `prop_bodybag.glb` | Body Bag01 | AaronJC | https://skfb.ly/ozzOC | CC BY 4.0 | 시신 자루 — 영안실 |
+| `prop_corpse.glb` | corpse | Daniel Yang | https://skfb.ly/6YJsD | CC BY 4.0 | 시체 — 영안실·복도 |
+| `prop_vending.glb` | Vending Machine | RackRibs | https://skfb.ly/oGp7o | CC BY 4.0 | 자판기 |
 
 ### 팩 · 룸 스케일 — **소품만 추출해서 사용** (방식 b)
 
@@ -210,19 +213,19 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 
 | 원본 모델명 | 제작자 | 출처 링크 | 라이선스 | 추출할 것 |
 |---|---|---|---|---|
-| Morgue Room | LJM | https://skfb.ly/6RHzP | 확인 필요 | 시체 보관 서랍벽 · 해부대 |
-| Charité University Hospital - Operating Room | ChrisRE | https://skfb.ly/oCTvA | 확인 필요 | 수술등 · 수술대 |
-| Hospital Reception Environment | CaseyPozzobon | https://skfb.ly/oG98U | 확인 필요 | 접수 데스크 · 대기 의자 |
-| VR ready hospital props | Grish_Avetisyan | https://skfb.ly/oEGEr | 확인 필요 | 팩 — 쓸 만한 소품 개별 분리 |
+| Morgue Room | LJM | https://skfb.ly/6RHzP | CC BY 4.0 | 시체 보관 서랍벽 · 해부대 |
+| Charité University Hospital - Operating Room | ChrisRE | https://skfb.ly/oCTvA | CC BY 4.0 | 수술등 · 수술대 |
+| Hospital Reception Environment | CaseyPozzobon | https://skfb.ly/oG98U | CC BY 4.0 | 접수 데스크 · 대기 의자 |
+| VR ready hospital props | Grish_Avetisyan | https://skfb.ly/oEGEr | CC BY 4.0 | 팩 — 쓸 만한 소품 개별 분리 |
 
 ### 무기
 
 | 파일(예정) | 원본 모델명 | 제작자 | 출처 링크 | 라이선스 | 용도 |
 |---|---|---|---|---|---|
-| `weapon_pipe.glb` | Bloody Lead Pipe | Molfgang | https://skfb.ly/oWoGT | 확인 필요 | **쇠파이프** (1순위) |
-| — | PS1 Style Horror Pipe Weapon | Jan_Strydom | https://skfb.ly/oTpMT | 확인 필요 | 파이프 예비. PS1 로우파이라 PBR 과 충돌 가능 |
-| `weapon_pistol.glb` | 9mm Pistol | TORI106 | https://skfb.ly/owxRE | 확인 필요 | 권총 |
-| `weapon_crowbar.glb` | Crowbar | NINATOR | https://skfb.ly/o7OtO | 확인 필요 | 지렛대 — `weapons.js` 에 정의 추가 필요 |
+| `weapon_pipe.glb` | Bloody Lead Pipe | Molfgang | https://skfb.ly/oWoGT | CC BY 4.0 | **쇠파이프** (1순위) |
+| — | PS1 Style Horror Pipe Weapon | Jan_Strydom | https://skfb.ly/oTpMT | CC BY 4.0 | 파이프 예비. PS1 로우파이라 PBR 과 충돌 가능 |
+| `weapon_pistol.glb` | 9mm Pistol | TORI106 | https://skfb.ly/owxRE | CC BY 4.0 | 권총 |
+| `weapon_crowbar.glb` | Crowbar | NINATOR | https://skfb.ly/o7OtO | CC BY 4.0 | 지렛대 — `weapons.js` 에 정의 추가 필요 |
 
 > 산탄총은 밸런스 사유로 제외(사용자 판단).
 

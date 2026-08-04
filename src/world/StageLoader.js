@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SURFACE, LOOT } from '../config/balance.js';
 import { Scatter } from './Scatter.js';
 import { BUILDERS, signPlate } from './Props.js';
+import { propModels, pickFile } from './PropModels.js';
 
 const SIGN_COLS = 4, SIGN_ROWS = 4;   // signage_atlas.webp 분할 (gen_signage.py 와 맞춰야 한다)
 
@@ -258,6 +259,15 @@ export class StageLoader {
        *        opts.y 높이 · opts.collide [w,d] 충돌 박스
        */
       addProp3D: (kind, x, z, yaw = 0, opts = {}) => {
+        // Sketchfab GLB 가 있으면 그쪽이 이긴다. 스테이지 파일은 고치지 않는다.
+        // (기울어진 배치 opts.roll/pitch 는 절차적 전용이라 GLB 를 건너뛴다)
+        if (!opts.roll && !opts.pitch && !opts.forceProc) {
+          const file = pickFile(kind, opts.args);
+          if (file && propModels.place(file, x, opts.y ?? 0, z, yaw)) {
+            if (opts.collide) this.collision.addBox(x, z, opts.collide[0], opts.collide[1]);
+            return;
+          }
+        }
         const build = BUILDERS[kind];
         if (!build) { console.warn('[stage] 없는 소품:', kind); return; }
         for (const { mat, geo } of build(...(opts.args ?? []))) {
@@ -267,6 +277,18 @@ export class StageLoader {
           if (yaw) geo.rotateY(yaw);
           geo.translate(x, opts.y ?? 0, z);
           bucket(mat).push(geo);
+        }
+        if (opts.collide) this.collision.addBox(x, z, opts.collide[0], opts.collide[1]);
+      },
+
+      /**
+       * GLB 소품을 이름으로 직접 배치 (PropModels.EXTRA_GLB — 절차적 대응이 없는 것).
+       * 원점이 바닥 중앙이라 y 를 안 주면 바닥에 놓인다.
+       * @param opts.y 높이 · opts.collide [w,d] 충돌 박스
+       */
+      addPropGLB: (name, x, z, yaw = 0, opts = {}) => {
+        if (!propModels.place(name, x, opts.y ?? 0, z, yaw)) {
+          console.warn('[stage] 없는 GLB 소품:', name); return;
         }
         if (opts.collide) this.collision.addBox(x, z, opts.collide[0], opts.collide[1]);
       },
@@ -379,6 +401,7 @@ export class StageLoader {
 
     this.scatter.reset();
     this.interaction.reset();
+    propModels.reset();
     // 바닥 재질 질의 — 발소리가 이걸 본다. 스테이지가 정의하지 않으면 콘크리트
     this.surfaceAt = stage.surfaceAt ?? (() => 'concrete');
     const result = stage.build(ctx) ?? {};
@@ -397,6 +420,9 @@ export class StageLoader {
       if (b.mat.transparent) m.renderOrder = 2;
       this.group.add(m);
     }
+
+    // GLB 소품은 병합 대상이 아니다(재질이 제각각). 대신 같은 소품끼리 인스턴싱으로 묶는다.
+    propModels.flush(this.group);
 
     this.scatter.finalize(this.group);
     this.atmosphere.applyStageMood(stage.meta.mood ?? {});

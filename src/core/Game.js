@@ -11,6 +11,7 @@ import { WeaponSystem } from '../weapons/WeaponSystem.js';
 import { ZombiePool } from '../enemies/ZombiePool.js';
 import { Director } from '../enemies/Director.js';
 import { StageLoader } from '../world/StageLoader.js';
+import { propModels } from '../world/PropModels.js';
 import { Interaction } from '../world/Interaction.js';
 import { HUD } from '../ui/HUD.js';
 import * as hospitalA from '../world/stages/hospital_a.js';
@@ -86,6 +87,9 @@ export class Game {
 
   async start() {
     await this.audio.init();
+    // 소품 GLB 는 스테이지를 짓기 전에 다 읽혀 있어야 한다 (조립이 동기라서).
+    // 실패해도 절차적 소품으로 되돌아가므로 게임은 진행된다.
+    await propModels.preload();
     this.audio.playAmbience();
     this.restart();
   }
