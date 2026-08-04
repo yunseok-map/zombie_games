@@ -180,7 +180,7 @@ export const SURFACE = {
   wallTile: 2.4,
   floorTile: 2.0,
   ceilingTile: 1.2,
-  propTile: 1.0,
+  propTile: 0.55,        // 소품은 작아서 벽보다 촘촘해야 결이 보인다
 
   // 색 보정 — 텍스처는 회색 중립이다. 병원 톤은 여기서 입힌다. (ASSETS.md §3)
   wallTint: 0x7e8c78,      // 병든 institutional green

@@ -57,6 +57,22 @@ function fitBoxUV(geo, w, h, d, tile) {
   return geo;
 }
 
+/**
+ * 소품 부품 UV — 박스든 실린더든 크기에 맞춰 균일하게 늘린다.
+ * 안 하면 3cm 짜리 부품에 텍스처 한 장이 통째로 들어가 노이즈처럼 보인다.
+ */
+function fitGenericUV(geo, tile) {
+  geo.computeBoundingBox();
+  const b = geo.boundingBox;
+  const k = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) / tile;
+  if (k > 0.02) {
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * k, uv.getY(i) * k);
+    uv.needsUpdate = true;
+  }
+  return geo;
+}
+
 function fitPlaneUV(geo, w, d, tile) {
   const uv = geo.attributes.uv;
   for (let i = 0; i < uv.count; i++) {
@@ -95,21 +111,26 @@ export class StageLoader {
     signMap.colorSpace = THREE.SRGBColorSpace;
     signMap.anisotropy = SURFACE.anisotropy;
 
-    // 소품에 요철·거칠기 맵을 얹는다. 완전히 매끈한 재질은 플라스틱처럼 보인다.
-    // 벽 맵을 재사용 — 텍스처가 안 늘어나고, 낮은 normalScale 이면 도장 벗겨짐/마모로 읽힌다.
-    const wear = { normalMap: this.tex.wall.normalMap, roughnessMap: this.tex.wall.roughnessMap };
+    // 소품 전용 PBR 세트 (ambientCG CC0). 벽 맵을 돌려쓰면 소품이 석고처럼 보인다.
+    //   prop_enamel  PaintedMetal013 — 칠이 벗겨진 흰 도장철판. 병상·캐비닛·문
+    //   prop_metal   Metal038        — 긁힌 어두운 강철. 레일·링거대·바퀴
+    //   prop_fabric  Fabric045       — 거친 직물. 매트리스·커튼
+    this.tex.enamel = loadMaps('prop_enamel');
+    this.tex.metal = loadMaps('prop_metal');
+    this.tex.fabric = loadMaps('prop_fabric');
     const N = (k) => new THREE.Vector2(k, k);
 
     Object.assign(this.mat, {
-      metal:      M({ ...wear, color: 0x4a5158, roughness: 0.55, metalness: 0.80, normalScale: N(0.28) }),
-      enamel:     M({ ...wear, color: 0x4e534d, roughness: 0.85, metalness: 0.05, normalScale: N(0.45) }),
-      fabric:     M({ ...wear, color: 0x5c5a52, roughness: 1.0,  metalness: 0,    normalScale: N(0.55) }),
-      accent:     M({ ...wear, color: 0x7a2820, roughness: 0.75, metalness: 0.10, normalScale: N(0.35) }),
-      accentDark: M({ ...wear, color: 0x2a2e30, roughness: 0.95, metalness: 0.15, normalScale: N(0.4) }),
+      metal:      M({ ...this.tex.metal,  color: 0x8a929a, roughness: 1, metalness: 0.75, normalScale: N(0.9) }),
+      enamel:     M({ ...this.tex.enamel, color: 0x7d837c, roughness: 1, metalness: 0.15, normalScale: N(1.0) }),
+      fabric:     M({ ...this.tex.fabric, color: 0x6e6b61, roughness: 1, metalness: 0,    normalScale: N(1.1) }),
+      accent:     M({ ...this.tex.enamel, color: 0x9a3226, roughness: 1, metalness: 0.10, normalScale: N(0.9) }),
+      accentDark: M({ ...this.tex.metal,  color: 0x40464a, roughness: 1, metalness: 0.25, normalScale: N(0.8) }),
       glass:      M({ color: 0x9aa8b0, roughness: 0.08, metalness: 0.1,
                       transparent: true, opacity: 0.20, depthWrite: false }),
-      sheer:      M({ color: 0x8d8f88, roughness: 0.9,
-                      transparent: true, opacity: 0.30, depthWrite: false, side: THREE.DoubleSide }),
+      sheer:      M({ ...this.tex.fabric, color: 0x4a4d47, roughness: 1,
+                      transparent: true, opacity: 0.42, depthWrite: false,
+                      side: THREE.DoubleSide, normalScale: new THREE.Vector2(0.5, 0.5) }),
       lamp:       M({ color: 0x1a1e22, emissive: 0xbcd6ff, emissiveIntensity: 0.85, roughness: 0.4 }),
       plate:      M({ map: signMap, color: 0x8e8e8e, roughness: 0.62, metalness: 0.05 }),
       plateGlow:  M({ map: signMap, color: 0x5a5a5a, emissiveMap: signMap,
@@ -240,6 +261,7 @@ export class StageLoader {
         const build = BUILDERS[kind];
         if (!build) { console.warn('[stage] 없는 소품:', kind); return; }
         for (const { mat, geo } of build(...(opts.args ?? []))) {
+          fitGenericUV(geo, SURFACE.propTile);        // 회전 전에 — 로컬 크기 기준
           if (opts.roll) geo.rotateZ(opts.roll);      // 넘어짐·기울어짐
           if (opts.pitch) geo.rotateX(opts.pitch);
           if (yaw) geo.rotateY(yaw);

@@ -60,6 +60,8 @@ export class Scatter {
       map.colorSpace = THREE.SRGBColorSpace;
       this.decalMat[k] = new THREE.MeshStandardMaterial({
         map,
+        // 손전등이 26cd 라 흰색(기본) 그대로 두면 가까이서 분홍으로 타버린다
+        color: 0x8e8e8e,
         transparent: true,
         depthWrite: false,          // 바닥 위에 겹쳐 눕는 데칼이라 깊이 기록은 안 한다
         roughness: SCATTER.bloodRoughness,
