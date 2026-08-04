@@ -332,6 +332,105 @@ export function emergencyLamp() {
   ];
 }
 
+/* ───────────── 로비·복도 대형 소품 (박스 대체) ───────────── */
+
+/** 접수 데스크 — 카운터 + 상판 턱 + 측면 패널 */
+export function receptionDesk(w = 3.4, d = 1.1) {
+  const h = 1.02;
+  return [
+    P('enamel', box(w, h - 0.06, d - 0.14, 0, (h - 0.06) / 2, -0.05)),
+    P('accentDark', box(w + 0.14, 0.07, d, 0, h, 0)),               // 상판
+    P('accentDark', box(w + 0.1, 0.16, 0.09, 0, h - 0.26, d / 2)),  // 앞면 몰딩
+    P('metal', box(w - 0.4, 0.03, 0.35, 0, h - 0.34, -d / 2 + 0.2)), // 안쪽 선반
+    P('enamel', box(0.1, h, d, -w / 2, h / 2, 0)),
+    P('enamel', box(0.1, h, d, w / 2, h / 2, 0)),
+  ];
+}
+
+/** 연결형 대기 의자 — n 칸 */
+export function chairRow(n = 3) {
+  const sw = 0.52, gap = 0.06, y = 0.44;
+  const total = n * sw + (n - 1) * gap;
+  const parts = [P('metal', box(0.06, 0.06, total, 0, 0.12, 0))];
+  for (let i = 0; i < n; i++) {
+    const z = -total / 2 + sw / 2 + i * (sw + gap);
+    parts.push(P('fabric', box(0.48, 0.07, sw, 0, y, z)));
+    parts.push(P('fabric', box(0.06, 0.42, sw, -0.21, y + 0.24, z)));   // 등받이
+    parts.push(P('metal', box(0.05, y, 0.05, 0.16, y / 2, z - sw / 2 + 0.06)));
+    parts.push(P('metal', box(0.05, y, 0.05, 0.16, y / 2, z + sw / 2 - 0.06)));
+  }
+  return parts;
+}
+
+/** 정문 바리케이드 — 못 박은 판자와 받침 */
+export function barricade(w = 4.0, h = 1.7) {
+  const parts = [];
+  for (let i = 0; i < 5; i++) {
+    const g = new THREE.BoxGeometry(w * (0.85 + (i % 3) * 0.07), 0.19, 0.045);
+    g.rotateZ((i % 2 ? 1 : -1) * (0.04 + i * 0.015));
+    g.translate((i % 2 ? 0.1 : -0.08), 0.25 + i * 0.33, 0);
+    parts.push(P('accentDark', g));
+  }
+  parts.push(P('accentDark', box(0.14, h, 0.14, -w / 2 + 0.3, h / 2, -0.12)));
+  parts.push(P('accentDark', box(0.14, h, 0.14, w / 2 - 0.3, h / 2, -0.12)));
+  const brace = new THREE.BoxGeometry(0.12, h * 1.2, 0.12);
+  brace.rotateZ(0.5); brace.translate(0, h * 0.5, -0.22);
+  parts.push(P('accentDark', brace));
+  return parts;
+}
+
+/** 자판기 — 유리 전면 + 배출구 */
+export function vendingMachine() {
+  const w = 0.9, h = 1.85, d = 0.72;
+  return [
+    P('accentDark', box(w, h, d, 0, h / 2, 0)),
+    P('glass', box(w - 0.16, h * 0.55, 0.03, 0, h * 0.63, d / 2 - 0.01)),
+    P('metal', box(w - 0.2, 0.03, 0.3, 0, h * 0.45, d / 2 - 0.18)),   // 선반
+    P('metal', box(w - 0.2, 0.03, 0.3, 0, h * 0.66, d / 2 - 0.18)),
+    P('accentDark', box(w - 0.3, 0.26, 0.06, 0, 0.34, d / 2)),        // 배출구
+    P('metal', box(0.16, 0.5, 0.04, w / 2 - 0.16, h * 0.55, d / 2)),  // 버튼 패널
+  ];
+}
+
+/** 검사대 — 상판 높이 0.95 를 유지한다 (카드키가 여기 올라간다) */
+export function examTable(w = 3.6, d = 0.6) {
+  const h = 0.95;
+  const parts = [
+    P('enamel', box(w, 0.06, d, 0, h - 0.03, 0)),
+    P('fabric', box(w - 0.1, 0.05, d - 0.06, 0, h + 0.03, 0)),
+    P('metal', box(w - 0.3, 0.03, d - 0.2, 0, h - 0.42, 0)),          // 하단 선반
+  ];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    parts.push(P('metal', cyl(0.026, h - 0.06, sx * (w / 2 - 0.14), (h - 0.06) / 2, sz * (d / 2 - 0.1), 6)));
+  }
+  return parts;
+}
+
+/** 계단 — 실제 단을 만든다. 탈출구 표식 */
+export function stairs(w = 6.0, steps = 6, rise = 0.2, run = 0.17) {
+  const parts = [];
+  for (let i = 0; i < steps; i++) {
+    parts.push(P('accentDark', box(w, rise, run * (steps - i) + 0.1,
+      0, rise / 2 + i * rise, -(run * i) / 2)));
+  }
+  parts.push(P('metal', cyl(0.028, w, 0, steps * rise + 0.9, run * steps * 0.5, 8, 'x')));
+  return parts;
+}
+
+/** 넘어진 가구 더미 — 복도 장애물 */
+export function rubblePile(w = 1.6, h = 1.2, d = 0.7) {
+  const parts = [
+    P('enamel', box(w, h * 0.55, d, 0, h * 0.28, 0, 0.12)),
+    P('accentDark', box(w * 0.7, 0.05, d * 0.9, 0.1, h * 0.58, 0.05, 0.4)),
+  ];
+  const top = new THREE.BoxGeometry(w * 0.55, h * 0.42, d * 0.7);
+  top.rotateZ(0.42); top.rotateY(0.6);
+  top.translate(-0.1, h * 0.72, 0.05);
+  parts.push(P('enamel', top));
+  parts.push(P('metal', box(0.05, 0.05, w * 0.8, 0.3, h * 0.62, 0, 1.1)));
+  return parts;
+}
+
 /* ───────────────── Phase 4 · 사이니지(판) ───────────────── */
 
 /**
@@ -353,4 +452,5 @@ export const BUILDERS = {
   doorFrame, doorPanel, doorFallen, boardedDoor,
   bed, ivStand, ivStandFallen, wheelchair, cart, cabinet, extinguisher, curtain,
   ceilingLight, emergencyLamp, ceilingTileFallen, ceilingHole, gurneyToppled,
+  receptionDesk, chairRow, barricade, vendingMachine, examTable, stairs, rubblePile,
 };

@@ -72,11 +72,11 @@ export function build(ctx) {
   addWall(CORR_HALF + sideW / 2, 0, sideW, WALL_T);
 
   // 로비 소품 — 접수 데스크, 대기 의자, 바리케이드
-  addProp(-4.5, -12, 3.4, 1.0, 1.1, 0x4a4136);          // 접수 데스크
-  addProp(4.2, -13, 1.0, 0.9, 3.0, 0x3e4a45);           // 대기 의자열
-  addProp(4.2, -8.5, 1.0, 0.9, 3.0, 0x3e4a45);
-  addProp(0, -15.2, 4.0, 1.6, 0.5, 0x5a4a3a);           // 정문 바리케이드
-  addProp(-6.6, -3.2, 0.7, 1.1, 0.7, 0x2f3a34);         // 자판기
+  addProp3D('receptionDesk', -4.5, -12, 0, { args: [3.4, 1.1], collide: [3.6, 1.15] });
+  addProp3D('chairRow', 4.2, -13, 0, { args: [4], collide: [0.7, 2.5] });
+  addProp3D('chairRow', 4.2, -8.5, 0, { args: [4], collide: [0.7, 2.5] });
+  addProp3D('barricade', 0, -15.2, 0, { args: [4.0, 1.7], collide: [4.2, 0.6] });
+  addProp3D('vendingMachine', -6.9, -3.2, Math.PI / 2, { collide: [0.75, 0.95] });
   addLight(0, 2.85, -11, 'flicker');
   addLight(-5, 2.85, -4, 'pulse', 0x2e6a5a);
   addSpawn(-6.5, -14); addSpawn(6.5, -14); addSpawn(6.8, -4);
@@ -203,7 +203,7 @@ export function build(ctx) {
         bedBlood(bx, zc + 0.2, 1.25);
         addBlood(bx - sx * 0.85, zc + 1.1, 1.5, 'drag');       // 침대에서 끌려나간 자국
       } else if (preset === 2) {
-        addProp(roomCx, zc - 2.0, 3.6, 0.95, 0.6, 0x4a4f45);   // 검사대 (카드키가 올라간다)
+        addProp3D('examTable', roomCx, zc - 2.0, 0, { args: [3.6, 0.6], collide: [3.6, 0.65] });
         addProp3D('cart', bx, zc + 1.8, rnd() * 6.28, { collide: [0.7, 0.5] });
         roomSearch(bx, zc + 1.4, '처치 카트');
         addProp3D('cabinet', roomCx - sx * 2.2, zc + 1.0, -sx * Math.PI / 2, { collide: [0.5, 0.75] });
@@ -265,9 +265,9 @@ export function build(ctx) {
   addSign(11, 0, 2.55, 27.0, Math.PI, 1.5, 0.42);
 
   // 복도 장애물 — 시야를 끊어 긴장을 만든다
-  addProp(-0.9, 12.5, 1.6, 1.2, 0.7, 0x4a4136);
-  addProp(1.15, 26.0, 1.3, 1.5, 0.8, 0x3e4a45);
-  addProp(-1.0, 34.5, 1.7, 0.9, 0.6, 0x5a4a3a);   // 한쪽에 붙인다 — 가운데 두면 통과 폭이 0.1m 밖에 안 남는다
+  addProp3D('rubblePile', -0.9, 12.5, 0.3, { args: [1.6, 1.2, 0.7], collide: [1.6, 0.75] });
+  addProp3D('rubblePile', 1.15, 26.0, -0.5, { args: [1.3, 1.5, 0.8], collide: [1.3, 0.85] });
+  addProp3D('rubblePile', -1.0, 34.5, 0.9, { args: [1.7, 0.9, 0.6], collide: [1.7, 0.65] });   // 한쪽에 붙인다 — 가운데 두면 통과 폭이 0.1m 밖에 안 남는다
 
   // 무너진 천장 — 타일이 떨어져 바닥에 흩어지고 그 자리엔 배선이 늘어져 있다
   for (const [cz, ox] of [[8.5, 0.5], [19.0, -0.6], [31.5, 0.4]]) {
@@ -308,7 +308,7 @@ export function build(ctx) {
   const gap = (8 - CORR_HALF * 2) / 2;
   addWall(-(CORR_HALF + gap / 2), CORR_LEN, gap, WALL_T);
   addWall(CORR_HALF + gap / 2, CORR_LEN, gap, WALL_T);
-  addProp(0, stZ + 3.2, 6.0, 1.2, 1.0, 0x3f453f);       // 계단 (탈출구 표식)
+  addProp3D('stairs', 0, stZ + 3.5, Math.PI, { args: [6.0, 6], collide: [6.0, 1.1] });   // 계단 (탈출구)
   addLight(0, 2.85, stZ, 'steady', 0x2e7a4a);
   addSpawn(-3, stZ); addSpawn(3, stZ);
 

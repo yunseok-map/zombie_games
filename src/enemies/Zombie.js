@@ -49,7 +49,7 @@ export class Zombie {
     this.actions = null;
     this.curAnim = null;
     this._prevX = 0; this._prevZ = 0; this._moveSpeed = 0;
-    this._jitter = 1; this._screamTimer = 0;
+    this._jitter = 1; this._screamTimer = 0; this.flinch = 0; this._flinchTotal = 0.5;
     requestZombieModel((inst) => this._attachModel(inst));
 
     this.def = ZOMBIE.shambler;
@@ -71,7 +71,7 @@ export class Zombie {
   /** 상태 → 클립 종류 */
   _animKey() {
     if (this.state === 'DEAD') return 'death';
-    if (this.stun > 0) return 'hit';
+    if (this.stun > 0 || this.flinch > 0) return 'hit';
     if (this._screamTimer > 0) return 'scream';        // 발견 순간의 포효
     if (this.state === 'ATTACK') return 'attack';
     if (this.state === 'CHASE') return 'run';
@@ -98,6 +98,11 @@ export class Zombie {
       const ref = key === 'run' ? this.def.speedChase : this.def.speedWander;
       next.timeScale = THREE.MathUtils.clamp(this._moveSpeed / Math.max(ref, 0.1), 0.4, 2.2)
         * this._jitter;
+    } else if (next && key === 'hit') {
+      // hit_01 은 2.6초짜리라 스턴(1.4초) 안에 절반만 나오고 잘린다.
+      // 플린치 시간에 맞춰 압축해서 동작이 끝까지 보이게 한다.
+      // 상한을 안 걸면 짧은 플린치(0.42초)에서 6배 속도가 나와 경련처럼 보인다.
+      next.timeScale = Math.min(2.6, next.getClip().duration / Math.max(this._flinchTotal, 0.2));
     } else if (next && key === 'attack') {
       // 한 번 휘두르는 시간이 공격 쿨다운과 맞게 — 루프로 계속 휘두르면 우스워진다
       next.timeScale = (next.getClip().duration / this.def.attackCooldown) * this._jitter;
@@ -105,6 +110,7 @@ export class Zombie {
       next.timeScale = this._jitter;
     }
     if (this._screamTimer > 0) this._screamTimer -= dt;
+    if (this.flinch > 0) this.flinch -= dt;
 
     this.mixer.update(dt);
   }
@@ -120,6 +126,7 @@ export class Zombie {
     this.target = { x: 0, z: 0 };
     this.wanderTimer = 0;
     this.deathTimer = 0;
+    this.flinch = 0;
     this.groanTimer = Math.random() * 6;
   }
 
@@ -175,6 +182,9 @@ export class Zombie {
     this.hp -= damage;
     this.stun = Math.max(this.stun, stun / (this.def.stunResist || 1));
     if (headshot) this.stun += 0.15;
+    // 플린치는 연출 전용 — AI 를 멈추지 않는다. 스턴이 0인 총알도 움찔하게 만든다.
+    this._flinchTotal = Math.max(0.42, this.stun);
+    this.flinch = this._flinchTotal;
 
     if (this.hp <= 0) {
       this.state = 'DEAD';

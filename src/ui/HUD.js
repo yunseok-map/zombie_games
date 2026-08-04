@@ -28,6 +28,33 @@ export class HUD {
     document.body.appendChild(this.dbg);
     this._fps = 0;
 
+    // ── 긴장 연출 레이어 ──────────────────────────────────
+    // 체력이 깎이면 화면 가장자리가 붉게 맥동하고, 배터리가 바닥나면 경고가 뜬다.
+    // 숫자를 읽게 하지 말고 몸으로 느끼게 만드는 게 목적이다.
+    const css = document.createElement('style');
+    css.textContent = `
+      #vig{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;
+        background:radial-gradient(ellipse at center,transparent 42%,rgba(96,8,6,.85) 100%);
+        transition:opacity .35s}
+      #vig.on{animation:pulse 1.15s ease-in-out infinite}
+      @keyframes pulse{0%,100%{opacity:.34}50%{opacity:.72}}
+      #warn{position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:6;
+        font:600 12px/1 ui-monospace,monospace;letter-spacing:.32em;color:#c8503c;
+        opacity:0;transition:opacity .2s;pointer-events:none;text-shadow:0 0 12px rgba(200,60,40,.7)}
+      #warn.on{animation:blink .9s steps(1) infinite}
+      @keyframes blink{0%,55%{opacity:.95}56%,100%{opacity:.15}}
+      #bars .bar{transition:box-shadow .3s}
+      #bars .bar.crit{box-shadow:0 0 10px rgba(210,50,36,.85)}
+      #crosshair{transition:transform .12s ease-out,opacity .2s}
+    `;
+    document.head.appendChild(css);
+    this.vig = document.createElement('div'); this.vig.id = 'vig';
+    this.warn = document.createElement('div'); this.warn.id = 'warn';
+    document.body.append(this.vig, this.warn);
+    this.crosshair = document.getElementById('crosshair');
+    this.hpBar = document.getElementById('hp');
+    this.battBar = document.getElementById('batt');
+
     bus.on(EV.HINT, ({ text, duration = 2 }) => this.showHint(text, duration));
     bus.on(EV.PLAYER_DAMAGED, () => this.flashDamage());
     bus.on(EV.AMMO_CHANGED, (a) => this.setAmmo(a));
@@ -93,6 +120,34 @@ export class HUD {
     this.hp.style.transform = `scaleX(${player.hp / PLAYER.maxHp})`;
     this.stam.style.transform = `scaleX(${player.stamina / PLAYER.maxStamina})`;
     this.batt.style.transform = `scaleX(${flashlight.battery / FLASHLIGHT.maxBattery})`;
+
+    // 체력이 낮을수록 화면 가장자리가 붉게 맥동한다
+    const hpRatio = player.hp / PLAYER.maxHp;
+    const hurt = hpRatio < 0.4;
+    this.vig.style.opacity = hurt ? '' : '0';
+    this.vig.classList.toggle('on', hurt);
+    this.hpBar?.classList.toggle('crit', hpRatio < 0.25);
+
+    // 배터리 경고 — 손전등이 이 게임의 생명줄이다
+    const battRatio = flashlight.battery / FLASHLIGHT.maxBattery;
+    const battLow = battRatio < 0.2;
+    this.battBar?.classList.toggle('crit', battLow);
+    const msg = flashlight.battery <= 0 ? '배터리 없음'
+      : battLow ? '배터리 부족'
+        : hpRatio < 0.25 ? '치명상' : '';
+    if (msg !== this._warnMsg) {
+      this._warnMsg = msg;
+      this.warn.textContent = msg;
+      this.warn.classList.toggle('on', !!msg);
+      this.warn.style.opacity = msg ? '' : '0';
+    }
+
+    // 크로스헤어 — 움직일수록 벌어지고 흐려진다 (정지 사격을 유도)
+    if (this.crosshair) {
+      const spread = Math.min(1, player.speed / PLAYER.speedSprint);
+      this.crosshair.style.transform = `scale(${1 + spread * 0.9})`;
+      this.crosshair.style.opacity = String(0.85 - spread * 0.45);
+    }
 
     if (this._hintTimer > 0) {
       this._hintTimer -= dt;
