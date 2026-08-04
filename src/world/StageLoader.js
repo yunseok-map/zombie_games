@@ -293,6 +293,35 @@ export class StageLoader {
         });
       },
 
+      /**
+       * 레버 — 올리면 큰 소음이 나고 콜백이 불린다 (발전기 복구용).
+       * onPull 은 몇 번째인지(1부터)를 받는다.
+       */
+      addLever: (x, z, yaw, label, onPull) => {
+        const pulled = { done: false };
+        for (const { mat, geo } of BUILDERS.lever()) {
+          fitGenericUV(geo, SURFACE.propTile);
+          if (yaw) geo.rotateY(yaw);
+          geo.translate(x, 0, z);
+          bucket(mat).push(geo);
+        }
+        this.interaction.add({
+          x, z, radius: 2.0, once: true, noisy: true,
+          prompt: () => `[E]  ${label} 올리기`,
+          onUse: () => { pulled.done = true; return onPull?.() ?? `${label} 작동`; },
+        });
+      },
+      /** 이벤트용 강제 웨이브 */
+      triggerWave: (count, type) => this.director?.triggerWave(count, type),
+      /** 구역 분위기 전환 (전원 복구 등) */
+      setMood: (mood) => this.atmosphere.applyStageMood(mood),
+      /** 등록된 비상등 전부의 모드·밝기를 바꾼다 */
+      setLights: (mode, scale = 1) => {
+        for (const e of this.atmosphere.emergencyLights) {
+          e.mode = mode; e.base = e.base * scale; e.value = 1;
+        }
+      },
+
       /** 명패·포스터·표지. slot 은 아틀라스 칸 번호 (0~15), glow 면 자체발광 */
       addSign: (slot, x, y, z, yaw, w, h, glow = false, roll = 0) => {
         const col = slot % SIGN_COLS, row = Math.floor(slot / SIGN_COLS);

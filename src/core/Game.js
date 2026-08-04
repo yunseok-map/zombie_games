@@ -14,6 +14,10 @@ import { StageLoader } from '../world/StageLoader.js';
 import { Interaction } from '../world/Interaction.js';
 import { HUD } from '../ui/HUD.js';
 import * as hospitalA from '../world/stages/hospital_a.js';
+import * as hospitalB from '../world/stages/hospital_b.js';
+
+/** 구역 진행 순서. 마지막 구역의 출구에 닿아야 클리어다. */
+const STAGES = [hospitalA, hospitalB];
 
 /**
  * Game — 시스템 조립과 루프만 담당한다. 게임 규칙은 각 시스템에 있다.
@@ -87,8 +91,9 @@ export class Game {
   }
 
   restart() {
+    this.stageIndex = 0;
     this.pool.despawnAll();
-    const start = this.stageLoader.load(hospitalA);
+    const start = this.stageLoader.load(STAGES[0]);
     this.player.surfaceAt = this.stageLoader.surfaceAt;
     this.player.spawn(start.x, start.z, start.yaw);
     this.flashlight.battery = 100;
@@ -100,6 +105,21 @@ export class Game {
     this.hud.show();
     this.weapons._emitAmmo();
     bus.emit(EV.HINT, { text: 'F 를 눌러 손전등을 켜라', duration: 4 });
+  }
+
+  /** 다음 구역으로. 체력·배터리는 이어진다 — 구역을 넘는 게 회복 기회가 되면 긴장이 죽는다 */
+  _nextStage() {
+    const hp = this.player.hp;
+    const battery = this.flashlight.battery;
+    this.stageIndex++;
+    this.pool.despawnAll();
+    const stage = STAGES[this.stageIndex];
+    const start = this.stageLoader.load(stage);
+    this.player.surfaceAt = this.stageLoader.surfaceAt;
+    this.player.spawn(start.x, start.z, start.yaw);
+    this.player.hp = hp;
+    this.flashlight.battery = battery;
+    bus.emit(EV.HINT, { text: stage.meta?.label ?? '', duration: 4 });
   }
 
   pause() {
@@ -192,7 +212,10 @@ export class Game {
       const ex = this.stageLoader.exit;
       if (ex) {
         const d = Math.hypot(this.player.pos.x - ex.x, this.player.pos.z - ex.z);
-        if (d < ex.radius) this.onClear();
+        if (d < ex.radius) {
+          if (this.stageIndex < STAGES.length - 1) this._nextStage();
+          else this.onClear();
+        }
       }
     }
 

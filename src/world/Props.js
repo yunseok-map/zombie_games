@@ -431,6 +431,17 @@ export function rubblePile(w = 1.6, h = 1.2, d = 0.7) {
   return parts;
 }
 
+/** 전원 레버 — 벽에 붙은 차단기 박스 + 손잡이 */
+export function lever() {
+  return [
+    P('accentDark', box(0.34, 0.5, 0.16, 0, 1.15, 0)),
+    P('metal', box(0.26, 0.4, 0.03, 0, 1.15, 0.09)),
+    P('accent', cyl(0.035, 0.24, 0, 1.05, 0.14, 8)),        // 손잡이
+    P('metal', cyl(0.05, 0.05, 0, 1.2, 0.12, 8, 'z')),      // 축
+    P('accentDark', box(0.42, 0.06, 0.2, 0, 1.44, 0)),      // 상단 갓
+  ];
+}
+
 /* ───────────────── Phase 4 · 사이니지(판) ───────────────── */
 
 /**
@@ -452,5 +463,5 @@ export const BUILDERS = {
   doorFrame, doorPanel, doorFallen, boardedDoor,
   bed, ivStand, ivStandFallen, wheelchair, cart, cabinet, extinguisher, curtain,
   ceilingLight, emergencyLamp, ceilingTileFallen, ceilingHole, gurneyToppled,
-  receptionDesk, chairRow, barricade, vendingMachine, examTable, stairs, rubblePile,
+  receptionDesk, chairRow, barricade, vendingMachine, examTable, stairs, rubblePile, lever,
 };

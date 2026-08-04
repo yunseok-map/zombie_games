@@ -221,6 +221,17 @@ export const INJURY = {
   limpRoll: 0.035,               // 걸을 때 몸이 기우는 각도(rad)
 };
 
+/** 구역 B 발전기 복구 이벤트 (SPEC.md §3) */
+export const GENERATOR = {
+  leverCount: 3,
+  waveOnLever: 4,        // 레버 하나당 불러오는 좀비 수
+  waveOnComplete: 9,     // 3개 완료 직후 대규모 웨이브
+  reliefSeconds: 2.2,    // 불이 켜지고 안도하는 시간. 그 다음이 진짜다
+  litAmbient: 1.15,      // 복구 후 앰비언트. 0.4 대로는 화면에서 "켜졌다"가 안 읽힌다 —
+                         // 이 2초의 안도가 뒤이은 웨이브의 낙차를 만든다
+  litFog: 0.022,
+};
+
 export const GAME = {
   difficultyMultiplier: 1.0,  // 0.7 쉬움 / 1.0 보통 / 1.4 어려움
 };
