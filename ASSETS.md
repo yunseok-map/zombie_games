@@ -109,6 +109,71 @@ Korean and English warning text, torn corner, stained, flat lighting, 1024x1024
 
 ---
 
+## 6. 좀비 모델 준비 절차 (Mixamo → GLB)
+
+> 이 절차는 `fbx_to_glb.py` 가 전제하는 계약이다. 파일명과 위치만 맞으면 나머지는 자동이다.
+
+### 6-1. 준비물
+
+| 항목 | 상태 |
+|---|---|
+| Blender 4.5 LTS | `C:\Program Files\Blender Foundation\Blender 4.5lender.exe` (설치 완료) |
+| Mixamo 계정 | Adobe ID 로그인 필요 |
+
+### 6-2. Mixamo 다운로드 설정 (매 파일 동일)
+
+| 항목 | 값 |
+|---|---|
+| Format | `FBX Binary(.fbx)` |
+| **Skin** | **`idle` 만 `With Skin`**, 나머지 전부 `Without Skin` |
+| Frames per Second | `30` |
+| Keyframe Reduction | `none` |
+
+> **Characters 탭에서 캐릭터를 먼저 고른 뒤** Animations 를 받는다. 순서가 반대면 기본 마네킹으로 받아진다.
+> `With Skin` 을 여러 개 받으면 같은 몸이 중복돼 파일이 몇 배가 된다.
+
+### 6-3. 파일명 = 애니메이션 클립 이름
+
+필수 5개 — 상태머신(`enemies/Zombie.js`)이 요구한다.
+
+| 파일명 | 동작 | 쓰이는 상태 |
+|---|---|---|
+| `idle.fbx` | 서서 흔들거림 | 정지 시 |
+| `walk.fbx` | 느릿한 배회 걷기 | `WANDER` · `SEARCH` · `ALERT` |
+| `run.fbx` | 달리기 | `CHASE` |
+| `attack.fbx` | 후려치기 / 물기 | `ATTACK` |
+| `death.fbx` | 쓰러짐 | `DEAD` |
+
+선택 — 변형은 `_01` `_02` 를 붙인다. 코드에서 개체마다 무작위로 고른다.
+`walk_02` · `attack_02` · `death_02` · `scream` · `hit` · `crawl` · `standing_up`
+
+> 소문자 + 언더스코어만. `walk (1).fbx` 로 들어가면 클립 이름이 `walk (1)` 이 되어 코드가 못 찾는다.
+
+### 6-4. 보관 위치
+
+```
+fbx_src/                              ← 원본 FBX (gitignore 됨. 무거워서 저장소에 안 올린다)
+public/assets/models/zombie_shambler.glb   ← 변환 결과물 (이것만 커밋된다)
+```
+
+### 6-5. 변환
+
+```
+blender --background --python fbx_to_glb.py -- fbx_src public/assets/models/zombie_shambler.glb
+```
+
+스크립트가 자동으로 처리하는 것 — **아래는 신경 쓸 필요 없다**:
+
+| 항목 | 처리 |
+|---|---|
+| 루트 이동 (Mixamo `In Place`) | 모든 클립에서 무조건 제거. 위치는 `Zombie.js` 가 정한다 |
+| 모델 크기 | 1.75m 로 정규화 (Mixamo 는 cm 단위라 그냥 쓰면 100배) |
+| 삼각형 수 | 6000 초과 시 데시메이트 |
+| 축 | Y-up 으로 변환 |
+| 클립 병합 | FBX 여러 개 → 애니메이션이 전부 든 GLB 하나 |
+
+---
+
 ## 5. 라이선스 기록 (제출물 심사 대응 — 반드시 채운다)
 
 | 에셋 | 생성/출처 | 플랜 | 상업 이용 | 비고 |
