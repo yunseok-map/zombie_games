@@ -159,8 +159,11 @@ public/assets/models/zombie_shambler.glb   ← 변환 결과물 (이것만 커�
 ### 6-5. 변환
 
 ```
-blender --background --python fbx_to_glb.py -- fbx_src public/assets/models/zombie_shambler.glb
+blender --background --python fbx_to_glb.py -- fbx_src public/assets/models/zombie_shambler.glb idle_03.fbx
 ```
+
+세 번째 인자는 **본체(캐릭터 메시)로 쓸 파일**이다. `With Skin` 을 여러 개 받았을 때
+어느 캐릭터를 쓸지 정한다. 생략하면 메시가 든 첫 파일이 잡힌다.
 
 스크립트가 자동으로 처리하는 것 — **아래는 신경 쓸 필요 없다**:
 
@@ -170,6 +173,7 @@ blender --background --python fbx_to_glb.py -- fbx_src public/assets/models/zomb
 | 모델 크기 | 1.75m 로 정규화 (Mixamo 는 cm 단위라 그냥 쓰면 100배) |
 | 삼각형 수 | 6000 초과 시 데시메이트 |
 | 축 | Y-up 으로 변환 |
+| 텍스처 | 1024 이하로 축소 + WebP 변환 (2048 PNG 4장이면 GLB 가 18MB 가 된다) |
 | 클립 병합 | FBX 여러 개 → 애니메이션이 전부 든 GLB 하나 |
 
 ---
@@ -186,6 +190,7 @@ blender --background --python fbx_to_glb.py -- fbx_src public/assets/models/zomb
 | sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
 | sfx_{pistol_fire,flashlight_click,axe_swing,axe_hit_flesh,reload_pistol,player_hurt}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
 | amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 20초 루프 (API 최대 길이 22초) |
+| zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 19클립. 6k tri / 1024 WebP |
 
 > **왜 OGG 가 아니라 MP3 인가** — ElevenLabs 는 OGG 를 내주지 않고 이 PC 에 ffmpeg 이 없다.
 > 브라우저 Web Audio 는 MP3 를 전부 디코딩하므로 게임 동작은 동일하다. MP3 특허는 2017년 만료.
