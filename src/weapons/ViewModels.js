@@ -2,11 +2,17 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
- * GLB 무기 — 절차적 모델보다 나은 것만 쓴다.
- * Kenney Survival Kit (CC0). 나머지는 아래 절차적 빌더가 담당한다.
+ * GLB 무기 — 절차적 모델보다 나은 것만 쓴다. 나머지는 아래 절차적 빌더가 담당한다.
+ *   axe · molotov     : Kenney Survival Kit (CC0)
+ *   pipe·pistol·crowbar : Sketchfab (CC BY 4.0 — 크레딧은 ASSETS.md §4-B)
+ * Sketchfab 3종은 tools/import_props.py 가 실물 크기·중심 원점으로 맞춰 놨다.
+ * 손에 드는 각도는 config/balance.js 의 WEAPON_VIEW 에서 조절한다.
  */
 const GLB_DIR = `${import.meta.env.BASE_URL}assets/models/weapons/`;
-const GLB_WEAPONS = { axe: 'weapon_axe', molotov: 'weapon_molotov' };
+const GLB_WEAPONS = {
+  axe: 'weapon_axe', molotov: 'weapon_molotov',
+  pipe: 'weapon_pipe', pistol: 'weapon_pistol', crowbar: 'weapon_crowbar',
+};
 const _glb = {};
 
 /** 게임 시작 전에 부른다. 실패해도 절차적 모델로 대체된다 */

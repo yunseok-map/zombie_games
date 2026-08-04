@@ -15,6 +15,12 @@ export const WEAPONS = {
     damage: 26, cooldown: 0.52, range: 2.0, arcDeg: 70,
     stun: 1.4, noise: 'melee', viewColor: 0x8a8d90, viewScale: [0.05, 0.05, 1.0],
   },
+  crowbar: {
+    // 쇠파이프보다 무겁고 느리지만 한 방이 크다. 기절이 길어 한 마리씩 처리하기 좋다.
+    id: 'crowbar', label: '쇠지렛대', type: 'melee', slot: 1,
+    damage: 34, cooldown: 0.68, range: 2.1, arcDeg: 60,
+    stun: 1.8, noise: 'melee', viewColor: 0x6f7276, viewScale: [0.05, 0.05, 1.05],
+  },
   extinguisher: {
     id: 'extinguisher', label: '소화기', type: 'melee', slot: 1,
     damage: 40, cooldown: 1.0, range: 1.9, arcDeg: 90,

@@ -248,6 +248,15 @@ export const WEAPON_VIEW = {
   //   rot X = -90°  : 원본이 Y 로 서 있으므로 눕혀서 -Z(정면)로 향하게
   axe:     { scale: 2.55, rot: [-Math.PI / 2, 0.28, 0.10], pos: [0, 0.02, -0.02] },
   molotov: { scale: 1.70, rot: [-Math.PI / 2, 0.30, 0.00], pos: [0, -0.02, -0.02] },
+
+  // Sketchfab 3종 — 이미 실물 크기(m)라 scale 은 1 이다. 원점은 물체 중심.
+  //   pipe·crowbar : 원본이 Y 로 서 있다 → X -90° 로 눕혀 -Z(정면)를 향하게
+  //   pistol       : 원본이 X 로 누워 있다 → Y 로 돌려 총구를 -Z 로
+  // colorMul 은 개별로 준다 — Kenney(민무늬 회색)와 달리 PBR 텍스처가 있어서
+  // 0.12 로 누르면 새까매진다.
+  pipe:    { scale: 1.00, rot: [-Math.PI / 2, 0.34, 0.14], pos: [0.02, -0.02, -0.06], colorMul: 0.60 },
+  crowbar: { scale: 1.00, rot: [-Math.PI / 2, 0.36, 0.12], pos: [0.02, -0.02, -0.10], colorMul: 0.60 },
+  pistol:  { scale: 1.00, rot: [0, -Math.PI / 2, 0.04], pos: [0, 0.05, -0.04], colorMul: 0.55 },
   // GLB 재질은 밝은 회색(c0c0c0). 손전등이 0.45m 앞에서 26cd 라
   // 알베도 0.09 정도로도 클리핑된다. 화면 보고 이 값만 조절하면 된다.
   colorMul: 0.12,

@@ -90,6 +90,14 @@ export class WeaponSystem {
     this._emitAmmo();
   }
 
+  /**
+   * 뷰모델을 다시 만든다. **GLB 프리로드가 끝난 뒤 한 번 불러야 한다.**
+   * main.js 가 Game 을 먼저 만들고 모델을 나중에 받으므로, 시작 무기(쇠파이프·권총)는
+   * 생성 시점에 GLB 가 없어서 절차적 모델로 만들어진다. 그대로 두면 시작 무기만
+   * 계속 절차적으로 보인다 (다른 무기로 바꿨다 돌아오면 그때야 GLB 가 나온다).
+   */
+  refreshViewModel() { this._buildViewModel(); }
+
   _buildViewModel() {
     for (const m of this.viewParts) { this.viewRoot.remove(m); m.geometry?.dispose(); }
     this.viewParts.length = 0;
@@ -110,7 +118,9 @@ export class WeaponSystem {
         o.frustumCulled = false;
         // 손전등 코앞이라 원본 색 그대로면 하얗게 탄다
         o.material = o.material.clone();
-        o.material.color.multiplyScalar(SURFACE.viewModelDim * (WEAPON_VIEW.colorMul ?? 1));
+        // 무기별 값이 있으면 그걸 쓴다 — 텍스처 있는 모델과 민무늬 모델은 기준이 다르다
+        o.material.color.multiplyScalar(
+          SURFACE.viewModelDim * (v.colorMul ?? WEAPON_VIEW.colorMul ?? 1));
       });
       this.viewRoot.add(glb);
       this.viewParts.push(glb);
