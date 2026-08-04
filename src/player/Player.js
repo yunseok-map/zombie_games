@@ -22,6 +22,7 @@ export class Player {
     this.crouching = false;
     this.sprinting = false;
     this.alive = true;
+    this.items = new Set();    // 카드키 같은 열쇠 아이템 (무기는 WeaponSystem 이 갖는다)
 
     this.eyeHeight = WORLD.eyeHeight;
     this._bobPhase = 0;
@@ -38,6 +39,7 @@ export class Player {
     this.hp = PLAYER.maxHp;
     this.stamina = PLAYER.maxStamina;
     this.alive = true;
+    this.items.clear();        // 재시작하면 구역도 다시 만들어지므로 아이템도 초기화한다
     this._invuln = 0;
     this._syncCamera(0);
   }

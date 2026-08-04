@@ -9,12 +9,18 @@ export class Collision {
 
   clear() { this.boxes.length = 0; }
 
-  /** 중심(cx,cz) 기준 폭 w, 깊이 d 박스 추가 */
+  /**
+   * 중심(cx,cz) 기준 폭 w, 깊이 d 박스 추가.
+   * @returns 박스 객체. `box.enabled = false` 로 끄면 통과할 수 있다 (문 열기용).
+   */
   addBox(cx, cz, w, d) {
-    this.boxes.push({
+    const box = {
       minX: cx - w / 2, maxX: cx + w / 2,
       minZ: cz - d / 2, maxZ: cz + d / 2,
-    });
+      enabled: true,
+    };
+    this.boxes.push(box);
+    return box;
   }
 
   /**
@@ -25,6 +31,7 @@ export class Collision {
     let hit = false;
     for (let i = 0; i < this.boxes.length; i++) {
       const b = this.boxes[i];
+      if (!b.enabled) continue;                 // 열린 문
       // 원 중심에서 박스까지 가장 가까운 점
       const cx = Math.max(b.minX, Math.min(x, b.maxX));
       const cz = Math.max(b.minZ, Math.min(z, b.maxZ));
@@ -57,6 +64,7 @@ export class Collision {
   /** (x,z) 가 벽 안인가 — 스폰 지점 검증용 */
   isBlocked(x, z, r = 0.3) {
     for (const b of this.boxes) {
+      if (!b.enabled) continue;
       if (x > b.minX - r && x < b.maxX + r && z > b.minZ - r && z < b.maxZ + r) return true;
     }
     return false;

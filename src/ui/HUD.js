@@ -18,6 +18,7 @@ export class HUD {
 
     this._hintTimer = 0;
     this._dmgTimer = 0;
+    this._prompt = null;
 
     bus.on(EV.HINT, ({ text, duration = 2 }) => this.showHint(text, duration));
     bus.on(EV.PLAYER_DAMAGED, () => this.flashDamage());
@@ -34,9 +35,26 @@ export class HUD {
   }
 
   showHint(text, duration = 2) {
+    if (this._prompt) return;          // 상호작용 안내가 떠 있으면 그게 우선이다
     this.hint.textContent = text;
     this.hint.classList.add('on');
     this._hintTimer = duration;
+  }
+
+  /**
+   * 상호작용 안내 — 대상 앞에 서 있는 동안 계속 떠 있는다.
+   * 매 프레임 불려도 값이 안 바뀌면 DOM 을 건드리지 않는다.
+   */
+  setPrompt(text) {
+    if (text === this._prompt) return;
+    this._prompt = text;
+    if (text) {
+      this.hint.textContent = text;
+      this.hint.classList.add('on');
+      this._hintTimer = 0;
+    } else {
+      this.hint.classList.remove('on');
+    }
   }
 
   flashDamage() {

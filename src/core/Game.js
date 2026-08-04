@@ -11,6 +11,7 @@ import { WeaponSystem } from '../weapons/WeaponSystem.js';
 import { ZombiePool } from '../enemies/ZombiePool.js';
 import { Director } from '../enemies/Director.js';
 import { StageLoader } from '../world/StageLoader.js';
+import { Interaction } from '../world/Interaction.js';
 import { HUD } from '../ui/HUD.js';
 import * as hospitalA from '../world/stages/hospital_a.js';
 
@@ -48,7 +49,10 @@ export class Game {
       this.camera, this.scene, this.player, this.collision,
       () => this.pool.getActive()
     );
-    this.stageLoader = new StageLoader(this.scene, this.collision, this.atmosphere, this.director);
+    this.interaction = new Interaction();
+    this.stageLoader = new StageLoader(
+      this.scene, this.collision, this.atmosphere, this.director, this.interaction
+    );
 
     bus.on(EV.SFX, () => {});   // AudioManager 가 구독 중 (파일 없으면 무시됨)
     bus.on(EV.PLAYER_DIED, () => this.onDeath());
@@ -156,6 +160,16 @@ export class Game {
       });
       this.director.update(dt);
       this.atmosphere.update(dt);
+
+      // 상호작용 — 사거리 안 대상이 있으면 안내를 띄우고, E 로 사용한다
+      this.interaction.update(dt);
+      const target = this.interaction.findTarget(this.player.pos.x, this.player.pos.z);
+      this.hud.setPrompt(target ? target.prompt({ player: this.player }) : null);
+      if (target && this.input.justPressed('KeyE')) {
+        this.hud.setPrompt(null);   // 먼저 지운다 — 안 그러면 획득 메시지가 안내에 가려진다
+        this.interaction.use(target, { player: this.player });
+      }
+
       this.audio.setListener(this.player.pos.x, this.player.pos.z);
       this.hud.update(dt, { player: this.player, flashlight: this.flashlight });
 

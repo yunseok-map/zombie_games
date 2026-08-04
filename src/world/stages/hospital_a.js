@@ -27,7 +27,7 @@ export const meta = {
 
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addProp, addLight, addSpawn,
-          addBlood, addWallBlood, scatterDebris } = ctx;
+          addBlood, addWallBlood, scatterDebris, addItem, addDoor } = ctx;
 
   // ───────── 로비 (z: -16 ~ 0) ─────────
   addFloor(0, -8, OUTER_X * 2, 16);
@@ -134,6 +134,11 @@ export function build(ctx) {
   addBlood(-1.0, 30.5, 1.8, 'splatter');
   addWallBlood(-CORR_HALF + 0.12, 1.45, 21.0, Math.PI / 2, 2.2);
   scatterDebris(0, CORR_LEN / 2, CORR_HALF * 2 - 0.4, CORR_LEN, 0.22);
+
+  // ───────── 목표: 카드키 → 계단실 문 (SPEC.md §3 구역 A) ─────────
+  // 카드키는 복도 중간 왼쪽 병실(i=2)의 검사대 위에 있다. 끝까지 걸어가야만 보인다.
+  addItem(-5, 15.5, 'cardkey', '카드키', 0.98);
+  addDoor(0, CORR_LEN, CORR_HALF * 2, WALL_T, 'cardkey', '계단실 문');
 
   // ───────── 계단실 (z: 42 ~ 50) ─────────
   const stZ = CORR_LEN + 4;

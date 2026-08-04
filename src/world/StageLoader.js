@@ -63,11 +63,12 @@ function fitPlaneUV(geo, w, d, tile) {
 }
 
 export class StageLoader {
-  constructor(scene, collision, atmosphere, director) {
+  constructor(scene, collision, atmosphere, director, interaction) {
     this.scene = scene;
     this.collision = collision;
     this.atmosphere = atmosphere;
     this.director = director;
+    this.interaction = interaction;
     this.group = null;
     this.spawnPoints = [];
     this.exit = null;
@@ -85,6 +86,17 @@ export class StageLoader {
     };
     this.propMats = new Map();
     this.scatter = new Scatter();
+  }
+
+  /** 아이템은 어두운 복도에서 찾을 수 있어야 한다 — 약하게 발광시킨다 (블룸이 받아준다) */
+  _itemMat() {
+    if (!this._itemMaterial) {
+      this._itemMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2a3a34, roughness: 0.4, metalness: 0.2,
+        emissive: 0x2f9c6a, emissiveIntensity: 1.5,
+      });
+    }
+    return this._itemMaterial;
   }
 
   /** 소품은 벽과 같은 맵을 쓰고 색만 다르게 — 재질이 늘어나도 텍스처는 안 늘어난다 */
@@ -158,9 +170,50 @@ export class StageLoader {
       addWallBlood: (x, y, z, yaw, size) => this.scatter.addWallBlood(this.group, x, y, z, yaw, size),
       /** 의료폐기물 산포 — 직사각 구역에 뿌린다 */
       scatterDebris: (cx, cz, w, d, density) => this.scatter.scatterDebris(cx, cz, w, d, density),
+
+      /** 주울 수 있는 아이템. id 는 player.items 에 들어간다 */
+      addItem: (x, z, id, label, y = 0.95) => {
+        const g = new THREE.BoxGeometry(0.085, 0.005, 0.054);
+        const m = new THREE.Mesh(g, this._itemMat());
+        m.position.set(x, y, z);
+        m.rotation.set(0.1, Math.random() * Math.PI, 0.06);
+        this.group.add(m);
+        this.interaction.add({
+          x, z, radius: 1.9, once: true, mesh: m,
+          prompt: () => `[E]  ${label} 줍기`,
+          onUse: ({ player }) => { player.items.add(id); return `${label} 획득`; },
+        });
+      },
+
+      /**
+       * 잠긴 문. requires 를 가지고 있어야 열린다.
+       * 열리면 충돌이 꺼지고 문이 옆으로 미끄러진다.
+       */
+      addDoor: (cx, cz, w, d, requires, label) => {
+        const g = fitBoxUV(new THREE.BoxGeometry(w, WALL_H, d), w, WALL_H, d, SURFACE.wallTile);
+        const m = new THREE.Mesh(g, this._propMat(0x4b5250));
+        m.position.set(cx, WALL_H / 2, cz);
+        m.castShadow = true; m.receiveShadow = true;
+        this.group.add(m);
+        const box = this.collision.addBox(cx, cz, w, d);
+
+        this.interaction.add({
+          x: cx, z: cz, radius: 2.3, once: true, noisy: true,
+          prompt: ({ player }) => (player.items.has(requires)
+            ? `[E]  ${label} 열기`
+            : `${label} — 잠김. 카드키가 필요하다`),
+          onUse: ({ player }) => {
+            if (!player.items.has(requires)) return { msg: '카드키가 없다', done: false };
+            box.enabled = false;
+            this.interaction.slide(m, w * 0.94, 0);
+            return `${label} 개방`;
+          },
+        });
+      },
     };
 
     this.scatter.reset();
+    this.interaction.reset();
     const result = stage.build(ctx) ?? {};
     this.scatter.finalize(this.group);
     this.atmosphere.applyStageMood(stage.meta.mood ?? {});
