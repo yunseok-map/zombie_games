@@ -20,10 +20,10 @@ import bpy, sys, os, math
 TARGET_HEIGHT = 1.75      # balance.js ZOMBIE.shambler.height
 MAX_TRIS = 6000           # ASSETS.md §1 (좀비 리깅 모델 상한)
 
-# 이 클립들은 루트 이동(root motion)을 지운다.
-# 이동은 Zombie._goTo() 가 하므로 애니메이션에도 전진이 들어있으면 두 배로 미끄러진다.
-# Mixamo 의 "In Place" 체크박스와 같은 일을 여기서 확실하게 한다.
-STRIP_ROOT_MOTION = {"walk", "run"}
+# 루트 이동(root motion)은 클립 종류와 무관하게 전부 지운다.
+# 이 게임에서 좀비의 위치는 항상 Zombie.js 가 정한다(_goTo/_chase/_attack).
+# 애니메이션에 들어있는 이동은 예외 없이 이중 이동이 되므로 오차일 뿐이다.
+# 덕분에 Mixamo 의 "In Place" 체크박스도, 파일명 규칙도 신경 쓸 필요가 없다.
 
 
 def strip_root_motion(action, armature):
@@ -105,8 +105,8 @@ def main():
         if action:
             action.name = name
             action.use_fake_user = True     # 안 하면 오브젝트 지울 때 같이 사라진다
-            if name in STRIP_ROOT_MOTION:
-                n = strip_root_motion(action, arm)
+            n = strip_root_motion(action, arm)
+            if n:
                 print(f"    루트 이동 제거: {name} (커브 {n}개)")
             clips.append(name)
 
