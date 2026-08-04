@@ -17,11 +17,11 @@ const TEX_DIR = `${import.meta.env.BASE_URL}assets/textures/`;
 const texLoader = new THREE.TextureLoader();
 
 /** 한 재질에 필요한 맵 3종(색·요철·거칠기)을 불러온다. 텍스처는 전 구역이 공유한다. */
-function loadMaps(name) {
-  const map = texLoader.load(`${TEX_DIR}${name}_color.webp`);
+function loadMaps(name, dir = 'surfaces') {
+  const map = texLoader.load(`${TEX_DIR}${dir}/${name}_color.webp`);
   map.colorSpace = THREE.SRGBColorSpace;
-  const normalMap = texLoader.load(`${TEX_DIR}${name}_normal.webp`);
-  const roughnessMap = texLoader.load(`${TEX_DIR}${name}_rough.webp`);
+  const normalMap = texLoader.load(`${TEX_DIR}${dir}/${name}_normal.webp`);
+  const roughnessMap = texLoader.load(`${TEX_DIR}${dir}/${name}_rough.webp`);
   for (const t of [map, normalMap, roughnessMap]) {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;   // UV 가 1을 넘어도 반복되게
     t.anisotropy = SURFACE.anisotropy;
@@ -107,7 +107,7 @@ export class StageLoader {
     // 소품용 재질. 손전등이 26cd 라 알베도가 높으면 가까이서 하얗게 탄다 —
     // 벽(텍스처 반영 후 ~0.35)과 비슷한 밝기로 맞춘다.
     const M = (o) => new THREE.MeshStandardMaterial(o);
-    const signMap = texLoader.load(`${TEX_DIR}signage_atlas.webp`);
+    const signMap = texLoader.load(`${TEX_DIR}signage/signage_atlas.webp`);
     signMap.colorSpace = THREE.SRGBColorSpace;
     signMap.anisotropy = SURFACE.anisotropy;
 
@@ -115,9 +115,9 @@ export class StageLoader {
     //   prop_enamel  PaintedMetal013 — 칠이 벗겨진 흰 도장철판. 병상·캐비닛·문
     //   prop_metal   Metal038        — 긁힌 어두운 강철. 레일·링거대·바퀴
     //   prop_fabric  Fabric045       — 거친 직물. 매트리스·커튼
-    this.tex.enamel = loadMaps('prop_enamel');
-    this.tex.metal = loadMaps('prop_metal');
-    this.tex.fabric = loadMaps('prop_fabric');
+    this.tex.enamel = loadMaps('prop_enamel', 'props');
+    this.tex.metal = loadMaps('prop_metal', 'props');
+    this.tex.fabric = loadMaps('prop_fabric', 'props');
     const N = (k) => new THREE.Vector2(k, k);
 
     Object.assign(this.mat, {

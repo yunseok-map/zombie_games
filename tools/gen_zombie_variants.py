@@ -16,9 +16,9 @@ import json, struct, io, os
 import numpy as np
 from PIL import Image
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 저장소 루트 (tools/ 의 부모)
 GLB = os.path.join(ROOT, "public/assets/models/zombie_shambler.glb")
-OUT = os.path.join(ROOT, "public/assets/textures")
+OUT = os.path.join(ROOT, "public/assets/textures/characters")
 SIZE = 1024
 
 # 정규화 좌표(0~1)로 보호할 영역 — 얼굴 / 머리카락 / 눈알

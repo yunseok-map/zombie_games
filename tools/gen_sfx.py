@@ -9,7 +9,7 @@
 """
 import os, sys, json, time, urllib.request, urllib.error
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 저장소 루트 (tools/ 의 부모)
 API = "https://api.elevenlabs.io/v1/sound-generation"
 
 # 모든 프롬프트에 붙는 톤 고정 문구 (ASSETS.md §3 과 같은 역할)

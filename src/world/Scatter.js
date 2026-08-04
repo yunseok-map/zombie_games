@@ -56,7 +56,7 @@ export class Scatter {
 
     this.decalMat = {};
     for (const k of [...BLOOD_KINDS, ...WALL_KINDS]) {
-      const map = loader.load(`${TEX_DIR}decal_blood_${k}.webp`);
+      const map = loader.load(`${TEX_DIR}decals/decal_blood_${k}.webp`);
       map.colorSpace = THREE.SRGBColorSpace;
       this.decalMat[k] = new THREE.MeshStandardMaterial({
         map,

@@ -9,7 +9,7 @@
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-OUT = r"C:\Users\A\Desktop\games_zombie\public\assets\textures\signage_atlas.webp"
+OUT = r"C:\Users\A\Desktop\games_zombie\public\assets\textures\signage\signage_atlas.webp"
 FONT = r"C:\Windows\Fonts\malgun.ttf"
 FONTB = r"C:\Windows\Fonts\malgunbd.ttf"
 CELL, COLS, ROWS = 256, 4, 4

@@ -205,6 +205,22 @@ export const LOOT = {
   noise: 12,                              // 뒤지는 소리 반경(m). 좀비가 들을 수 있다
 };
 
+/**
+ * 부상 — 체력이 곧 상태다. 숫자만 줄지 말고 몸이 말을 안 들어야 무력감이 산다.
+ * (SPEC.md §1 핵심 감정: 무력함 → 잠깐의 안도 → 다시 무력함)
+ */
+export const INJURY = {
+  limpBelow: 0.5,        // 이 비율 아래면 절뚝인다
+  crippledBelow: 0.25,   // 이 아래면 심각
+  sprintLockBelow: 0.2,  // 이 아래면 달릴 수 없다
+
+  moveMul:  [1.0, 0.74, 0.56],   // 부상 단계별 이동속도 배수
+  meleeMul: [1.0, 0.70, 0.45],   // 팔에 힘이 빠진다 — 근접 데미지 배수
+  swayMul:  [1.0, 1.9, 3.0],     // 시야·조준 흔들림
+  limpDip: 2.3,                  // 한쪽 발에서만 더 깊게 꺼진다 (절뚝임)
+  limpRoll: 0.035,               // 걸을 때 몸이 기우는 각도(rad)
+};
+
 export const GAME = {
   difficultyMultiplier: 1.0,  // 0.7 쉬움 / 1.0 보통 / 1.4 어려움
 };

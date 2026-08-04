@@ -5,7 +5,7 @@ BRIGHT 값만 조정하면 전체 밝기가 바뀐다. 게임이 매우 어두�
 import numpy as np, os, sys
 from PIL import Image
 
-OUT = r"C:\Users\A\Desktop\games_zombie\public\assets\textures"
+OUT = r"C:\Users\A\Desktop\games_zombie\public\assets\textures\decals"
 S = 512
 BRIGHT = float(sys.argv[1]) if len(sys.argv) > 1 else 2.4
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, PLAYER, NOISE } from '../config/balance.js';
+import { WORLD, PLAYER, NOISE, INJURY } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
 /**
@@ -46,6 +46,16 @@ export class Player {
 
   get speed() { return Math.hypot(this.vel.x, this.vel.z); }
 
+  /** 부상 단계 — 0 멀쩡 · 1 절뚝임 · 2 심각 */
+  get injury() {
+    const r = this.hp / PLAYER.maxHp;
+    return r < INJURY.crippledBelow ? 2 : r < INJURY.limpBelow ? 1 : 0;
+  }
+  get moveMul() { return INJURY.moveMul[this.injury]; }
+  /** 근접 공격 배수 — WeaponSystem 이 본다 */
+  get meleeMul() { return INJURY.meleeMul[this.injury]; }
+  get swayMul() { return INJURY.swayMul[this.injury]; }
+
   update(dt) {
     if (!this.alive) return;
     this._look();
@@ -75,12 +85,14 @@ export class Player {
     if (len > 0) { fx /= len; fz /= len; }
 
     this.crouching = inp.down('ControlLeft') || inp.down('ControlRight');
+    // 심하게 다치면 달릴 수 없다 — 도망이라는 선택지 자체가 사라진다
+    const canSprint = this.hp / PLAYER.maxHp >= INJURY.sprintLockBelow;
     const wantSprint = (inp.down('ShiftLeft') || inp.down('ShiftRight'))
-      && !this.crouching && len > 0 && !this._exhausted;
+      && !this.crouching && len > 0 && !this._exhausted && canSprint;
     this.sprinting = wantSprint && this.stamina > 0;
 
-    const target = this.crouching ? PLAYER.speedCrouch
-      : this.sprinting ? PLAYER.speedSprint : PLAYER.speedWalk;
+    const target = (this.crouching ? PLAYER.speedCrouch
+      : this.sprinting ? PLAYER.speedSprint : PLAYER.speedWalk) * this.moveMul;
 
     // 카메라 yaw 기준 월드 방향.
     // 기준은 getForward() 의 (-sin, -cos) 다 — three.js 카메라는 로컬 -Z 를 본다.
@@ -161,10 +173,17 @@ export class Player {
     this.eyeHeight += (targetEye - this.eyeHeight) * Math.min(1, 9 * dt);
 
     // 헤드밥 — 걸을 때만
-    let bob = 0;
+    let bob = 0, roll = 0;
+    const inj = this.injury;
     if (this.speed > 0.5) {
       this._bobPhase += dt * PLAYER.headBobSpeed * (this.sprinting ? 1.35 : 1);
-      bob = Math.sin(this._bobPhase) * PLAYER.headBobAmount * (this.sprinting ? 1.5 : 1);
+      const sn = Math.sin(this._bobPhase);
+      bob = sn * PLAYER.headBobAmount * (this.sprinting ? 1.5 : 1);
+      if (inj > 0) {
+        // 성한 다리에선 평소대로, 다친 다리에선 훅 꺼진다 → 절뚝이는 리듬
+        if (sn < 0) bob *= INJURY.limpDip;
+        roll = Math.sin(this._bobPhase * 0.5) * INJURY.limpRoll * inj;
+      }
     } else {
       this._bobPhase = 0;
     }
@@ -173,6 +192,7 @@ export class Player {
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch;
+    this.camera.rotation.z = roll;   // 다치면 몸이 기운다
   }
 
   damage(amount) {

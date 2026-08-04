@@ -196,7 +196,9 @@ export class WeaponSystem {
       if (dist > def.range + z.def.radius) continue;
       const dot = (dx / dist) * fwd.x + (dz / dist) * fwd.z;
       if (dot < halfArc) continue;
-      z.hit(def.damage, def.stun, false);
+      // 팔에 힘이 빠진다 — 다칠수록 근접이 약해진다 (Player.meleeMul)
+      const mul = this.player.meleeMul ?? 1;
+      z.hit(def.damage * mul, def.stun * mul, false);
       hitAny = true;
     }
 

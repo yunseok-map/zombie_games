@@ -44,7 +44,7 @@ const _waiters = [];
 function buildOutfits(gltf) {
   const loader = new THREE.TextureLoader();
   const load = (n) => {
-    const t = loader.load(`${TEX_DIR}${n}.webp`);
+    const t = loader.load(`${TEX_DIR}characters/${n}.webp`);
     t.colorSpace = THREE.SRGBColorSpace;
     t.flipY = false;          // glTF UV 규약. 빼먹으면 텍스처가 위아래로 뒤집힌다
     return t;

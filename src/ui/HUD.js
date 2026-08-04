@@ -132,9 +132,11 @@ export class HUD {
     const battRatio = flashlight.battery / FLASHLIGHT.maxBattery;
     const battLow = battRatio < 0.2;
     this.battBar?.classList.toggle('crit', battLow);
+    // 부상 상태를 글로도 알려준다 — 왜 느려졌는지 모르면 조작 버그로 오해한다
     const msg = flashlight.battery <= 0 ? '배터리 없음'
-      : battLow ? '배터리 부족'
-        : hpRatio < 0.25 ? '치명상' : '';
+      : hpRatio < 0.25 ? '치명상 — 팔에 힘이 없다'
+        : battLow ? '배터리 부족'
+          : hpRatio < 0.5 ? '다리 부상 — 절뚝인다' : '';
     if (msg !== this._warnMsg) {
       this._warnMsg = msg;
       this.warn.textContent = msg;

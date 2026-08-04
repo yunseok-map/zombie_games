@@ -75,34 +75,46 @@
 src/
 ├─ main.js              부트스트랩만. 로직 금지
 ├─ config/              ★ 모든 수치는 여기에만
-│  ├─ balance.js        플레이어·좀비·연출 수치
+│  ├─ balance.js        플레이어·좀비·연출·부상·전리품·후처리
 │  └─ weapons.js        무기 정의 (데이터 드리븐)
 ├─ core/                엔진 계층 — 게임 내용을 몰라야 한다
 │  ├─ Game.js           루프, 씬 소유, 시스템 조립
 │  ├─ Input.js          키보드/마우스/포인터락
 │  ├─ EventBus.js       시스템 간 통신 (직접 참조 대신 이걸 쓴다)
-│  ├─ Collision.js      AABB 월드 충돌
+│  ├─ Collision.js      AABB 월드 충돌 (박스 on/off 로 문 개방)
 │  └─ AudioManager.js   사운드 재생·3D 오디오
-├─ player/              플레이어
-│  ├─ Player.js         이동·체력·스태미나
+├─ player/
+│  ├─ Player.js         이동·체력·스태미나·부상(절뚝임)·발소리
 │  └─ Flashlight.js     손전등·배터리
 ├─ weapons/
 │  └─ WeaponSystem.js   장착·발사·재장전 (무기 종류는 config/weapons.js)
 ├─ enemies/
-│  ├─ Zombie.js         개체 상태머신
+│  ├─ Zombie.js         개체 상태머신 + 애니메이션 매핑
+│  ├─ ZombieModel.js    GLB 1회 로드 → 개체 복제, 클립·옷 변형
 │  ├─ ZombiePool.js     풀링 (생성/반납)
 │  └─ Director.js       ★ 동적 스폰 — 긴장도 기반
 ├─ world/
-│  ├─ StageLoader.js    구역 로드/언로드
+│  ├─ StageLoader.js    구역 로드/언로드, 재질, 지오메트리 병합
+│  ├─ Props.js          절차적 소품 지오메트리
+│  ├─ Scatter.js        핏자국 데칼 · 잔해 산포
+│  ├─ Interaction.js    E키 상호작용 · 수색 · 전리품
 │  └─ stages/           구역 정의 (데이터에 가깝게)
 ├─ fx/
-│  └─ Atmosphere.js     포그·조명·톤매핑 — 공포 분위기 담당
+│  ├─ Atmosphere.js     포그·조명·톤매핑
+│  └─ PostFX.js         블룸·비네트·그레인
 └─ ui/
-   └─ HUD.js            DOM 오버레이
+   └─ HUD.js            DOM 오버레이 · 긴장 연출
+
+tools/                  에셋 생성 스크립트 (게임에 포함되지 않음)
+docs/                   ARCHITECTURE.md · HOSPITAL_DETAIL.md
 
 public/assets/
-├─ textures/  models/  audio/{sfx,ambience}/  ui/
+├─ textures/{surfaces,props,decals,signage,characters}/
+├─ models/  audio/{sfx,ambience}/
 ```
+
+> **어느 파일을 열어야 하는지 모르겠으면 `docs/ARCHITECTURE.md` 의 기능→파일 표를 본다.**
+
 
 **계층 규칙**: `core/` 는 `player/`·`enemies/`·`world/` 를 import 하지 않는다.
 위쪽(게임)이 아래쪽(엔진)을 쓰는 단방향만 허용. 통신이 필요하면 `EventBus`.
