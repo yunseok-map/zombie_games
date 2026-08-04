@@ -1,0 +1,169 @@
+import * as THREE from 'three';
+import { Input } from './Input.js';
+import { Collision } from './Collision.js';
+import { AudioManager } from './AudioManager.js';
+import { bus, EV } from './EventBus.js';
+import { Atmosphere } from '../fx/Atmosphere.js';
+import { Player } from '../player/Player.js';
+import { Flashlight } from '../player/Flashlight.js';
+import { WeaponSystem } from '../weapons/WeaponSystem.js';
+import { ZombiePool } from '../enemies/ZombiePool.js';
+import { Director } from '../enemies/Director.js';
+import { StageLoader } from '../world/StageLoader.js';
+import { HUD } from '../ui/HUD.js';
+import * as hospitalA from '../world/stages/hospital_a.js';
+
+/**
+ * Game — 시스템 조립과 루프만 담당한다. 게임 규칙은 각 시스템에 있다.
+ */
+export class Game {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.state = 'IDLE';      // IDLE | PLAYING | PAUSED | DEAD | CLEAR
+    this.elapsed = 0;
+
+    this.renderer = new THREE.WebGLRenderer({
+      canvas, antialias: true, powerPreference: 'high-performance',
+    });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 120);
+    this.scene.add(this.camera);           // 뷰모델이 카메라 자식이라 필요하다
+
+    this.clock = new THREE.Clock();
+    this.input = new Input(canvas);
+    this.collision = new Collision();
+    this.audio = new AudioManager();
+    this.atmosphere = new Atmosphere(this.scene, this.renderer);
+    this.hud = new HUD();
+
+    this.player = new Player(this.camera, this.input, this.collision);
+    this.flashlight = new Flashlight(this.camera, this.scene);
+    this.pool = new ZombiePool(this.scene);
+    this.director = new Director(this.pool, this.player, this.collision);
+    this.weapons = new WeaponSystem(
+      this.camera, this.scene, this.player, this.collision,
+      () => this.pool.getActive()
+    );
+    this.stageLoader = new StageLoader(this.scene, this.collision, this.atmosphere, this.director);
+
+    bus.on(EV.SFX, () => {});   // AudioManager 가 구독 중 (파일 없으면 무시됨)
+    bus.on(EV.PLAYER_DIED, () => this.onDeath());
+
+    this.input.onLockChange = (locked) => {
+      if (!locked && this.state === 'PLAYING') this.pause();
+    };
+
+    this._onResize = () => this.resize();
+    window.addEventListener('resize', this._onResize);
+    this.resize();
+
+    this._loop = this._loop.bind(this);
+    requestAnimationFrame(this._loop);
+  }
+
+  resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+
+  async start() {
+    await this.audio.init();
+    this.audio.playAmbience();
+    this.restart();
+  }
+
+  restart() {
+    this.pool.despawnAll();
+    const start = this.stageLoader.load(hospitalA);
+    this.player.spawn(start.x, start.z, start.yaw);
+    this.flashlight.battery = 100;
+    this.flashlight.on = false;
+    this.elapsed = 0;
+    this.state = 'PLAYING';
+    this.input.enabled = true;
+    this.input.requestLock();
+    this.hud.show();
+    this.weapons._emitAmmo();
+    bus.emit(EV.HINT, { text: 'F 를 눌러 손전등을 켜라', duration: 4 });
+  }
+
+  pause() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'PAUSED';
+    this.input.enabled = false;
+    document.getElementById('pause')?.classList.remove('hide');
+  }
+
+  resume() {
+    if (this.state !== 'PAUSED') return;
+    document.getElementById('pause')?.classList.add('hide');
+    this.state = 'PLAYING';
+    this.input.enabled = true;
+    this.input.requestLock();
+  }
+
+  onDeath() {
+    if (this.state === 'DEAD') return;
+    this.state = 'DEAD';
+    this.input.enabled = false;
+    this.input.releaseLock();
+    this.hud.hide();
+    const sub = document.getElementById('over-sub');
+    if (sub) sub.textContent = `생존 시간 ${this._formatTime(this.elapsed)}`;
+    document.getElementById('over')?.classList.remove('hide');
+  }
+
+  onClear() {
+    if (this.state === 'CLEAR') return;
+    this.state = 'CLEAR';
+    this.input.enabled = false;
+    this.input.releaseLock();
+    this.hud.hide();
+    const over = document.getElementById('over');
+    over.querySelector('h1').textContent = 'EXTRACTED';
+    over.querySelector('h1').style.color = '#6f8a63';
+    document.getElementById('over-sub').textContent = `탈출 완료 · ${this._formatTime(this.elapsed)}`;
+    over.classList.remove('hide');
+  }
+
+  _formatTime(s) {
+    const m = Math.floor(s / 60);
+    return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  }
+
+  _loop() {
+    requestAnimationFrame(this._loop);
+    const dt = Math.min(0.05, this.clock.getDelta());   // 프레임 급락 시 물리 폭주 방지
+
+    if (this.state === 'PLAYING') {
+      this.elapsed += dt;
+      this.player.update(dt);
+      this.flashlight.update(dt);
+      this.weapons.update(dt, this.input);
+
+      this.pool.update(dt, {
+        player: this.player,
+        collision: this.collision,
+        detectionMul: this.flashlight.detectionMultiplier,
+      });
+      this.director.update(dt);
+      this.atmosphere.update(dt);
+      this.audio.setListener(this.player.pos.x, this.player.pos.z);
+      this.hud.update(dt, { player: this.player, flashlight: this.flashlight });
+
+      // 탈출 판정
+      const ex = this.stageLoader.exit;
+      if (ex) {
+        const d = Math.hypot(this.player.pos.x - ex.x, this.player.pos.z - ex.z);
+        if (d < ex.radius) this.onClear();
+      }
+    }
+
+    this.renderer.render(this.scene, this.camera);
+    this.input.endFrame();
+  }
+}

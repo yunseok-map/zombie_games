@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QUARANTINE No.3 — 제3격리병원</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#000;
+    font-family:'Pretendard','Malgun Gothic',system-ui,sans-serif; color:#c8ccc6;
+    user-select:none; cursor:default; }
+  canvas { display:block; width:100%; height:100%; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity .4s; }
+  #hud.on { opacity:1; }
+
+  #crosshair { position:absolute; left:50%; top:50%; width:14px; height:14px;
+    transform:translate(-50%,-50%); }
+  #crosshair::before, #crosshair::after { content:''; position:absolute; background:#e8ece6;
+    opacity:.55; }
+  #crosshair::before { left:50%; top:0; width:1px; height:100%; transform:translateX(-50%); }
+  #crosshair::after { top:50%; left:0; height:1px; width:100%; transform:translateY(-50%); }
+
+  #bars { position:absolute; left:28px; bottom:26px; width:190px; }
+  .bar { height:5px; background:rgba(255,255,255,.08); margin-bottom:7px; overflow:hidden; }
+  .bar > i { display:block; height:100%; width:100%; transform-origin:left;
+    transition:transform .18s linear; }
+  #hp   > i { background:#8e2b26; }
+  #stam > i { background:#5c6b52; }
+  #batt > i { background:#a8912f; }
+  .lbl { font-size:9px; letter-spacing:.22em; opacity:.4; margin-bottom:3px; }
+
+  #ammo { position:absolute; right:34px; bottom:24px; text-align:right; }
+  #ammo .w { font-size:11px; letter-spacing:.2em; opacity:.45; margin-bottom:2px; }
+  #ammo .n { font-size:30px; font-weight:300; letter-spacing:.04em; opacity:.85;
+    font-variant-numeric:tabular-nums; }
+  #ammo .n small { font-size:15px; opacity:.4; }
+
+  #hint { position:absolute; left:50%; bottom:96px; transform:translateX(-50%);
+    font-size:12px; letter-spacing:.1em; opacity:0; transition:opacity .25s; }
+  #hint.on { opacity:.7; }
+
+  #dmg { position:fixed; inset:0; pointer-events:none; opacity:0;
+    box-shadow:inset 0 0 170px 44px rgba(120,10,10,.85); transition:opacity .35s; }
+
+  /* ---------- Screens ---------- */
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; background:#050605; z-index:10; gap:22px; }
+  .screen.hide { display:none; }
+  .screen h1 { font-size:min(9vw,58px); font-weight:200; letter-spacing:.36em;
+    color:#aab3a4; text-indent:.36em; }
+  .screen .sub { font-size:11px; letter-spacing:.42em; opacity:.3; text-indent:.42em; }
+  .screen .keys { font-size:11.5px; line-height:2.1; opacity:.34; text-align:center;
+    letter-spacing:.06em; margin-top:10px; }
+  .screen button { pointer-events:auto; margin-top:12px; padding:13px 40px;
+    background:transparent; border:1px solid rgba(200,204,198,.25); color:#c8ccc6;
+    font-size:12px; letter-spacing:.3em; text-indent:.3em; cursor:pointer;
+    font-family:inherit; transition:.25s; }
+  .screen button:hover { background:rgba(200,204,198,.07); border-color:rgba(200,204,198,.5); }
+  #over h1 { color:#7d2b26; }
+  #loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#050605; z-index:20; font-size:11px; letter-spacing:.4em; opacity:.4; }
+  #loading.hide { display:none; }
+</style>
+</head>
+<body>
+<canvas id="app"></canvas>
+
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="bars">
+    <div class="lbl">VITALS</div>
+    <div class="bar" id="hp"><i></i></div>
+    <div class="bar" id="stam"><i></i></div>
+    <div class="bar" id="batt"><i></i></div>
+  </div>
+  <div id="ammo"><div class="w">—</div><div class="n">—</div></div>
+  <div id="hint"></div>
+</div>
+<div id="dmg"></div>
+
+<div class="screen" id="title">
+  <div class="sub">QUARANTINE FACILITY</div>
+  <h1>No.3</h1>
+  <div class="keys">
+    WASD 이동 · SHIFT 달리기 · CTRL 앉기<br>
+    마우스좌 공격 · R 재장전 · 1/2 무기전환<br>
+    <b style="opacity:.85">F 손전등</b> · E 상호작용 · ESC 일시정지
+  </div>
+  <button id="btn-start">진입</button>
+</div>
+
+<div class="screen hide" id="over">
+  <h1>SIGNAL LOST</h1>
+  <div class="sub" id="over-sub">생존 시간 —</div>
+  <button id="btn-retry">다시 시도</button>
+</div>
+
+<div class="screen hide" id="pause">
+  <div class="sub">일시정지</div>
+  <button id="btn-resume">계속</button>
+</div>
+
+<div id="loading">LOADING</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

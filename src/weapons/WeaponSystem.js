@@ -1,0 +1,283 @@
+import * as THREE from 'three';
+import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
+import { NOISE } from '../config/balance.js';
+import { bus, EV } from '../core/EventBus.js';
+
+/**
+ * WeaponSystem — 무기 종류를 몰라야 한다. 전부 config/weapons.js 의 데이터로 동작한다.
+ * 무기를 추가하려면 이 파일이 아니라 weapons.js 에 정의를 넣는다.
+ */
+export class WeaponSystem {
+  constructor(camera, scene, player, collision, getZombies) {
+    this.camera = camera;
+    this.player = player;
+    this.collision = collision;
+    this.getZombies = getZombies;
+
+    this.inventory = [...STARTING_LOADOUT];
+    this.index = 0;
+    this.ammo = {};      // { [id]: { mag, reserve } }
+    this.cooldown = 0;
+    this.reloading = 0;
+    this.aiming = false;
+
+    for (const id of this.inventory) this._initAmmo(id);
+
+    // ── 뷰모델 (임시 박스. GLB 들어오면 교체) ──
+    this.viewRoot = new THREE.Group();
+    this.viewRoot.position.set(0.26, -0.24, -0.45);
+    camera.add(this.viewRoot);
+    this.viewMesh = null;
+    this._recoil = 0;
+    this._swing = 0;
+    this._bob = 0;
+
+    this._buildViewModel();
+  }
+
+  _initAmmo(id) {
+    const def = WEAPONS[id];
+    if (def?.type === 'gun' && !this.ammo[id]) {
+      this.ammo[id] = { mag: def.magSize, reserve: def.magSize * 3 };
+    }
+  }
+
+  get current() { return WEAPONS[this.inventory[this.index]]; }
+
+  pickUp(id) {
+    if (!WEAPONS[id]) return false;
+    if (!this.inventory.includes(id)) this.inventory.push(id);
+    this._initAmmo(id);
+    bus.emit(EV.HINT, { text: `${WEAPONS[id].label} 획득`, duration: 2 });
+    return true;
+  }
+
+  addAmmo(id, amount) {
+    this._initAmmo(id);
+    if (this.ammo[id]) this.ammo[id].reserve += amount;
+    this._emitAmmo();
+  }
+
+  switchTo(slot) {
+    const idx = this.inventory.findIndex((id) => WEAPONS[id].slot === slot);
+    if (idx < 0 || idx === this.index) return;
+    this.index = idx;
+    this.reloading = 0;
+    this.cooldown = 0.25;
+    this._buildViewModel();
+    bus.emit(EV.WEAPON_CHANGED, { weapon: this.current });
+    this._emitAmmo();
+  }
+
+  _buildViewModel() {
+    if (this.viewMesh) { this.viewRoot.remove(this.viewMesh); this.viewMesh.geometry.dispose(); }
+    const def = this.current;
+    const s = def.viewScale ?? [0.08, 0.1, 0.4];
+    const geo = new THREE.BoxGeometry(s[0], s[1], s[2]);
+    const mat = new THREE.MeshStandardMaterial({
+      color: def.viewColor ?? 0x555555, roughness: 0.72, metalness: 0.35,
+    });
+    this.viewMesh = new THREE.Mesh(geo, mat);
+    this.viewMesh.position.z = -s[2] / 2;
+    this.viewRoot.add(this.viewMesh);
+  }
+
+  update(dt, input) {
+    if (this.cooldown > 0) this.cooldown -= dt;
+
+    if (input.justPressed('Digit1')) this.switchTo(1);
+    if (input.justPressed('Digit2')) this.switchTo(2);
+    if (input.justPressed('Digit3')) this.switchTo(3);
+    if (input.justPressed('KeyR')) this.reload();
+
+    this.aiming = input.mouseRight && this.current.type === 'gun';
+
+    if (this.reloading > 0) {
+      this.reloading -= dt;
+      if (this.reloading <= 0) this._finishReload();
+    } else {
+      const def = this.current;
+      const wantFire = def.type === 'gun' && !def.semiOnly
+        ? input.mouseLeft : input.mouseLeftPressed;
+      if (wantFire && this.cooldown <= 0) this.attack();
+    }
+
+    this._animateViewModel(dt);
+  }
+
+  attack() {
+    const def = this.current;
+    if (def.type === 'gun') this._fireGun(def);
+    else if (def.type === 'melee') this._swingMelee(def);
+    else this._throw(def);
+  }
+
+  // ───────────────────────── 총기 ─────────────────────────
+  _fireGun(def) {
+    const a = this.ammo[def.id];
+    if (!a || a.mag <= 0) {
+      bus.emit(EV.HINT, { text: '탄창 비어 있음 — R', duration: 1.2 });
+      this.cooldown = 0.35;
+      if (a && a.reserve > 0) this.reload();
+      return;
+    }
+    a.mag--;
+    this.cooldown = def.cooldown;
+    this._recoil = 1;
+
+    const origin = new THREE.Vector3().copy(this.camera.position);
+    const baseDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const spread = def.spread * (this.aiming ? 0.45 : 1);
+
+    for (let p = 0; p < (def.pellets ?? 1); p++) {
+      const dir = baseDir.clone();
+      dir.x += (Math.random() - 0.5) * spread * 2;
+      dir.y += (Math.random() - 0.5) * spread * 2;
+      dir.z += (Math.random() - 0.5) * spread * 2;
+      dir.normalize();
+      this._hitscan(origin, dir, def.range, def.damage, 0.35);
+    }
+
+    bus.emit(EV.SFX, { name: 'pistol_fire', volume: def.silenced ? 0.35 : 1 });
+    bus.emit(EV.NOISE, {
+      x: this.player.pos.x, z: this.player.pos.z,
+      radius: NOISE[def.noise] ?? NOISE.gunshot, source: 'gunshot',
+    });
+    bus.emit(EV.WEAPON_FIRED, { weapon: def });
+    this._emitAmmo();
+  }
+
+  /** 레이 위에서 가장 가까운 좀비를 찾는다 (구 근사) */
+  _hitscan(origin, dir, range, damage, stun) {
+    const zombies = this.getZombies();
+    let best = null, bestT = range;
+
+    for (const z of zombies) {
+      if (!z.active || z.state === 'DEAD') continue;
+      const cx = z.pos.x - origin.x;
+      const cy = (z.pos.y + z.def.height * 0.55) - origin.y;
+      const cz = z.pos.z - origin.z;
+      const t = cx * dir.x + cy * dir.y + cz * dir.z;   // 레이 위 투영 거리
+      if (t < 0 || t > bestT) continue;
+      const px = cx - dir.x * t, py = cy - dir.y * t, pz = cz - dir.z * t;
+      const distSq = px * px + py * py + pz * pz;
+      const r = z.def.radius + 0.12;
+      if (distSq > r * r) continue;
+      // 벽 뒤면 무효
+      if (this.collision.segmentBlocked(origin.x, origin.z, z.pos.x, z.pos.z)) continue;
+      best = z; bestT = t;
+    }
+
+    if (best) {
+      const headshot = (origin.y + dir.y * bestT) > best.pos.y + best.def.height * 0.78;
+      best.hit(damage * (headshot ? 2.2 : 1), stun, headshot);
+    }
+  }
+
+  // ───────────────────────── 근접 ─────────────────────────
+  _swingMelee(def) {
+    this.cooldown = def.cooldown;
+    this._swing = 1;
+    bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
+
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const halfArc = Math.cos(THREE.MathUtils.degToRad(def.arcDeg) / 2);
+    const zombies = this.getZombies();
+    let hitAny = false;
+
+    for (const z of zombies) {
+      if (!z.active || z.state === 'DEAD') continue;
+      const dx = z.pos.x - this.player.pos.x;
+      const dz = z.pos.z - this.player.pos.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > def.range + z.def.radius) continue;
+      const dot = (dx / dist) * fwd.x + (dz / dist) * fwd.z;
+      if (dot < halfArc) continue;
+      z.hit(def.damage, def.stun, false);
+      hitAny = true;
+    }
+
+    if (hitAny) bus.emit(EV.SFX, { name: 'melee_hit', volume: 0.85 });
+    bus.emit(EV.NOISE, {
+      x: this.player.pos.x, z: this.player.pos.z,
+      radius: NOISE.melee, source: 'melee',
+    });
+  }
+
+  // ───────────────────────── 투척 ─────────────────────────
+  _throw(def) {
+    this.cooldown = def.cooldown;
+    this._swing = 1;
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const tx = this.player.pos.x + fwd.x * 9;
+    const tz = this.player.pos.z + fwd.z * 9;
+
+    if (def.lure) {
+      // 라디오 — 좀비를 그쪽으로 유인한다 (전투 회피 도구)
+      bus.emit(EV.NOISE, { x: tx, z: tz, radius: def.lureRadius, source: 'lure' });
+      bus.emit(EV.HINT, { text: '라디오를 던졌다', duration: 1.6 });
+    } else {
+      for (const z of this.getZombies()) {
+        if (!z.active || z.state === 'DEAD') continue;
+        const d = Math.hypot(z.pos.x - tx, z.pos.z - tz);
+        if (d <= def.radius) z.hit(def.damage, 0.5, false);
+      }
+      bus.emit(EV.NOISE, { x: tx, z: tz, radius: NOISE.melee, source: 'throw' });
+    }
+  }
+
+  // ───────────────────────── 재장전 ─────────────────────────
+  reload() {
+    const def = this.current;
+    if (def.type !== 'gun' || this.reloading > 0) return;
+    const a = this.ammo[def.id];
+    if (!a || a.mag >= def.magSize || a.reserve <= 0) return;
+    this.reloading = def.reloadTime;
+    bus.emit(EV.SFX, { name: 'reload', volume: 0.7 });
+  }
+
+  _finishReload() {
+    const def = this.current;
+    const a = this.ammo[def.id];
+    if (!a) return;
+    if (def.reloadPerShell) {
+      // 산탄총 — 한 발씩. 남았으면 계속 장전
+      if (a.reserve > 0 && a.mag < def.magSize) {
+        a.mag++; a.reserve--;
+        if (a.reserve > 0 && a.mag < def.magSize) this.reloading = def.reloadTime;
+      }
+    } else {
+      const need = Math.min(def.magSize - a.mag, a.reserve);
+      a.mag += need; a.reserve -= need;
+    }
+    this._emitAmmo();
+  }
+
+  _emitAmmo() {
+    const def = this.current;
+    const a = this.ammo[def.id];
+    bus.emit(EV.AMMO_CHANGED, {
+      label: def.label,
+      mag: a ? a.mag : null,
+      reserve: a ? a.reserve : null,
+      melee: def.type !== 'gun',
+    });
+  }
+
+  _animateViewModel(dt) {
+    this._recoil = Math.max(0, this._recoil - dt * 7);
+    this._swing = Math.max(0, this._swing - dt * 4.5);
+    this._bob += dt * (this.player.speed > 0.5 ? 8.5 : 0);
+
+    const bobX = Math.sin(this._bob) * 0.012 * Math.min(1, this.player.speed / 3);
+    const bobY = Math.abs(Math.cos(this._bob)) * 0.01 * Math.min(1, this.player.speed / 3);
+    const aimX = this.aiming ? -0.26 : 0;
+    const aimY = this.aiming ? 0.09 : 0;
+
+    this.viewRoot.position.x += (0.26 + aimX + bobX - this.viewRoot.position.x) * Math.min(1, 12 * dt);
+    this.viewRoot.position.y += (-0.24 + aimY + bobY - this.viewRoot.position.y) * Math.min(1, 12 * dt);
+    this.viewRoot.position.z = -0.45 + this._recoil * 0.09;
+    this.viewRoot.rotation.x = this._recoil * 0.22 - this._swing * 0.9;
+    this.viewRoot.rotation.z = this._swing * 0.5;
+  }
+}
