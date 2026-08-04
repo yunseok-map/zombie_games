@@ -48,7 +48,10 @@ export class WeaponSystem {
     };
     this._recoil = 0;
     this._swing = 0;
+    this._swingT = 99; this._swingDur = 0.5; this._swingDir = 1;
     this._bob = 0;
+    this._swayX = 0; this._swayY = 0;   // 마우스를 돌리면 무기가 뒤따라온다
+    this._idle = 0;
 
     this._buildViewModel();
   }
@@ -147,7 +150,7 @@ export class WeaponSystem {
       if (wantFire && this.cooldown <= 0) this.attack();
     }
 
-    this._animateViewModel(dt);
+    this._animateViewModel(dt, input);
   }
 
   attack() {
@@ -222,7 +225,10 @@ export class WeaponSystem {
   // ───────────────────────── 근접 ─────────────────────────
   _swingMelee(def) {
     this.cooldown = def.cooldown;
-    this._swing = 1;
+    // 시간 기반 스윙. 예비동작 → 타격 → 마무리 순서가 있어야 "휘둘렀다"로 읽힌다
+    this._swingT = 0;
+    this._swingDur = Math.min(def.cooldown * 0.92, 0.62);
+    this._swingDir = -this._swingDir;        // 좌우 번갈아 휘두른다
     bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
 
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -311,20 +317,71 @@ export class WeaponSystem {
     });
   }
 
-  _animateViewModel(dt) {
-    this._recoil = Math.max(0, this._recoil - dt * 7);
-    this._swing = Math.max(0, this._swing - dt * 4.5);
-    this._bob += dt * (this.player.speed > 0.5 ? 8.5 : 0);
+  /**
+   * 뷰모델 애니메이션.
+   * 손맛의 대부분은 모델이 아니라 여기서 나온다 —
+   * 예비동작 · 궤적 · 마무리, 그리고 시선을 돌릴 때 무기가 뒤따라오는 관성.
+   */
+  _animateViewModel(dt, input) {
+    const easeOut = (t) => 1 - (1 - t) ** 3;
+    const easeIn = (t) => t * t * t;
+    const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 
-    const bobX = Math.sin(this._bob) * 0.012 * Math.min(1, this.player.speed / 3);
-    const bobY = Math.abs(Math.cos(this._bob)) * 0.01 * Math.min(1, this.player.speed / 3);
+    this._recoil = Math.max(0, this._recoil - dt * 7);
+    this._idle += dt;
+    const sp = this.player.speed;
+    this._bob += dt * (sp > 0.5 ? 8.5 : 0);
+
+    // ── 스윙: 예비동작(0~24%) → 타격(24~54%) → 마무리(54~100%) ──
+    let wind = 0, arc = 0;
+    if (this._swingT < this._swingDur) {
+      this._swingT += dt;
+      const p = Math.min(1, this._swingT / this._swingDur);
+      const w = p < 0.24 ? p / 0.24 : 1;
+      const strike = p < 0.24 ? 0 : Math.min(1, (p - 0.24) / 0.30);
+      const rec = p < 0.54 ? 0 : (p - 0.54) / 0.46;
+      arc = easeIn(strike) * (1 - easeInOut(Math.min(1, rec)));
+      wind = easeOut(w) * (1 - strike);
+    }
+    this._swing = arc;
+    const dir = this._swingDir;
+
+    // ── 마우스 관성: 시선을 돌리면 무기가 반대로 밀렸다가 따라온다 ──
+    const swayMul = this.player.swayMul ?? 1;
+    if (input) {
+      this._swayX += (-input.mouseDX * 0.0016 * swayMul - this._swayX) * Math.min(1, 14 * dt);
+      this._swayY += (-input.mouseDY * 0.0014 * swayMul - this._swayY) * Math.min(1, 14 * dt);
+    }
+    this._swayX *= 1 - Math.min(1, 6 * dt);
+    this._swayY *= 1 - Math.min(1, 6 * dt);
+    const sx = THREE.MathUtils.clamp(this._swayX, -0.09, 0.09);
+    const sy = THREE.MathUtils.clamp(this._swayY, -0.07, 0.07);
+
+    // ── 걷기 흔들림 + 숨쉬기 ──
+    const spN = Math.min(1, sp / 3);
+    const bobX = Math.sin(this._bob) * 0.014 * spN;
+    const bobY = Math.abs(Math.cos(this._bob)) * 0.012 * spN;
+    const breath = Math.sin(this._idle * 1.5) * 0.004 * (1 - spN) * swayMul;
+
+    // ── 정조준 ──
     const aimX = this.aiming ? -0.26 : 0;
     const aimY = this.aiming ? 0.09 : 0;
+    const aimZ = this.aiming ? 0.08 : 0;
 
-    this.viewRoot.position.x += (0.26 + aimX + bobX - this.viewRoot.position.x) * Math.min(1, 12 * dt);
-    this.viewRoot.position.y += (-0.24 + aimY + bobY - this.viewRoot.position.y) * Math.min(1, 12 * dt);
-    this.viewRoot.position.z = -0.45 + this._recoil * 0.09;
-    this.viewRoot.rotation.x = this._recoil * 0.22 - this._swing * 0.9;
-    this.viewRoot.rotation.z = this._swing * 0.5;
+    const R = this.viewRoot;
+    const k = Math.min(1, 14 * dt);
+    R.position.x += (0.26 + aimX + bobX + sx - R.position.x) * k;
+    R.position.y += (-0.24 + aimY + bobY + breath + sy - R.position.y) * k;
+    R.position.z = -0.45 + aimZ + this._recoil * 0.10
+      + wind * 0.06 - arc * 0.16;                        // 예비동작에 당겼다가 앞으로 내지른다
+
+    // 쉬는 자세 — 축에 딱 맞춰 놓으면 "박스를 들고 있다"로 보인다
+    const rest = this.current.type === 'gun' && this.aiming
+      ? { x: 0, y: 0, z: 0 }
+      : { x: 0.05, y: -0.16, z: 0.10 };
+
+    R.rotation.x = rest.x + this._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4;
+    R.rotation.y = rest.y + (wind * 0.30 - arc * 0.62) * dir + sx * 1.6;
+    R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir;
   }
 }
