@@ -87,23 +87,32 @@ export class Player {
     const wx = fx * cos - fz * sin;
     const wz = fx * sin + fz * cos;
 
+    // 지수 감쇠 — 프레임레이트가 흔들려도 감각이 같다 (dt 를 곱하기만 하면 60/144fps 가 달라진다)
     if (len > 0) {
-      this.vel.x += (wx * target - this.vel.x) * Math.min(1, PLAYER.accel * dt);
-      this.vel.z += (wz * target - this.vel.z) * Math.min(1, PLAYER.accel * dt);
+      const k = 1 - Math.exp(-PLAYER.accel * dt);
+      this.vel.x += (wx * target - this.vel.x) * k;
+      this.vel.z += (wz * target - this.vel.z) * k;
     } else {
-      const f = Math.max(0, 1 - PLAYER.friction * dt);
+      const f = Math.exp(-PLAYER.friction * dt);
       this.vel.x *= f;
       this.vel.z *= f;
     }
 
-    // 축별 이동 후 충돌 해소 → 벽을 따라 미끄러진다
-    let nx = this.pos.x + this.vel.x * dt;
-    let nz = this.pos.z + this.vel.z * dt;
+    const nx = this.pos.x + this.vel.x * dt;
+    const nz = this.pos.z + this.vel.z * dt;
     const r = this.collision.resolve(nx, nz, WORLD.playerRadius);
+
     if (r.hit) {
-      // 벽에 박힌 방향 속도를 죽여서 진동 방지
-      if (Math.abs(r.x - nx) > 1e-5) this.vel.x *= 0.2;
-      if (Math.abs(r.z - nz) > 1e-5) this.vel.z *= 0.2;
+      // 밀려난 방향이 곧 벽 법선이다. 법선 성분만 지우고 접선 성분은 살린다.
+      // 이렇게 해야 벽을 따라 정상 속도로 미끄러진다.
+      // (예전처럼 속도를 통째로 0.2배 하면 벽에 스치는 내내 기어가게 된다)
+      const px = r.x - nx, pz = r.z - nz;
+      const plen = Math.hypot(px, pz);
+      if (plen > 1e-6) {
+        const nX = px / plen, nZ = pz / plen;
+        const into = this.vel.x * nX + this.vel.z * nZ;
+        if (into < 0) { this.vel.x -= nX * into; this.vel.z -= nZ * into; }
+      }
     }
     this.pos.x = r.x;
     this.pos.z = r.z;

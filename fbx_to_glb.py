@@ -146,6 +146,20 @@ def main():
     if base_arm is None:
         raise SystemExit("메시가 든 FBX(With Skin)가 하나도 없다. Mixamo 에서 하나는 With Skin 으로 받아라")
 
+    # ── 메시 합치기 ────────────────────────────────────────
+    # Mixamo 캐릭터는 몸/옷/머리가 따로 쪼개져 온다. 그대로 두면 좀비 한 마리가
+    # 드로우콜 7개가 되고, 14마리면 그림자 패스까지 200개에 육박한다.
+    # 하나로 합치면 재질 수(=3)만큼만 남는다.
+    if len(base_meshes) > 1:
+        bpy.ops.object.select_all(action='DESELECT')
+        for m in base_meshes:
+            m.select_set(True)
+        bpy.context.view_layer.objects.active = base_meshes[0]
+        bpy.ops.object.join()
+        joined = bpy.context.view_layer.objects.active
+        print(f"  메시 합치기: {len(base_meshes)}개 -> 1개 (재질 슬롯 {len(joined.material_slots)})")
+        base_meshes = [joined]
+
     # ── 키 정규화 ──────────────────────────────────────────
     zs = [(base_arm.matrix_world @ v.co).z for m in base_meshes for v in m.data.vertices]
     height = max(zs) - min(zs)

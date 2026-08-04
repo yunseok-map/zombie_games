@@ -16,8 +16,8 @@ export const PLAYER = {
   speedWalk: 2.8,
   speedSprint: 5.2,
   speedCrouch: 1.4,
-  accel: 14,          // 가속 (클수록 즉각적)
-  friction: 11,
+  accel: 20,          // 가속 (클수록 즉각적). 지수 감쇠라 fps 와 무관하다
+  friction: 13,       // 멈출 때 감속. 너무 크면 얼음 위처럼, 너무 작으면 뻑뻑하다
   maxStamina: 100,
   staminaDrain: 18,   // 달릴 때 초당 소모
   staminaRegen: 12,
@@ -114,7 +114,8 @@ export const NOISE = {
 
 export const DIRECTOR = {
   hardCapActive: 14,      // 성능 상한 (디자인 값 아님 — CLAUDE.md §3)
-  poolSize: 40,
+  poolSize: 20,           // 스킨 메시 복제본 수. hardCap 14 + 사망 잔류분이면 충분하다.
+                          // 40 이면 로딩 때 스켈레톤을 40벌 만드느라 시작이 느려진다
   spawnMinDistance: 12,   // 플레이어로부터 최소 이 거리
   spawnMaxDistance: 34,
   spawnOnlyOutOfView: true,

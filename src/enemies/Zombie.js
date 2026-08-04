@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { ZOMBIE, AI } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
+import { requestZombieModel } from './ZombieModel.js';
+
+/** 모델이 바라보는 축 보정. Mixamo 는 +Z 를 보므로 0. 등을 보이면 Math.PI */
+const MODEL_YAW = 0;
+const FADE = 0.22;            // 클립 전환 시간(초). 짧으면 뚝뚝 끊기고 길면 흐물거린다
 
 const _tmp = new THREE.Vector3();
 
@@ -32,8 +37,62 @@ export class Zombie {
     this.group.visible = false;
     scene.add(this.group);
 
+    // GLB 가 준비되면 캡슐을 치우고 갈아끼운다. 실패해도 캡슐로 계속 돌아간다.
+    this.model = null;
+    this.mixer = null;
+    this.actions = null;
+    this.curAnim = null;
+    this._prevX = 0; this._prevZ = 0; this._moveSpeed = 0;
+    requestZombieModel((inst) => this._attachModel(inst));
+
     this.def = ZOMBIE.shambler;
     this._reset();
+  }
+
+  _attachModel({ root, mixer, actions }) {
+    this.group.remove(this.body, this.head);
+    this.body.geometry.dispose();
+    this.head.geometry.dispose();
+    root.rotation.y = MODEL_YAW;
+    this.group.add(root);
+    this.model = root;
+    this.mixer = mixer;
+    this.actions = actions;
+  }
+
+  /** 상태 → 클립 종류 */
+  _animKey() {
+    if (this.state === 'DEAD') return 'death';
+    if (this.stun > 0) return 'hit';
+    if (this.state === 'ATTACK') return 'attack';
+    if (this.state === 'CHASE') return 'run';
+    return this._moveSpeed > 0.25 ? 'walk' : 'idle';
+  }
+
+  _updateAnim(dt) {
+    if (!this.mixer) return;
+
+    // 실제 이동 속도 — 걷기/서기 판정과 재생속도에 쓴다
+    const moved = Math.hypot(this.pos.x - this._prevX, this.pos.z - this._prevZ);
+    this._moveSpeed = dt > 0 ? moved / dt : 0;
+    this._prevX = this.pos.x; this._prevZ = this.pos.z;
+
+    const key = this._animKey();
+    const next = this.actions?.[key] ?? this.actions?.idle;
+    if (next && next !== this.curAnim) {
+      next.reset().fadeIn(FADE).play();
+      if (this.curAnim) this.curAnim.fadeOut(FADE);
+      this.curAnim = next;
+    }
+    // 걷기/달리기는 실제 속도에 맞춰 재생속도를 조절한다 (발이 미끄러지지 않게)
+    if (next && (key === 'walk' || key === 'run')) {
+      const ref = key === 'run' ? this.def.speedChase : this.def.speedWander;
+      next.timeScale = THREE.MathUtils.clamp(this._moveSpeed / Math.max(ref, 0.1), 0.4, 2.2);
+    } else if (next) {
+      next.timeScale = 1;
+    }
+
+    this.mixer.update(dt);
   }
 
   _reset() {
@@ -60,8 +119,19 @@ export class Zombie {
     this.state = 'WANDER';
     this.active = true;
 
-    this.bodyMat = this.body.material = this.head.material =
-      new THREE.MeshStandardMaterial({ color: this.def.color, roughness: 0.94, metalness: 0.02 });
+    // 캡슐 폴백일 때만 색을 칠한다. 모델이 있으면 텍스처가 이미 있고,
+    // 매 스폰마다 재질을 새로 만들면 그것 자체가 GC 부담이다.
+    if (!this.model) {
+      this.bodyMat = this.body.material = this.head.material =
+        new THREE.MeshStandardMaterial({ color: this.def.color, roughness: 0.94, metalness: 0.02 });
+    }
+
+    // 사망 연출 잔재 초기화
+    this.group.rotation.set(0, this.facing, 0);
+    this.group.position.y = 0;
+    this.mixer?.stopAllAction();
+    this.curAnim = null;
+    this._prevX = x; this._prevZ = z; this._moveSpeed = 0;
 
     const scale = this.def.height / 1.75;
     this.group.scale.setScalar(scale);
@@ -109,8 +179,12 @@ export class Zombie {
 
     if (this.state === 'DEAD') {
       this.deathTimer -= dt;
-      this.group.rotation.x = Math.min(Math.PI / 2, (1.2 - this.deathTimer) * 2.2);
-      this.group.position.y = -Math.min(0.5, (1.2 - this.deathTimer) * 0.6);
+      if (!this.model) {
+        // 캡슐 폴백 — 손으로 눕힌다. 모델이 있으면 death 클립이 대신한다
+        this.group.rotation.x = Math.min(Math.PI / 2, (1.2 - this.deathTimer) * 2.2);
+        this.group.position.y = -Math.min(0.5, (1.2 - this.deathTimer) * 0.6);
+      }
+      this._updateAnim(dt);
       if (this.deathTimer <= 0) this.despawn();
       return;
     }
@@ -121,7 +195,7 @@ export class Zombie {
       bus.emit(EV.SFX, { name: 'zombie_groan', x: this.pos.x, z: this.pos.z, volume: 0.55 });
     }
 
-    if (this.stun > 0) { this.stun -= dt; this._syncMesh(); return; }
+    if (this.stun > 0) { this.stun -= dt; this._syncMesh(); this._updateAnim(dt); return; }
 
     const dx = player.pos.x - this.pos.x;
     const dz = player.pos.z - this.pos.z;
@@ -146,6 +220,7 @@ export class Zombie {
     }
 
     this._syncMesh();
+    this._updateAnim(dt);
   }
 
   _startChase() {
@@ -257,9 +332,11 @@ export class Zombie {
     this.group.position.set(this.pos.x, this.pos.y, this.pos.z);
     if (this.state !== 'DEAD') {
       this.group.rotation.y = this.facing;
-      // 걷는 느낌 — 좌우로 살짝 흔들린다 (애니메이션 대체)
-      const moving = this.state === 'CHASE' || this.state === 'ALERT' || this.state === 'WANDER';
-      this.group.rotation.z = moving ? Math.sin(performance.now() * 0.006 + this.pos.x) * 0.07 : 0;
+      if (!this.model) {
+        // 캡슐 폴백의 걷는 느낌. 진짜 애니메이션이 있으면 흔들면 안 된다
+        const moving = this.state === 'CHASE' || this.state === 'ALERT' || this.state === 'WANDER';
+        this.group.rotation.z = moving ? Math.sin(performance.now() * 0.006 + this.pos.x) * 0.07 : 0;
+      }
     }
   }
 }

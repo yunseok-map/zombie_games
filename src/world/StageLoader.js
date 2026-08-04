@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SURFACE } from '../config/balance.js';
 import { Scatter } from './Scatter.js';
 
@@ -127,38 +128,41 @@ export class StageLoader {
     this.group = new THREE.Group();
     this.scene.add(this.group);
 
+    // 재질별 지오메트리 모음. 구역을 다 짓고 나서 한 번에 합친다.
+    const buckets = new Map();
+    const bucket = (key, mat) => {
+      let b = buckets.get(key);
+      if (!b) { b = { mat: mat ?? this.mat[key], geos: [] }; buckets.set(key, b); }
+      return b.geos;
+    };
+
     const ctx = {
-      /** 벽 — 충돌 등록됨 */
+      /**
+       * 벽 — 충돌 등록됨.
+       * 메시를 바로 만들지 않고 지오메트리만 모아둔다. 같은 재질끼리 합쳐야
+       * 드로우콜이 벽 개수만큼 늘어나지 않는다 (그림자 패스에서 한 번 더 그려진다).
+       */
       addWall: (cx, cz, w, d) => {
         const g = fitBoxUV(new THREE.BoxGeometry(w, WALL_H, d), w, WALL_H, d, SURFACE.wallTile);
-        const m = new THREE.Mesh(g, this.mat.wall);
-        m.position.set(cx, WALL_H / 2, cz);
-        m.castShadow = true; m.receiveShadow = true;
-        this.group.add(m);
+        g.translate(cx, WALL_H / 2, cz);
+        bucket('wall').push(g);
         this.collision.addBox(cx, cz, w, d);
       },
       addFloor: (cx, cz, w, d) => {
         const g = fitPlaneUV(new THREE.PlaneGeometry(w, d), w, d, SURFACE.floorTile);
-        const m = new THREE.Mesh(g, this.mat.floor);
-        m.rotation.x = -Math.PI / 2;
-        m.position.set(cx, 0, cz);
-        m.receiveShadow = true;
-        this.group.add(m);
+        g.rotateX(-Math.PI / 2); g.translate(cx, 0, cz);
+        bucket('floor').push(g);
       },
       addCeiling: (cx, cz, w, d) => {
         const g = fitPlaneUV(new THREE.PlaneGeometry(w, d), w, d, SURFACE.ceilingTile);
-        const m = new THREE.Mesh(g, this.mat.ceiling);
-        m.rotation.x = Math.PI / 2;
-        m.position.set(cx, WALL_H, cz);
-        this.group.add(m);
+        g.rotateX(Math.PI / 2); g.translate(cx, WALL_H, cz);
+        bucket('ceiling').push(g);
       },
       /** 소품 — 충돌 등록됨 (h 는 높이) */
       addProp: (cx, cz, w, h, d, color) => {
         const g = fitBoxUV(new THREE.BoxGeometry(w, h, d), w, h, d, SURFACE.propTile);
-        const m = new THREE.Mesh(g, this._propMat(color));
-        m.position.set(cx, h / 2, cz);
-        m.castShadow = true; m.receiveShadow = true;
-        this.group.add(m);
+        g.translate(cx, h / 2, cz);
+        bucket(`prop_${color}`, this._propMat(color)).push(g);
         this.collision.addBox(cx, cz, w, d);
       },
       addLight: (x, y, z, mode, color) => this.atmosphere.addEmergencyLight(x, y, z, mode, color),
@@ -215,6 +219,20 @@ export class StageLoader {
     this.scatter.reset();
     this.interaction.reset();
     const result = stage.build(ctx) ?? {};
+
+    // ── 병합 ── 벽 126개가 각각 드로우콜이면 그림자 패스까지 252개가 된다
+    for (const [key, b] of buckets) {
+      if (!b.geos.length) continue;
+      const merged = mergeGeometries(b.geos, false);
+      for (const g of b.geos) g.dispose();
+      if (!merged) { console.warn('[stage] 병합 실패:', key); continue; }
+      const m = new THREE.Mesh(merged, b.mat);
+      m.castShadow = key !== 'ceiling';   // 천장은 그림자를 만들 일이 없다
+      m.receiveShadow = true;
+      m.matrixAutoUpdate = false;         // 정적 지오메트리 — 매 프레임 행렬 갱신 불필요
+      this.group.add(m);
+    }
+
     this.scatter.finalize(this.group);
     this.atmosphere.applyStageMood(stage.meta.mood ?? {});
     this.director?.setStage(this.spawnPoints, stage.meta.typeWeights);

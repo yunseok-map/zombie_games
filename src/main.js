@@ -2,6 +2,7 @@
  * main.js — 부트스트랩만. 게임 로직을 여기에 넣지 마라. (CLAUDE.md §4)
  */
 import { Game } from './core/Game.js';
+import { preloadZombieModel } from './enemies/ZombieModel.js';
 
 const canvas = document.getElementById('app');
 const game = new Game(canvas);
@@ -11,7 +12,13 @@ const over = document.getElementById('over');
 const pause = document.getElementById('pause');
 const loading = document.getElementById('loading');
 
-loading.classList.add('hide');
+// 좀비 모델을 먼저 받는다. 없이 시작하면 첫 스폰이 캡슐로 나온다.
+const startBtn = document.getElementById('btn-start');
+startBtn.disabled = true;
+preloadZombieModel().finally(() => {
+  loading.classList.add('hide');
+  startBtn.disabled = false;
+});
 
 async function begin() {
   title.classList.add('hide');

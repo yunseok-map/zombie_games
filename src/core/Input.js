@@ -44,6 +44,8 @@ export class Input {
       this.onLockChange?.(this.locked);
     };
     this._onContext = (e) => e.preventDefault();
+    // 포인터락이 조용히 실패했을 때의 탈출구 — 화면을 클릭하면 다시 건다
+    this._onCanvasClick = () => { if (this.enabled && !this.locked) this.requestLock(); };
 
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
@@ -52,9 +54,31 @@ export class Input {
     document.addEventListener('mouseup', this._onMouseUp);
     document.addEventListener('pointerlockchange', this._onLockChange);
     canvas.addEventListener('contextmenu', this._onContext);
+    canvas.addEventListener('click', this._onCanvasClick);
   }
 
-  requestLock() { this.canvas.requestPointerLock?.(); }
+  /**
+   * 포인터락 요청.
+   * - `unadjustedMovement`: OS 마우스 가속/스무딩을 끈 원시 입력. 조준이 훨씬 정확해진다.
+   * - Esc 직후 재요청은 브라우저가 잠깐(약 1초) 거부한다. 실패하면 조용히 재시도한다.
+   */
+  requestLock(retry = 2) {
+    const el = this.canvas;
+    if (!el.requestPointerLock) return;
+    let p;
+    try {
+      p = el.requestPointerLock({ unadjustedMovement: true });
+    } catch {
+      try { el.requestPointerLock(); } catch { /* 무시 */ }
+      return;
+    }
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {
+        if (retry > 0) setTimeout(() => this.requestLock(retry - 1), 350);
+        else { try { el.requestPointerLock(); } catch { /* 무시 */ } }
+      });
+    }
+  }
   releaseLock() { document.exitPointerLock?.(); }
 
   down(code) { return this.keys.has(code); }
