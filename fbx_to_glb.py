@@ -20,6 +20,28 @@ import bpy, sys, os, math
 TARGET_HEIGHT = 1.75      # balance.js ZOMBIE.shambler.height
 MAX_TRIS = 6000           # ASSETS.md §1 (좀비 리깅 모델 상한)
 
+# 이 클립들은 루트 이동(root motion)을 지운다.
+# 이동은 Zombie._goTo() 가 하므로 애니메이션에도 전진이 들어있으면 두 배로 미끄러진다.
+# Mixamo 의 "In Place" 체크박스와 같은 일을 여기서 확실하게 한다.
+STRIP_ROOT_MOTION = {"walk", "run"}
+
+
+def strip_root_motion(action, armature):
+    """루트(힙) 본의 위치 커브를 지운다. 회전은 남긴다 — 그게 걸음걸이다."""
+    if not action or not action.fcurves:
+        return 0
+    # 부모 없는 본 = 루트. Mixamo 는 mixamorig:Hips
+    roots = [b.name for b in armature.data.bones if b.parent is None]
+    removed = 0
+    for fc in list(action.fcurves):
+        if not fc.data_path.endswith(".location"):
+            continue
+        bone = fc.data_path.split('"')[1] if '"' in fc.data_path else None
+        if bone in roots:
+            action.fcurves.remove(fc)
+            removed += 1
+    return removed
+
 
 def argv_after_dashdash():
     return sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -83,6 +105,9 @@ def main():
         if action:
             action.name = name
             action.use_fake_user = True     # 안 하면 오브젝트 지울 때 같이 사라진다
+            if name in STRIP_ROOT_MOTION:
+                n = strip_root_motion(action, arm)
+                print(f"    루트 이동 제거: {name} (커브 {n}개)")
             clips.append(name)
 
         if base_arm is None and meshes:
