@@ -48,6 +48,31 @@
 
 ---
 
+## ▶ 다음 세션 인계 — Sketchfab 모델 반입 (진행 중)
+
+**상태**: 파일 19개가 `public/assets/models/{props,weapons}/` 에 들어와 있고 전부 커밋됨.
+출처·제작자·실측치는 `ASSETS.md §4-B` 에 기록됨. **코드 반영은 아직 안 됨.**
+
+**막힌 지점**: 합계 약 100MB (게임 전체 에셋의 10배).
+`charite_operating_room` 하나가 삼각형 334,808 로 예산(350k)을 거의 소진한다.
+
+**해야 할 순서**
+1. 룸·팩 4개(`morgue_room` · `charite_operating_room` ·
+   `hospital_reception_environment` · `vr_ready_hospital_props`)를
+   Blender 로 오브젝트 분리 → 필요한 소품만 개별 GLB 재출력 (**방식 b 확정**)
+2. 전체 텍스처 512~1024 WebP 재인코딩 (좀비 선례: 18.6MB → 3.7MB)
+3. 축·크기·밝기 조정 — `WEAPON_VIEW` 처럼 데이터로 관리.
+   Sketchfab 모델은 축·원점·스케일이 제각각이라 치수를 재서 잡아야 한다
+4. `hospital_bed` · `wheelchair` 는 메시1/재질1 → **InstancedMesh** 로 묶기
+5. `Props.js` 의 절차적 모델을 GLB 로 교체, `hospital_a/b.js` 배치 갱신
+6. `crowbar` 는 `weapons.js` 에 무기 정의부터 추가해야 함
+7. 반영 후 `ASSETS.md §4-B` 의 **수정 내역 표**와 **라이선스 칸** 채우기
+
+**주의**: 라이선스 종류가 아직 미확인이다. 사용자가 각 모델 페이지에서
+확인해 주기 전까지 임의로 적지 않는다. `iv_pole` 은 제작자도 미확인.
+
+---
+
 ## 다음 할 일 (우선순위 순 3개)
 
 1. **구역 C (2F 병동 · 옥상)** — SPEC.md §3 의 마지막 구역. 점멸 조명, 병동 돌파 → 옥상 탈출.
