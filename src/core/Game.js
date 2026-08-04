@@ -37,6 +37,9 @@ export class Game {
     this.input = new Input(canvas);
     this.collision = new Collision();
     this.audio = new AudioManager();
+    // 벽 너머 소리는 먹먹해야 한다 — 어디서 나는지 헷갈리는 게 공포다
+    this.audio.occlusionTest = (x, z) =>
+      this.collision.segmentBlocked(this.player.pos.x, this.player.pos.z, x, z);
     this.atmosphere = new Atmosphere(this.scene, this.renderer);
     this.post = new PostFX(this.renderer, this.scene, this.camera);
     this.hud = new HUD();
@@ -177,7 +180,7 @@ export class Game {
         this.interaction.use(target, { player: this.player, flashlight: this.flashlight });
       }
 
-      this.audio.setListener(this.player.pos.x, this.player.pos.z);
+      this.audio.setListener(this.player.pos.x, this.player.pos.z, this.player.yaw);
       this.hud.update(dt, { player: this.player, flashlight: this.flashlight });
       if (this.input.justPressed('Backquote')) this.hud.toggleDebug();
       this.hud.updateDebug({

@@ -52,7 +52,9 @@ export class AudioManager {
     this.buffers = new Map();
     this.missing = new Set();
     this.masterGain = null;
-    this.listener = { x: 0, z: 0 };
+    this.listener = { x: 0, z: 0, yaw: 0 };
+    /** 벽 차폐 판정 — Game 이 넣어준다. (x,z) => boolean */
+    this.occlusionTest = null;
     this.ready = false;
     this.maxAudibleDistance = 30;
 
@@ -93,7 +95,9 @@ export class AudioManager {
     }
   }
 
-  setListener(x, z) { this.listener.x = x; this.listener.z = z; }
+  setListener(x, z, yaw = 0) {
+    this.listener.x = x; this.listener.z = z; this.listener.yaw = yaw;
+  }
 
   /**
    * @param {string} name  MANIFEST 키
@@ -115,11 +119,31 @@ export class AudioManager {
       const dz = opt.z - this.listener.z;
       const dist = Math.hypot(dx, dz);
       if (dist > this.maxAudibleDistance) return;
-      vol *= Math.max(0, 1 - dist / this.maxAudibleDistance) ** 1.7;
+
+      const t = dist / this.maxAudibleDistance;
+      // 역제곱에 가까운 감쇠 — 선형보다 "멀다"가 잘 읽힌다
+      vol *= (1 - t) ** 2 * 0.92 + (1 - t) * 0.08;
+
+      // 벽 너머면 더 작고 훨씬 먹먹하게. 이게 있어야 "어디선가" 들리는 느낌이 난다
+      const occluded = this.occlusionTest ? this.occlusionTest(opt.x, opt.z) : false;
+      if (occluded) vol *= 0.42;
+
+      // 거리에 따른 저역 통과 — 고음이 먼저 죽는다. 거리감의 8할이 여기서 나온다
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      const openness = (1 - t) ** 1.6;
+      filter.frequency.value = Math.max(320, 380 + openness * 17000) * (occluded ? 0.16 : 1);
+      filter.Q.value = 0.6;
+
+      // 좌우 패닝은 청자가 바라보는 방향 기준이어야 한다.
+      // 월드 X 로 하면 몸을 돌려도 소리가 같은 쪽에서 난다.
+      const s = Math.sin(this.listener.yaw), c = Math.cos(this.listener.yaw);
+      const right = dx * c - dz * s;                 // 청자 기준 오른쪽 성분
       const pan = this.ctx.createStereoPanner();
-      pan.pan.value = Math.max(-1, Math.min(1, dx / this.maxAudibleDistance * 2));
+      pan.pan.value = Math.max(-1, Math.min(1, right / Math.max(dist, 0.6)));
+
       gain.gain.value = vol;
-      src.connect(gain); gain.connect(pan); pan.connect(this.masterGain);
+      src.connect(filter); filter.connect(gain); gain.connect(pan); pan.connect(this.masterGain);
     } else {
       gain.gain.value = vol;
       src.connect(gain); gain.connect(this.masterGain);

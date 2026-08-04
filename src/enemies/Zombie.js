@@ -324,7 +324,7 @@ export class Zombie {
     if (dist > this.def.attackRange * 1.35) { this.state = 'CHASE'; return; }
 
     // 벽 너머로 때리지 못하게 한다. 거리만 보면 문틈·모서리를 사이에 두고도 맞는다.
-    if (collision?.segmentBlocked(this.pos.x, this.pos.z, player.pos.x, player.pos.z, 0.3)) {
+    if (collision?.segmentBlocked(this.pos.x, this.pos.z, player.pos.x, player.pos.z)) {
       this.state = 'CHASE';
       return;
     }

@@ -71,10 +71,11 @@ export class Collision {
   }
 
   /**
-   * XZ 선분이 벽에 막히는지 (시야 판정 / 좀비 회피용).
-   * 정확도보다 속도 우선 — 일정 간격 샘플링.
+   * XZ 선분이 벽에 막히는지 (시야 판정 / 좀비 회피 / 소리 차폐).
+   * 일정 간격 샘플링 — **간격이 벽 두께보다 크면 벽을 건너뛴다.**
+   * 벽 두께가 0.2m 이므로 기본값은 그보다 작아야 한다. (0.5 로 두면 벽 너머가 다 보인다)
    */
-  segmentBlocked(x0, z0, x1, z1, step = 0.5) {
+  segmentBlocked(x0, z0, x1, z1, step = 0.14) {
     const dx = x1 - x0, dz = z1 - z0;
     const dist = Math.hypot(dx, dz);
     if (dist < 1e-4) return false;
