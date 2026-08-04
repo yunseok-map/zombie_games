@@ -28,6 +28,17 @@ async function begin() {
   await game.start();     // 사용자 클릭 안에서 오디오를 초기화해야 한다
 }
 
+// 크레딧 — 외부 에셋이 CC Attribution 계열이라 제작자 표기가 의무다 (ASSETS.md §4-B)
+const credits = document.getElementById('credits');
+document.getElementById('btn-credits').addEventListener('click', () => {
+  title.classList.add('hide');
+  credits.classList.remove('hide');
+});
+document.getElementById('btn-credits-back').addEventListener('click', () => {
+  credits.classList.add('hide');
+  title.classList.remove('hide');
+});
+
 document.getElementById('btn-start').addEventListener('click', begin);
 document.getElementById('btn-retry').addEventListener('click', begin);
 document.getElementById('btn-resume').addEventListener('click', () => game.resume());
