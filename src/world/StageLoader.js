@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SURFACE } from '../config/balance.js';
+import { SURFACE, LOOT } from '../config/balance.js';
 import { Scatter } from './Scatter.js';
+import { BUILDERS, signPlate } from './Props.js';
+
+const SIGN_COLS = 4, SIGN_ROWS = 4;   // signage_atlas.webp 분할 (gen_signage.py 와 맞춰야 한다)
 
 /**
  * StageLoader — 구역을 짓고, 지우고, 충돌/스폰/조명을 등록한다.
@@ -85,6 +88,29 @@ export class StageLoader {
       wall: makeMat(this.tex.wall, SURFACE.wallTint, SURFACE.wallNormalScale),
       ceiling: makeMat(this.tex.ceiling, SURFACE.ceilingTint, SURFACE.ceilingNormalScale),
     };
+    // 소품용 재질. 손전등이 26cd 라 알베도가 높으면 가까이서 하얗게 탄다 —
+    // 벽(텍스처 반영 후 ~0.35)과 비슷한 밝기로 맞춘다.
+    const M = (o) => new THREE.MeshStandardMaterial(o);
+    const signMap = texLoader.load(`${TEX_DIR}signage_atlas.webp`);
+    signMap.colorSpace = THREE.SRGBColorSpace;
+    signMap.anisotropy = SURFACE.anisotropy;
+
+    Object.assign(this.mat, {
+      metal:      M({ color: 0x4a5158, roughness: 0.30, metalness: 0.80 }),
+      enamel:     M({ color: 0x4e534d, roughness: 0.55, metalness: 0.05 }),
+      fabric:     M({ color: 0x5c5a52, roughness: 0.95, metalness: 0 }),
+      accent:     M({ color: 0x7a2820, roughness: 0.55, metalness: 0.10 }),
+      accentDark: M({ color: 0x2a2e30, roughness: 0.80, metalness: 0.15 }),
+      glass:      M({ color: 0x9aa8b0, roughness: 0.08, metalness: 0.1,
+                      transparent: true, opacity: 0.20, depthWrite: false }),
+      sheer:      M({ color: 0x8d8f88, roughness: 0.9,
+                      transparent: true, opacity: 0.30, depthWrite: false, side: THREE.DoubleSide }),
+      lamp:       M({ color: 0x1a1e22, emissive: 0xbcd6ff, emissiveIntensity: 0.85, roughness: 0.4 }),
+      plate:      M({ map: signMap, color: 0x8e8e8e, roughness: 0.62, metalness: 0.05 }),
+      plateGlow:  M({ map: signMap, color: 0x5a5a5a, emissiveMap: signMap,
+                      emissive: 0xffffff, emissiveIntensity: 1.1, roughness: 0.6 }),
+    });
+
     this.propMats = new Map();
     this.scatter = new Scatter();
   }
@@ -98,6 +124,34 @@ export class StageLoader {
       });
     }
     return this._itemMaterial;
+  }
+
+  /**
+   * 수색으로 나온 물건을 실제 오브젝트로 꺼내 놓는다.
+   * 텍스트만 띄우면 "숫자가 올랐다" 로 끝나지만, 눈앞에 놓이면 집는 행위가 남는다.
+   */
+  _dropPickup(kind, x, z) {
+    const isBattery = kind === 'battery';
+    const geo = isBattery
+      ? new THREE.BoxGeometry(0.05, 0.11, 0.05)
+      : new THREE.CylinderGeometry(0.045, 0.045, 0.055, 8);
+    const m = new THREE.Mesh(geo, this._itemMat());
+    m.position.set(x + (this.scatter.rng() - 0.5) * 0.3, 0.92, z + (this.scatter.rng() - 0.5) * 0.3);
+    m.rotation.set(0.3, this.scatter.rng() * 6.28, 0.25);
+    this.group.add(m);
+
+    this.interaction.add({
+      x: m.position.x, z: m.position.z, radius: 1.5, once: true, mesh: m,
+      prompt: () => (isBattery ? '[E]  배터리 줍기' : '[E]  붕대 줍기'),
+      onUse: ({ player, flashlight }) => {
+        if (isBattery) {
+          flashlight.addBattery(LOOT.battery.amount);
+          return `배터리  +${LOOT.battery.amount}`;
+        }
+        player.heal(LOOT.bandage.heal);
+        return `붕대  +${LOOT.bandage.heal}`;
+      },
+    });
   }
 
   /** 소품은 벽과 같은 맵을 쓰고 색만 다르게 — 재질이 늘어나도 텍스처는 안 늘어난다 */
@@ -169,9 +223,60 @@ export class StageLoader {
       addSpawn: (x, z) => this.spawnPoints.push({ x, z }),
 
       /** 바닥 핏자국 (kind: 'pool' | 'splatter' | 'drag', 생략하면 무작위) */
-      addBlood: (x, z, size, kind) => this.scatter.addFloorBlood(this.group, x, z, size, kind),
+      addBlood: (x, z, size, kind, y) => this.scatter.addFloorBlood(this.group, x, z, size, kind, y),
       /** 벽 핏자국 — yaw 는 벽이 바라보는 방향 */
       addWallBlood: (x, y, z, yaw, size) => this.scatter.addWallBlood(this.group, x, y, z, yaw, size),
+      /**
+       * 절차적 소품 배치 (world/Props.js).
+       * @param kind BUILDERS 키 · @param yaw 라디안 · opts.args 빌더 인자 ·
+       *        opts.y 높이 · opts.collide [w,d] 충돌 박스
+       */
+      addProp3D: (kind, x, z, yaw = 0, opts = {}) => {
+        const build = BUILDERS[kind];
+        if (!build) { console.warn('[stage] 없는 소품:', kind); return; }
+        for (const { mat, geo } of build(...(opts.args ?? []))) {
+          if (opts.roll) geo.rotateZ(opts.roll);      // 넘어짐·기울어짐
+          if (opts.pitch) geo.rotateX(opts.pitch);
+          if (yaw) geo.rotateY(yaw);
+          geo.translate(x, opts.y ?? 0, z);
+          bucket(mat).push(geo);
+        }
+        if (opts.collide) this.collision.addBox(x, z, opts.collide[0], opts.collide[1]);
+      },
+
+      /**
+       * 뒤질 수 있는 수납가구. 아포칼립스의 기본 루프 —
+       * 배터리를 찾으려면 어두운 방으로 들어가야 하고, 뒤지는 소리가 좀비를 부른다.
+       * 결과는 고정 시드라 매 판 같다 (레벨이 흔들리면 안 된다).
+       */
+      addSearchable: (x, z, label = '수납장') => {
+        const roll = this.scatter.rng();
+        const tot = LOOT.battery.weight + LOOT.bandage.weight + LOOT.empty.weight;
+        const kind = roll * tot < LOOT.battery.weight ? 'battery'
+          : roll * tot < LOOT.battery.weight + LOOT.bandage.weight ? 'bandage' : 'empty';
+        this.interaction.add({
+          x, z, radius: 1.7, once: true, noisy: true,
+          prompt: () => `[E]  ${label} 뒤지기`,
+          onUse: () => {
+            if (kind === 'empty') return '비어 있다';
+            // 알림만 띄우지 않는다. 찾은 물건을 실제로 꺼내 놓고 직접 집게 한다.
+            this._dropPickup(kind, x, z);
+            return kind === 'battery' ? '배터리가 나왔다' : '붕대가 나왔다';
+          },
+        });
+      },
+
+      /** 명패·포스터·표지. slot 은 아틀라스 칸 번호 (0~15), glow 면 자체발광 */
+      addSign: (slot, x, y, z, yaw, w, h, glow = false, roll = 0) => {
+        const col = slot % SIGN_COLS, row = Math.floor(slot / SIGN_COLS);
+        for (const { geo } of signPlate(w, h, col, row, SIGN_COLS, SIGN_ROWS)) {
+          if (roll) geo.rotateZ(roll);
+          geo.rotateY(yaw);
+          geo.translate(x, y, z);
+          bucket(glow ? 'plateGlow' : 'plate').push(geo);
+        }
+      },
+
       /** 의료폐기물 산포 — 직사각 구역에 뿌린다 */
       scatterDebris: (cx, cz, w, d, density) => this.scatter.scatterDebris(cx, cz, w, d, density),
 
@@ -227,9 +332,11 @@ export class StageLoader {
       for (const g of b.geos) g.dispose();
       if (!merged) { console.warn('[stage] 병합 실패:', key); continue; }
       const m = new THREE.Mesh(merged, b.mat);
-      m.castShadow = key !== 'ceiling';   // 천장은 그림자를 만들 일이 없다
+      // 천장과 반투명(유리·커튼·표지)은 그림자를 만들지 않는다 — 예산이자 시각적으로도 틀리다
+      m.castShadow = key !== 'ceiling' && !b.mat.transparent;
       m.receiveShadow = true;
       m.matrixAutoUpdate = false;         // 정적 지오메트리 — 매 프레임 행렬 갱신 불필요
+      if (b.mat.transparent) m.renderOrder = 2;
       this.group.add(m);
     }
 

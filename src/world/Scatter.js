@@ -96,11 +96,11 @@ export class Scatter {
   }
 
   /** 바닥 핏자국. kind 를 안 주면 무작위 */
-  addFloorBlood(group, x, z, size = 1.6, kind = null) {
+  addFloorBlood(group, x, z, size = 1.6, kind = null, y = 0.006) {
     const k = kind ?? BLOOD_KINDS[Math.floor(this.rng() * BLOOD_KINDS.length)];
     const m = new THREE.Mesh(this.decalGeo, this.decalMat[k]);
     m.rotation.set(-Math.PI / 2, 0, this.rng() * Math.PI * 2);
-    m.position.set(x, 0.006, z);
+    m.position.set(x, y, z);
     const s = size * (0.75 + this.rng() * 0.6);
     m.scale.set(s, s, 1);
     m.renderOrder = 1;

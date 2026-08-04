@@ -27,7 +27,18 @@ export const meta = {
 
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addProp, addLight, addSpawn,
-          addBlood, addWallBlood, scatterDebris, addItem, addDoor } = ctx;
+          addBlood, addWallBlood, scatterDebris, addItem, addDoor,
+          addProp3D, addSign, addSearchable } = ctx;
+
+  // 결정적 난수 — 매 판 같은 배치여야 레벨이 흔들리지 않는다
+  let _s = 4021;
+  const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
+
+  /** 벽면을 따라 걸레받이 + 핸드레일 (Phase 2) */
+  const trim = (cx, cz, len, horizontal, rail = true) => {
+    addProp3D('baseboard', cx, cz, 0, { args: [len, horizontal] });
+    if (rail) addProp3D('handrail', cx, cz, 0, { args: [len, horizontal] });
+  };
 
   // ───────── 로비 (z: -16 ~ 0) ─────────
   addFloor(0, -8, OUTER_X * 2, 16);
@@ -58,6 +69,30 @@ export function build(ctx) {
   addBlood(5.0, -9.0, 1.5, 'splatter');
   scatterDebris(0, -8, OUTER_X * 2 - 1.5, 15, 0.30);
 
+  // ── 로비 디테일 ──
+  trim(-OUTER_X + 0.12, -8, 16, false);                  // 좌우 벽 걸레받이+레일
+  trim(OUTER_X - 0.12, -8, 16, false);
+  trim(0, -16 + 0.12, OUTER_X * 2, true, false);         // 봉쇄된 정문 쪽은 레일 없음
+  addProp3D('cornerGuard', -OUTER_X + 0.12, -0.3, 0, { args: [2.2] });
+  addProp3D('cornerGuard', OUTER_X - 0.12, -0.3, 0, { args: [2.2] });
+
+  addProp3D('extinguisher', OUTER_X - 0.22, -6.0, -Math.PI / 2, { collide: [0.3, 0.3] });
+  addProp3D('extinguisher', -OUTER_X + 0.22, -13.5, Math.PI / 2, { collide: [0.3, 0.3] });
+  addProp3D('cart', -2.4, -13.2, 0.4, { collide: [0.7, 0.5] });
+  addSearchable(-2.4, -12.7, '처치 카트');
+  addSearchable(-4.5, -11.3, '접수 데스크');
+  addProp3D('wheelchair', 5.6, -11.4, 2.1, { collide: [0.6, 0.6] });
+  addProp3D('ivStand', -6.4, -9.2, 0);
+  addProp3D('vent', -OUTER_X + 0.13, -5.0, Math.PI / 2, { args: [0.5, 0.3], y: 2.55 });
+
+  // 게시물 (Phase 4) — 전부 가상 기관명 (CLAUDE.md §2)
+  addSign(10, -OUTER_X + 0.12, 1.6, -10.5, Math.PI / 2, 0.82, 1.0);   // 층 안내도
+  addSign(8, OUTER_X - 0.12, 1.62, -12.4, -Math.PI / 2, 0.62, 0.86);  // 검역 경고
+  addSign(9, OUTER_X - 0.12, 1.62, -10.4, -Math.PI / 2, 0.62, 0.86);  // 감염 예방 수칙
+  addSign(13, 0, 1.72, -15.85, 0, 0.6, 0.78);                          // 출입 통제 (찢어진)
+  addProp3D('ceilingLight', -4, -12, 0, { y: WALL_H, args: [false] });
+  addProp3D('ceilingLight', 4, -5, 0, { y: WALL_H, args: [true] });
+
   // ───────── 중앙 복도 (z: 0 ~ 42) ─────────
   addFloor(0, CORR_LEN / 2, CORR_HALF * 2, CORR_LEN);
   addCeiling(0, CORR_LEN / 2, CORR_HALF * 2, CORR_LEN);
@@ -83,23 +118,92 @@ export function build(ctx) {
       addWall(roomCx, z0, ROOM_DEPTH, WALL_T);                    // 병실 격벽
       if (i === ROOM_COUNT - 1) addWall(roomCx, z0 + ROOM_PITCH, ROOM_DEPTH, WALL_T);
 
-      // 병실 소품 — 4종 프리셋을 회전시켜 재사용 (모듈 반복의 핵심)
+      // ── Phase 1 · 문틀 + 문짝 + 명패 ──
+      const doorZ = z0 + ROOM_PITCH / 2;
+      const wallYaw = Math.PI / 2;                    // z 방향으로 뻗은 벽
+      addProp3D('doorFrame', wallX, doorZ, wallYaw, { args: [DOOR_W, 2.1, 0.3] });
+      // 경첩을 문틈 한쪽 끝에 두고, 방마다 다른 각도로 열어둔다
+      // 문 상태 — 애니메이션 없이 정지 상태로 다양성을 만든다
+      //   torn 경첩이 뜯겨 바닥에 · board 판자로 막힘 · 나머지는 열린 각도만 다름
+      const doorKind = (side === 0
+        ? ['ajar', 'torn', 'ajar', 'board', 'ajar', 'torn']
+        : ['torn', 'ajar', 'board', 'ajar', 'torn', 'ajar'])[i];
+      const ajar = [1.55, 0, 1.9, 0, 1.15, 0][i];
+      if (doorKind === 'torn') {
+        addProp3D('doorFallen', wallX - sx * 0.75, doorZ + 0.2, wallYaw + sx * 0.35,
+          { args: [DOOR_W - 0.05, 2.05] });
+        // 경첩만 문틀에 남아 있다
+        addProp3D('cornerGuard', wallX, doorZ - DOOR_W / 2 + 0.05, 0, { args: [0.16], y: 1.5 });
+      } else if (doorKind === 'board') {
+        addProp3D('boardedDoor', wallX, doorZ, wallYaw, { args: [DOOR_W] });
+        addWall(wallX, doorZ, 0.16, DOOR_W);          // 판자로 막힌 문은 못 지나간다
+      } else {
+        addProp3D('doorPanel', wallX, doorZ + DOOR_W / 2, wallYaw + sx * ajar,
+          { args: [DOOR_W - 0.05, 2.05] });
+      }
+      // 명패 — 복도 쪽 벽, 문 옆. 한쪽 나사가 빠져 삐뚤게 걸린 것들이 섞인다
+      const crooked = [0, 0.22, 0, -0.34, 0.11, 0][i];
+      if (i !== 4 || side !== 1) {                    // 한 자리는 명패가 아예 떨어져 나갔다
+        addSign((i + side * 6) % 8, wallX - sx * 0.11, 1.62, doorZ - DOOR_W / 2 - 0.42,
+          sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0.34, 0.14, false, crooked);
+      }
+      // 문틀·명패 주변 핏자국 — 손자국처럼 문 옆에 남는다
+      if (i % 3 === 0) addWallBlood(wallX - sx * 0.12, 1.15, doorZ + DOOR_W / 2 + 0.3,
+        sx > 0 ? -Math.PI / 2 : Math.PI / 2, 1.1);
+
+      // ── Phase 2 · 복도 벽 걸레받이 + 핸드레일 ──
+      const segLenT = (ROOM_PITCH - DOOR_W) / 2;
+      const railX = wallX - sx * 0.12;
+      trim(railX, z0 + segLenT / 2, segLenT, false);
+      trim(railX, z0 + ROOM_PITCH - segLenT / 2, segLenT, false);
+      addProp3D('cornerGuard', railX, doorZ - DOOR_W / 2 - 0.12, 0, { args: [2.0] });
+      addProp3D('cornerGuard', railX, doorZ + DOOR_W / 2 + 0.12, 0, { args: [2.0] });
+
+      // ── Phase 3 · 병실 소품 (4종 프리셋 반복) ──
       const preset = (i + side) % 4;
       const bx = roomCx + sx * 1.4;
+      // 침대 흐트러짐 — 0 정돈 / 1 이불 뭉침 / 2 매트리스 어긋남 / 3 매트리스 바닥
+      const bv = (i * 3 + side * 2) % 4;
+      /** 침대 위 핏자국 — 매트리스 윗면(y≈0.63)에 얹는다 */
+      const bedBlood = (x, z, size) => addBlood(x, z, size, null, 0.635);
+
       if (preset === 0) {
-        addProp(bx, zc - 1.6, 0.9, 0.55, 2.0, 0x59606b);   // 침대
-        addProp(bx, zc + 1.6, 0.9, 0.55, 2.0, 0x59606b);
-        addProp(roomCx - sx * 1.9, zc, 0.5, 1.2, 0.5, 0x3d4348);
+        addProp3D('bed', bx, zc - 1.6, 0, { collide: [0.95, 2.05], args: [bv] });
+        addProp3D('bed', bx, zc + 1.6, 0, { collide: [0.95, 2.05], args: [(bv + 2) % 4] });
+        addProp3D('ivStand', roomCx - sx * 1.9, zc - 1.2, 0);
+        addProp3D('curtain', roomCx + sx * 0.2, zc, Math.PI / 2, { args: [1.9, 1.95] });
+        bedBlood(bx, zc - 1.9, 1.0);
       } else if (preset === 1) {
-        addProp(bx, zc, 0.9, 0.55, 2.0, 0x59606b);
-        addProp(roomCx, zc + 2.4, 2.4, 1.9, 0.45, 0x434a44); // 넘어진 캐비닛
+        addProp3D('bed', bx, zc, 0, { collide: [0.95, 2.05], args: [bv] });
+        addProp3D('cabinet', roomCx, zc + 2.4, Math.PI, { collide: [0.75, 0.5] });
+        addSearchable(roomCx, zc + 2.0, '서랍장');
+        // 링거대가 넘어져 있다
+        addProp3D('ivStandFallen', bx - sx * 0.9, zc - 1.3, rnd() * 6.28);
+        bedBlood(bx, zc + 0.2, 1.25);
+        addBlood(bx - sx * 0.85, zc + 1.1, 1.5, 'drag');       // 침대에서 끌려나간 자국
       } else if (preset === 2) {
-        addProp(roomCx, zc - 2.0, 3.6, 0.95, 0.6, 0x4a4f45); // 검사대
-        addProp(bx, zc + 1.8, 0.7, 1.4, 0.7, 0x2f3a34);
+        addProp(roomCx, zc - 2.0, 3.6, 0.95, 0.6, 0x4a4f45);   // 검사대 (카드키가 올라간다)
+        addProp3D('cart', bx, zc + 1.8, rnd() * 6.28, { collide: [0.7, 0.5] });
+        addSearchable(bx, zc + 1.4, '처치 카트');
+        addProp3D('cabinet', roomCx - sx * 2.2, zc + 1.0, -sx * Math.PI / 2, { collide: [0.5, 0.75] });
+        addSearchable(roomCx - sx * 1.8, zc + 1.0, '약품 캐비닛');
+        addBlood(roomCx, zc - 1.35, 1.4, 'pool', 0.955);       // 검사대 위
       } else {
-        addProp(bx, zc - 1.5, 0.9, 0.55, 2.0, 0x59606b);
-        addProp(roomCx - sx * 1.8, zc + 1.2, 0.65, 1.0, 0.65, 0x6a5a3a); // 휠체어
+        addProp3D('bed', bx, zc - 1.5, 0, { collide: [0.95, 2.05], args: [3] });  // 매트리스 바닥
+        // 휠체어가 옆으로 넘어져 있다
+        addProp3D('wheelchair', roomCx - sx * 1.8, zc + 1.2, rnd() * 6.28,
+          { roll: Math.PI / 2 - 0.15, y: 0.3 });
+        addProp3D('cart', roomCx, zc - 2.4, rnd() * 6.28, { collide: [0.7, 0.5] });
+        addSearchable(roomCx, zc - 2.0, '처치 카트');
+        bedBlood(bx + sx * 0.9, zc - 1.5, 1.3);                // 바닥에 떨어진 매트리스 위
       }
+      // 병실 벽 핏자국 — 절반 정도만. 전부 넣으면 무뎌진다
+      if ((i + side) % 3 === 0) {
+        addWallBlood(sx * (OUTER_X - 0.14), 1.25, zc - 2.2, -sx * Math.PI / 2, 1.7);
+      }
+      // 병실 벽 환기구
+      if (i % 2 === 1) addProp3D('vent', sx * (OUTER_X - 0.13), zc + 1.6, -sx * Math.PI / 2,
+        { args: [0.5, 0.3], y: 2.55 });
 
       // 병실의 흔적 — 전부 넣으면 무뎌진다. 절반 정도만 사건이 있었던 방으로 둔다
       const inward = sx * (OUTER_X - WALL_T / 2 - 0.03);
@@ -111,20 +215,37 @@ export function build(ctx) {
       scatterDebris(roomCx, zc, ROOM_DEPTH - 1.2, ROOM_PITCH - 1.2, 0.55);
 
       addSpawn(roomCx, zc);
-      if (i % 2 === 0) addLight(roomCx, 2.85, zc, i % 4 === 0 ? 'flicker' : 'steady', 0x3a4a52);
+      if (i % 2 === 0) {
+        addLight(roomCx, 2.85, zc, i % 4 === 0 ? 'flicker' : 'steady', 0x3a4a52);
+        addProp3D('ceilingLight', roomCx, zc, sx * Math.PI / 2, { y: WALL_H, args: [false] });
+      } else {
+        // 꺼진 방은 기구만 남기고 하나는 깨져 있다 (Phase 5-3)
+        addProp3D('ceilingLight', roomCx, zc, sx * Math.PI / 2, { y: WALL_H, args: [i % 3 === 1] });
+      }
     }
   }
 
   // 복도 조명 — 드문드문. 어두운 구간이 있어야 손전등이 의미를 갖는다
   for (let i = 0; i < ROOM_COUNT; i++) {
-    if (i % 2 === 1) continue;
-    addLight(0, 2.9, i * ROOM_PITCH + ROOM_PITCH / 2, 'flicker');
+    const lz = i * ROOM_PITCH + ROOM_PITCH / 2;
+    if (i % 2 === 0) {
+      addLight(0, 2.9, lz, 'flicker');
+      addProp3D('ceilingLight', 0, lz, 0, { y: WALL_H, args: [false] });
+    } else {
+      addProp3D('ceilingLight', 0, lz, 0, { y: WALL_H, args: [true] });   // 깨진 등
+    }
+    addProp3D('emergencyLamp', 0, lz - ROOM_PITCH / 2, 0, { y: WALL_H - 0.12 });
   }
+
+  // 복도 방향 표지 — 천장에 매달림 (Phase 4-3)
+  addSign(11, 0, 2.55, 4.0, Math.PI, 1.5, 0.42);
+  addSign(11, 0, 2.55, 4.0, 0, 1.5, 0.42);
+  addSign(11, 0, 2.55, 27.0, Math.PI, 1.5, 0.42);
 
   // 복도 장애물 — 시야를 끊어 긴장을 만든다
   addProp(-0.9, 12.5, 1.6, 1.2, 0.7, 0x4a4136);
-  addProp(1.1, 26.0, 1.4, 1.5, 0.8, 0x3e4a45);
-  addProp(0, 34.5, 2.2, 0.9, 0.6, 0x5a4a3a);
+  addProp(1.15, 26.0, 1.3, 1.5, 0.8, 0x3e4a45);
+  addProp(-1.0, 34.5, 1.7, 0.9, 0.6, 0x5a4a3a);   // 한쪽에 붙인다 — 가운데 두면 통과 폭이 0.1m 밖에 안 남는다
 
   // 복도의 흔적 — 무언가가 계단실 쪽으로 끌려갔다. 플레이어가 가는 방향이다
   for (let i = 0; i < 6; i++) {
@@ -157,6 +278,15 @@ export function build(ctx) {
   // 계단실 — 끌린 자국이 여기서 끝난다
   addBlood(0, stZ - 1.4, 3.0, 'pool');
   scatterDebris(0, stZ, 7, 7, 0.45);
+
+  // ── 계단실 디테일 ── 비상구 표지가 목적지를 알려준다 (Phase 4-4)
+  addSign(12, 0, 2.35, stZ + 3.85, Math.PI, 0.9, 0.36, true);          // 발광
+  addSign(12, 0, 2.35, CORR_LEN + 0.2, 0, 0.9, 0.36, true);
+  trim(-4 + 0.12, stZ, 8, false);
+  trim(4 - 0.12, stZ, 8, false);
+  addProp3D('extinguisher', -3.7, stZ + 2.6, Math.PI / 2, { collide: [0.3, 0.3] });
+  addProp3D('ceilingLight', 0, stZ, 0, { y: WALL_H, args: [false] });
+  addProp3D('vent', 0, stZ + 3.85, Math.PI, { args: [0.5, 0.3], y: 2.6 });
 
   return {
     playerStart: { x: 0, z: -11, yaw: Math.PI },   // 로비에서 복도(+Z) 를 바라본다

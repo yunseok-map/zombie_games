@@ -197,6 +197,14 @@ export const SURFACE = {
   viewModelDim: 0.22,      // 무기 뷰모델 색을 누르는 배수 (손전등 바로 앞이라 안 누르면 탄다)
 };
 
+/** 서랍·캐비닛 수색 (world/Interaction.js) — 아포칼립스의 기본 루프 */
+export const LOOT = {
+  battery: { weight: 44, amount: 35 },    // 손전등 배터리 — 가장 흔하다
+  bandage: { weight: 18, heal: 25 },
+  empty:   { weight: 38 },                // 헛수고가 있어야 찾는 행위에 긴장이 생긴다
+  noise: 12,                              // 뒤지는 소리 반경(m). 좀비가 들을 수 있다
+};
+
 export const GAME = {
   difficultyMultiplier: 1.0,  // 0.7 쉬움 / 1.0 보통 / 1.4 어려움
 };

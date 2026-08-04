@@ -22,6 +22,7 @@ export const CLIP_VARIANTS = {
   attack: ['attack_01', 'attack_02', 'attack_03', 'kicking'],
   death:  ['death_01', 'death_02'],
   hit:    ['hit_01'],
+  scream: ['scream', 'standing_up', 'attack_02'],   // 없으면 대체 클립으로 흉내낸다
 };
 
 let _gltf = null;
@@ -77,12 +78,14 @@ function makeInstance() {
     if (!name) continue;
     const clip = clips.find((c) => c.name === name);
     const action = mixer.clipAction(clip);
-    if (key === 'death') {
+    if (key === 'death' || key === 'scream' || key === 'hit') {
       action.setLoop(THREE.LoopOnce, 1);
-      action.clampWhenFinished = true;   // 쓰러진 자세로 멈춘다
+      action.clampWhenFinished = true;   // 쓰러진 자세 / 한 번만 재생
     }
     actions[key] = action;
   }
 
-  return { root, mixer, actions };
+  // 개체마다 재생속도를 조금씩 다르게 — 전부 같으면 군무처럼 보인다
+  const jitter = 0.85 + Math.random() * 0.3;
+  return { root, mixer, actions, jitter };
 }

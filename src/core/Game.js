@@ -168,12 +168,12 @@ export class Game {
       // 안 그러면 "WASD 는 되는데 조작이 이상하다" 로만 보인다.
       this.hud.setPrompt(
         !this.input.locked ? '화면을 클릭해서 마우스를 잡아라'
-          : target ? target.prompt({ player: this.player })
+          : target ? target.prompt({ player: this.player, flashlight: this.flashlight })
             : null
       );
       if (target && this.input.justPressed('KeyE')) {
         this.hud.setPrompt(null);   // 먼저 지운다 — 안 그러면 획득 메시지가 안내에 가려진다
-        this.interaction.use(target, { player: this.player });
+        this.interaction.use(target, { player: this.player, flashlight: this.flashlight });
       }
 
       this.audio.setListener(this.player.pos.x, this.player.pos.z);

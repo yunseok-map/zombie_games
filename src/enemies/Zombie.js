@@ -49,13 +49,14 @@ export class Zombie {
     this.actions = null;
     this.curAnim = null;
     this._prevX = 0; this._prevZ = 0; this._moveSpeed = 0;
+    this._jitter = 1; this._screamTimer = 0;
     requestZombieModel((inst) => this._attachModel(inst));
 
     this.def = ZOMBIE.shambler;
     this._reset();
   }
 
-  _attachModel({ root, mixer, actions }) {
+  _attachModel({ root, mixer, actions, jitter }) {
     this.group.remove(this.body, this.head);
     this.body.geometry.dispose();
     this.head.geometry.dispose();
@@ -64,12 +65,14 @@ export class Zombie {
     this.model = root;
     this.mixer = mixer;
     this.actions = actions;
+    this._jitter = jitter ?? 1;
   }
 
   /** 상태 → 클립 종류 */
   _animKey() {
     if (this.state === 'DEAD') return 'death';
     if (this.stun > 0) return 'hit';
+    if (this._screamTimer > 0) return 'scream';        // 발견 순간의 포효
     if (this.state === 'ATTACK') return 'attack';
     if (this.state === 'CHASE') return 'run';
     return this._moveSpeed > 0.25 ? 'walk' : 'idle';
@@ -93,10 +96,15 @@ export class Zombie {
     // 걷기/달리기는 실제 속도에 맞춰 재생속도를 조절한다 (발이 미끄러지지 않게)
     if (next && (key === 'walk' || key === 'run')) {
       const ref = key === 'run' ? this.def.speedChase : this.def.speedWander;
-      next.timeScale = THREE.MathUtils.clamp(this._moveSpeed / Math.max(ref, 0.1), 0.4, 2.2);
+      next.timeScale = THREE.MathUtils.clamp(this._moveSpeed / Math.max(ref, 0.1), 0.4, 2.2)
+        * this._jitter;
+    } else if (next && key === 'attack') {
+      // 한 번 휘두르는 시간이 공격 쿨다운과 맞게 — 루프로 계속 휘두르면 우스워진다
+      next.timeScale = (next.getClip().duration / this.def.attackCooldown) * this._jitter;
     } else if (next) {
-      next.timeScale = 1;
+      next.timeScale = this._jitter;
     }
+    if (this._screamTimer > 0) this._screamTimer -= dt;
 
     this.mixer.update(dt);
   }
@@ -137,7 +145,7 @@ export class Zombie {
     this.group.position.y = 0;
     this.mixer?.stopAllAction();
     this.curAnim = null;
-    this._prevX = x; this._prevZ = z; this._moveSpeed = 0;
+    this._prevX = x; this._prevZ = z; this._moveSpeed = 0; this._screamTimer = 0;
 
     const scale = this.def.height / 1.75;
     this.group.scale.setScalar(scale);
@@ -233,6 +241,7 @@ export class Zombie {
     if (this.state !== 'CHASE') {
       bus.emit(EV.SFX, { name: 'zombie_alert', x: this.pos.x, z: this.pos.z, volume: 0.9 });
     }
+    if (this.state !== 'CHASE') this._screamTimer = 0.9;
     this.state = 'CHASE';
     this.loseTimer = AI.chaseGiveUpTime;
     this.stuckTimer = 0;
