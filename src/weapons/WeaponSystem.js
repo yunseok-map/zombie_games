@@ -202,7 +202,7 @@ export class WeaponSystem {
       hitAny = true;
     }
 
-    if (hitAny) bus.emit(EV.SFX, { name: 'melee_hit', volume: 0.85 });
+    // 타격음은 Zombie.hit() 이 부위·무기별로 낸다 (여기서 또 내면 겹친다)
     bus.emit(EV.NOISE, {
       x: this.player.pos.x, z: this.player.pos.z,
       radius: NOISE.melee, source: 'melee',

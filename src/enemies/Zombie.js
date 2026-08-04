@@ -110,7 +110,16 @@ export class Zombie {
       next.timeScale = this._jitter;
     }
     if (this._screamTimer > 0) this._screamTimer -= dt;
-    if (this.flinch > 0) this.flinch -= dt;
+    if (this.flinch > 0) {
+      this.flinch -= dt;
+      // 충격으로 상체가 뒤로 젖혀진다 — 애니메이션만으로는 타격감이 약하다
+      const t = Math.max(0, this.flinch / Math.max(this._flinchTotal, 0.01));
+      // 맞는 순간 최대로 젖혀지고 서서히 돌아온다.
+      // sin(t*PI) 로 하면 중간에 최대가 되어 타격 순간에 반응이 없다.
+      this.group.rotation.x = -Math.sin(t * Math.PI * 0.5) * 0.18;
+    } else if (this.group.rotation.x !== 0 && this.state !== 'DEAD') {
+      this.group.rotation.x = 0;
+    }
 
     this.mixer.update(dt);
   }
@@ -186,6 +195,12 @@ export class Zombie {
     this._flinchTotal = Math.max(0.42, this.stun);
     this.flinch = this._flinchTotal;
 
+    // 피격음 — 둔기(스턴 큼)는 뼈 소리, 총알은 살점 소리, 헤드샷은 따로
+    const impact = headshot ? 'hit_headshot'
+      : stun >= 0.8 ? `hit_blunt_${1 + ((Math.random() * 2) | 0)}`
+        : `hit_flesh_${1 + ((Math.random() * 2) | 0)}`;
+    bus.emit(EV.SFX, { name: impact, x: this.pos.x, z: this.pos.z, volume: 0.95 });
+
     if (this.hp <= 0) {
       this.state = 'DEAD';
       this.deathTimer = 1.2;
@@ -216,7 +231,8 @@ export class Zombie {
     this.groanTimer -= dt;
     if (this.groanTimer <= 0) {
       this.groanTimer = 5 + Math.random() * 9;
-      bus.emit(EV.SFX, { name: 'zombie_groan', x: this.pos.x, z: this.pos.z, volume: 0.55 });
+      const gn = 1 + ((Math.random() * 3) | 0);
+      bus.emit(EV.SFX, { name: `zombie_groan_${gn}`, x: this.pos.x, z: this.pos.z, volume: 0.55 });
     }
 
     if (this.stun > 0) { this.stun -= dt; this._syncMesh(); this._updateAnim(dt); return; }
@@ -240,7 +256,7 @@ export class Zombie {
                      else if (this.searchTimer <= 0) this.state = 'WANDER';
                      break;
       case 'CHASE':  this._chase(dt, player, dist, canSee, collision, zombies); break;
-      case 'ATTACK': this._attack(dt, player, dist); break;
+      case 'ATTACK': this._attack(dt, player, dist, collision); break;
     }
 
     this._syncMesh();
@@ -251,7 +267,12 @@ export class Zombie {
     if (this.state !== 'CHASE') {
       bus.emit(EV.SFX, { name: 'zombie_alert', x: this.pos.x, z: this.pos.z, volume: 0.9 });
     }
-    if (this.state !== 'CHASE') this._screamTimer = 0.9;
+    if (this.state !== 'CHASE') {
+      this._screamTimer = 0.9;
+      // 발견의 순간이 조용하면 공포가 안 산다. 절반은 비명, 절반은 놀란 숨소리.
+      const nm = Math.random() < 0.55 ? `zombie_scream_${1 + ((Math.random() * 2) | 0)}` : 'zombie_notice';
+      bus.emit(EV.SFX, { name: nm, x: this.pos.x, z: this.pos.z, volume: 0.95 });
+    }
     this.state = 'CHASE';
     this.loseTimer = AI.chaseGiveUpTime;
     this.stuckTimer = 0;
@@ -295,12 +316,19 @@ export class Zombie {
     this._goTo(dt, this.target.x, this.target.z, collision, zombies, this.def.speedChase);
   }
 
-  _attack(dt, player, dist) {
+  _attack(dt, player, dist, collision) {
     this.attackTimer -= dt;
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
     this.facing = Math.atan2(-dx, -dz);
 
     if (dist > this.def.attackRange * 1.35) { this.state = 'CHASE'; return; }
+
+    // 벽 너머로 때리지 못하게 한다. 거리만 보면 문틈·모서리를 사이에 두고도 맞는다.
+    if (collision?.segmentBlocked(this.pos.x, this.pos.z, player.pos.x, player.pos.z, 0.3)) {
+      this.state = 'CHASE';
+      return;
+    }
+
     if (this.attackTimer <= 0) {
       this.attackTimer = this.def.attackCooldown;
       player.damage(this.def.damage);

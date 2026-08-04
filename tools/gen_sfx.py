@@ -43,6 +43,19 @@ JOBS = [
     ("sfx/sfx_footstep_debris_03", "single footstep crushing loose ceiling tile fragments and grit", 1.0, 0.8),
     ("sfx/sfx_footstep_wet_01", "single footstep in shallow sticky liquid, wet squelch", 1.0, 0.8),
     ("sfx/sfx_footstep_wet_02", "single wet footstep, sticky peel off floor", 1.0, 0.8),
+
+    # 좀비 소리 다양화 — 한 종류만 반복되면 즉시 가짜로 들린다
+    ("sfx/sfx_zombie_idle_groan_02", "low wet gurgling moan, labored breathing through damaged throat", 3.0, 0.5),
+    ("sfx/sfx_zombie_idle_groan_03", "distant hollow groan, dragging shuffle, unsettling", 3.0, 0.5),
+    ("sfx/sfx_zombie_scream_01", "sudden piercing inhuman shriek of a woman, rage, close", 2.0, 0.5),
+    ("sfx/sfx_zombie_scream_02", "guttural roar rising into a ragged scream, human throat tearing", 2.2, 0.5),
+    ("sfx/sfx_zombie_notice", "sharp startled gasp then wet snarl, sudden alertness", 1.5, 0.55),
+    # 피격 — 무기별로 다르게
+    ("sfx/sfx_hit_flesh_01", "bullet impact into wet flesh, sharp wet slap and spatter", 1.0, 0.7),
+    ("sfx/sfx_hit_flesh_02", "bullet impact into body, dull wet thud with spray", 1.0, 0.7),
+    ("sfx/sfx_hit_blunt_01", "heavy steel pipe striking a body, dull bone thud", 1.0, 0.7),
+    ("sfx/sfx_hit_blunt_02", "metal pipe cracking bone, sharp snap with wet undertone", 1.0, 0.7),
+    ("sfx/sfx_hit_headshot", "bullet impact to skull, sharp crack and wet burst", 1.0, 0.7),
 ]
 
 
