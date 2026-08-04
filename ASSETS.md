@@ -178,6 +178,60 @@ blender --background --python fbx_to_glb.py -- fbx_src public/assets/models/zomb
 
 ---
 
+## 4-B. Sketchfab 도입 목록 (다운로드 대기)
+
+> 파일은 로그인이 필요해 사용자가 직접 받는다. `public/assets/models/props/` · `weapons/` 에 넣는다.
+> **받은 뒤 모델 페이지의 제작자·라이선스를 아래 표에 채운다** (CLAUDE.md §2 — 심사 대응).
+
+### 단품 소품 — 바로 배치 가능
+
+| 링크 | 용도 | 대체 대상 | 제작자 / 라이선스 |
+|---|---|---|---|
+| skfb.ly/6RSGM `old_and_worn_out_hospital_bed` | 병상 A (낡음) | `Props.bed` | (미기입) |
+| skfb.ly/6XpTM `hospital_bed` | 병상 B | `Props.bed` 변형 | (미기입) |
+| skfb.ly/E8KH `wheelchair_horror_game_hospital` | 휠체어 | `Props.wheelchair` | (미기입) |
+| skfb.ly/pzHtH `electrical_breaker_panel_box` | **배전반** ★ | 기계실의 자판기 대용 제거 | (미기입) |
+| skfb.ly/6WSTS `crutch_and_iv_drip` | 링거대 + 목발 | `Props.ivStand` | (미기입) |
+| skfb.ly/6RzEu `iv_pole` | 링거대 B | `Props.ivStand` 변형 | (미기입) |
+| skfb.ly/6XQTO `first_aid_box` | **구급상자** | 신규 — 수색 대상으로 적합 | (미기입) |
+| skfb.ly/6CNHM `filing_cabinet` | 서류함 | `Props.cabinet` | (미기입) |
+| skfb.ly/ozzOC `body_bag01` | **시신 자루** ★ | 신규 — 영안실 | (미기입) |
+| skfb.ly/6YJsD `corpse` | **시체** ★ | 신규 — 영안실·복도 | (미기입) |
+| skfb.ly/oGp7o `vending_machine` | 자판기 | `Props.vendingMachine` | (미기입) |
+
+### 팩 — 분해해서 개별 소품으로
+
+| 링크 | 처리 |
+|---|---|
+| skfb.ly/oEGEr `vr_ready_hospital_props` | Blender 로 오브젝트별 분리 후 필요한 것만 GLB 로 재출력 |
+
+### 룸 스케일 — ★ 통합 방식 결정 필요
+
+벽·바닥·조명이 통째로 들어와서 **우리 절차적 레벨과 겹친다.** 두 가지 길:
+
+- **(a) 방 통째 교체** — 해당 구역의 절차적 벽/바닥을 걷어내고 GLB 를 놓는다.
+  충돌 박스를 손으로 다시 깔아야 하고, 우리 PBR 톤과 안 맞으면 그 방만 붕 뜬다.
+- **(b) 안의 소품만 추출** ← **안전한 쪽**. Blender 로 가구만 뽑아 개별 GLB 로.
+
+| 링크 | 용도 | 권장 |
+|---|---|---|
+| skfb.ly/6RHzP `morgue_room` | 영안실 (구역 B 좌측) | (b) 서랍벽·해부대만 추출 |
+| skfb.ly/oCTvA `charite_operating_room` | 수술실 (신규 가능) | (b) 수술등·수술대만 추출 |
+| skfb.ly/oG98U `hospital_reception_environment` | 로비 (구역 A) | (b) 접수데스크·의자만 추출 |
+
+### 무기
+
+| 링크 | 용도 | 비고 |
+|---|---|---|
+| skfb.ly/oWoGT `bloody_lead_pipe` | **쇠파이프** ★ | 피 묻은 파이프 — 세계관에 딱 맞음 |
+| skfb.ly/oTpMT `ps1_style_horror_pipe_weapon` | 파이프 대안 | ⚠️ PS1 로우파이 스타일 — 우리 PBR 과 충돌 가능. 위 것 우선 |
+| skfb.ly/owxRE `9mm_pistol` | 권총 | |
+| skfb.ly/o7OtO `crowbar` | 지렛대 | 미구현 무기 — 넣으면 `weapons.js` 에 정의 추가 |
+
+> **산탄총은 밸런스 붕괴로 제외** (사용자 판단).
+
+---
+
 ## 5. 라이선스 기록 (제출물 심사 대응 — 반드시 채운다)
 
 | 에셋 | 생성/출처 | 플랜 | 상업 이용 | 비고 |
