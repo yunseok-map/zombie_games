@@ -32,6 +32,17 @@ JOBS = [
     ("sfx/sfx_reload_pistol",        "pistol magazine ejected, new magazine inserted, slide racked, metallic", 2.5, 0.7),
     ("sfx/sfx_player_hurt",          "adult male sharp pained grunt, short, breath knocked out", 1.0, 0.5),
     ("ambience/amb_hospital_hum",    "continuous low electrical hum, faint dripping water, distant wind through empty corridors, seamless loop", 20.0, 0.4),
+
+    # 바닥 재질별 발소리 — 같은 소리를 계속 쓰면 즉시 싸구려로 들린다
+    ("sfx/sfx_footstep_tile_01", "single footstep on hard ceramic tile floor, crisp click, slight echo", 1.0, 0.75),
+    ("sfx/sfx_footstep_tile_02", "single footstep on hard ceramic tile floor, heel click, faint grit", 1.0, 0.75),
+    ("sfx/sfx_footstep_tile_03", "single footstep on tiled floor with thin dust layer, soft click", 1.0, 0.75),
+    ("sfx/sfx_footstep_tile_04", "single footstep on tiled floor, boot sole squeak", 1.0, 0.75),
+    ("sfx/sfx_footstep_debris_01", "single footstep crunching broken glass and plaster rubble", 1.0, 0.8),
+    ("sfx/sfx_footstep_debris_02", "single footstep on scattered glass shards, sharp crackle", 1.0, 0.8),
+    ("sfx/sfx_footstep_debris_03", "single footstep crushing loose ceiling tile fragments and grit", 1.0, 0.8),
+    ("sfx/sfx_footstep_wet_01", "single footstep in shallow sticky liquid, wet squelch", 1.0, 0.8),
+    ("sfx/sfx_footstep_wet_02", "single wet footstep, sticky peel off floor", 1.0, 0.8),
 ]
 
 

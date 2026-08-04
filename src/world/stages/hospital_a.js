@@ -25,6 +25,25 @@ export const meta = {
   typeWeights: { shambler: 1 },
 };
 
+/**
+ * 바닥 재질 — 발소리가 이걸 본다 (Player._footsteps).
+ * 복도·로비는 콘크리트, 병실은 타일, 천장이 무너진 자리는 잔해,
+ * 큰 핏자국 위는 젖은 소리.
+ */
+const DEBRIS_SPOTS = [[0.5, 8.5], [-0.6, 19.0], [0.4, 31.5]];   // 천장 붕괴 지점
+const WET_SPOTS = [[0.4, 6.0], [0.8, -14.2], [0, CORR_LEN + 2.6]];
+
+export function surfaceAt(x, z) {
+  for (const [sx, sz] of DEBRIS_SPOTS) {
+    if (Math.abs(x - sx) < 1.3 && Math.abs(z - sz) < 1.3) return 'debris';
+  }
+  for (const [sx, sz] of WET_SPOTS) {
+    if (Math.abs(x - sx) < 1.2 && Math.abs(z - sz) < 1.2) return 'wet';
+  }
+  // 병실은 타일 바닥, 복도·로비는 콘크리트
+  return Math.abs(x) > CORR_HALF && z > 0 ? 'tile' : 'concrete';
+}
+
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addProp, addLight, addSpawn,
           addBlood, addWallBlood, scatterDebris, addItem, addDoor,

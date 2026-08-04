@@ -139,10 +139,15 @@ export class Player {
     const stride = this.crouching ? 1.4 : this.sprinting ? 1.9 : 1.6;
     if (this._stepAccum >= stride) {
       this._stepAccum = 0;
-      const n = 1 + ((Math.random() * 4) | 0);
+      // 밟고 있는 바닥 재질에 따라 소리가 바뀐다 (StageLoader 가 넣어준다)
+      const surf = this.surfaceAt?.(this.pos.x, this.pos.z) ?? 'concrete';
+      const count = surf === 'debris' ? 3 : surf === 'wet' ? 2 : 4;
+      const n = 1 + ((Math.random() * count) | 0);
       bus.emit(EV.SFX, {
-        name: `footstep_${n}`,
-        volume: this.crouching ? 0.25 : this.sprinting ? 0.75 : 0.5,
+        name: `footstep_${surf}_${n}`,
+        volume: this.crouching ? 0.25 : this.sprinting ? 0.8 : 0.52,
+        // 달릴 때는 체중이 실려 낮게, 앉으면 가볍게 — 같은 파일도 다르게 들린다
+        rate: (this.sprinting ? 0.88 : this.crouching ? 1.1 : 1.0) * (0.95 + Math.random() * 0.1),
       });
       // 발소리는 좀비를 부른다
       const radius = this.crouching ? NOISE.walk * 0.4

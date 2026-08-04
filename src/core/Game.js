@@ -86,6 +86,7 @@ export class Game {
   restart() {
     this.pool.despawnAll();
     const start = this.stageLoader.load(hospitalA);
+    this.player.surfaceAt = this.stageLoader.surfaceAt;
     this.player.spawn(start.x, start.z, start.yaw);
     this.flashlight.battery = 100;
     this.flashlight.on = false;

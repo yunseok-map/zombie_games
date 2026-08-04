@@ -95,12 +95,17 @@ export class StageLoader {
     signMap.colorSpace = THREE.SRGBColorSpace;
     signMap.anisotropy = SURFACE.anisotropy;
 
+    // 소품에 요철·거칠기 맵을 얹는다. 완전히 매끈한 재질은 플라스틱처럼 보인다.
+    // 벽 맵을 재사용 — 텍스처가 안 늘어나고, 낮은 normalScale 이면 도장 벗겨짐/마모로 읽힌다.
+    const wear = { normalMap: this.tex.wall.normalMap, roughnessMap: this.tex.wall.roughnessMap };
+    const N = (k) => new THREE.Vector2(k, k);
+
     Object.assign(this.mat, {
-      metal:      M({ color: 0x4a5158, roughness: 0.30, metalness: 0.80 }),
-      enamel:     M({ color: 0x4e534d, roughness: 0.55, metalness: 0.05 }),
-      fabric:     M({ color: 0x5c5a52, roughness: 0.95, metalness: 0 }),
-      accent:     M({ color: 0x7a2820, roughness: 0.55, metalness: 0.10 }),
-      accentDark: M({ color: 0x2a2e30, roughness: 0.80, metalness: 0.15 }),
+      metal:      M({ ...wear, color: 0x4a5158, roughness: 0.55, metalness: 0.80, normalScale: N(0.28) }),
+      enamel:     M({ ...wear, color: 0x4e534d, roughness: 0.85, metalness: 0.05, normalScale: N(0.45) }),
+      fabric:     M({ ...wear, color: 0x5c5a52, roughness: 1.0,  metalness: 0,    normalScale: N(0.55) }),
+      accent:     M({ ...wear, color: 0x7a2820, roughness: 0.75, metalness: 0.10, normalScale: N(0.35) }),
+      accentDark: M({ ...wear, color: 0x2a2e30, roughness: 0.95, metalness: 0.15, normalScale: N(0.4) }),
       glass:      M({ color: 0x9aa8b0, roughness: 0.08, metalness: 0.1,
                       transparent: true, opacity: 0.20, depthWrite: false }),
       sheer:      M({ color: 0x8d8f88, roughness: 0.9,
@@ -323,6 +328,8 @@ export class StageLoader {
 
     this.scatter.reset();
     this.interaction.reset();
+    // 바닥 재질 질의 — 발소리가 이걸 본다. 스테이지가 정의하지 않으면 콘크리트
+    this.surfaceAt = stage.surfaceAt ?? (() => 'concrete');
     const result = stage.build(ctx) ?? {};
 
     // ── 병합 ── 벽 126개가 각각 드로우콜이면 그림자 패스까지 252개가 된다

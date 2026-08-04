@@ -8,10 +8,20 @@ import { bus, EV } from './EventBus.js';
 
 const MANIFEST = {
   // 1순위 (ASSETS.md §4)
-  footstep_1: 'sfx/sfx_footstep_concrete_01.mp3',
-  footstep_2: 'sfx/sfx_footstep_concrete_02.mp3',
-  footstep_3: 'sfx/sfx_footstep_concrete_03.mp3',
-  footstep_4: 'sfx/sfx_footstep_concrete_04.mp3',
+  // 바닥 재질별 발소리. 키 규칙: footstep_<재질>_<번호>
+  footstep_concrete_1: 'sfx/sfx_footstep_concrete_01.mp3',
+  footstep_concrete_2: 'sfx/sfx_footstep_concrete_02.mp3',
+  footstep_concrete_3: 'sfx/sfx_footstep_concrete_03.mp3',
+  footstep_concrete_4: 'sfx/sfx_footstep_concrete_04.mp3',
+  footstep_tile_1: 'sfx/sfx_footstep_tile_01.mp3',
+  footstep_tile_2: 'sfx/sfx_footstep_tile_02.mp3',
+  footstep_tile_3: 'sfx/sfx_footstep_tile_03.mp3',
+  footstep_tile_4: 'sfx/sfx_footstep_tile_04.mp3',
+  footstep_debris_1: 'sfx/sfx_footstep_debris_01.mp3',
+  footstep_debris_2: 'sfx/sfx_footstep_debris_02.mp3',
+  footstep_debris_3: 'sfx/sfx_footstep_debris_03.mp3',
+  footstep_wet_1: 'sfx/sfx_footstep_wet_01.mp3',
+  footstep_wet_2: 'sfx/sfx_footstep_wet_02.mp3',
   zombie_groan: 'sfx/sfx_zombie_idle_groan_01.mp3',
   zombie_alert: 'sfx/sfx_zombie_alert.mp3',
   zombie_attack: 'sfx/sfx_zombie_attack.mp3',

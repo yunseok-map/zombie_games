@@ -22,7 +22,9 @@ export const CLIP_VARIANTS = {
   attack: ['attack_01', 'attack_02', 'attack_03', 'kicking'],
   death:  ['death_01', 'death_02'],
   hit:    ['hit_01'],
-  scream: ['scream', 'standing_up', 'attack_02'],   // 없으면 대체 클립으로 흉내낸다
+  // standing_up / crawl 은 절대 넣지 마라 — 엎드린 자세를 골반 높이 이동으로 표현하는데
+  // 변환할 때 루트 이동을 지웠기 때문에 공중에 뜬 채로 기어가는 것처럼 보인다.
+  scream: ['scream', 'attack_02', 'attack_01'],
 };
 
 /**
