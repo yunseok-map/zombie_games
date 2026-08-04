@@ -75,6 +75,27 @@ export const ZOMBIE = {
     height: 1.7,
     stunResist: 0.7,
   },
+  crawler: {
+    // 다리를 잃고 기어 온다. 느리지만 **낮아서 늦게 보인다** — 손전등은 앞을 비추지
+    // 바닥을 비추지 않는다. 복도에서 발밑을 확인하게 만드는 것이 이 타입의 목적이다.
+    label: '포복체',
+    hp: 40,
+    speedWander: 0.6,
+    speedChase: 2.4,
+    damage: 15,          // 느린 대신 한 대가 아프다. 붙으면 떨어뜨리기 어렵다
+    attackRange: 1.35,
+    attackCooldown: 1.2,
+    sightRange: 13,
+    sightAngleDeg: 90,
+    hearRange: 16,
+    color: 0x5a5f50,
+    radius: 0.42,        // 엎드려서 옆으로 넓다
+    height: 0.6,         // 피격 판정·시야 높이. 모델 크기가 아니다
+    modelScale: 1.0,     // 몸집은 다른 좀비와 같다. height 로 줄이면 미니어처가 된다
+    modelYOffset: -0.62, // 루트 수직 이동을 지운 탓에 뜨는 만큼 내린다 (화면 보고 맞춘 값)
+    crawler: true,       // Zombie._animKey() 가 이걸 보고 crawl 클립을 쓴다
+    stunResist: 0.8,
+  },
   bloater: {
     label: '비대체',
     hp: 180,

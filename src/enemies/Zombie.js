@@ -63,6 +63,8 @@ export class Zombie {
     root.rotation.y = MODEL_YAW;
     this.group.add(root);
     this.model = root;
+    // 모델은 비동기로 붙는다 — 이미 스폰된 뒤일 수 있으므로 높이 보정을 여기서도 건다
+    root.position.y = this.def?.modelYOffset ?? 0;
     this.mixer = mixer;
     this.actions = actions;
     this._jitter = jitter ?? 1;
@@ -74,6 +76,8 @@ export class Zombie {
     if (this.stun > 0 || this.flinch > 0) return 'hit';
     if (this._screamTimer > 0) return 'scream';        // 발견 순간의 포효
     if (this.state === 'ATTACK') return 'attack';
+    // 기어다니는 개체는 서는 동작이 없다 — 이동/정지 둘 다 엎드린 클립을 쓴다
+    if (this.def.crawler) return this._moveSpeed > 0.15 ? 'crawl' : 'crawlIdle';
     if (this.state === 'CHASE') return 'run';
     return this._moveSpeed > 0.25 ? 'walk' : 'idle';
   }
@@ -163,8 +167,12 @@ export class Zombie {
     this.curAnim = null;
     this._prevX = x; this._prevZ = z; this._moveSpeed = 0; this._screamTimer = 0;
 
-    const scale = this.def.height / 1.75;
-    this.group.scale.setScalar(scale);
+    // 기어다니는 개체는 몸집이 작은 게 아니라 엎드린 것이다 — height 로 줄이면 미니어처가 된다.
+    // 그래서 모델 배율은 따로 준다. (height 는 피격 판정·시야 높이에만 쓴다)
+    this.group.scale.setScalar(this.def.modelScale ?? this.def.height / 1.75);
+    // 변환 때 루트의 수직 이동을 지워서, 엎드린 클립을 쓰면 골반이 선 자세 높이에 남아 뜬다.
+    // 그만큼 모델을 내려서 바닥에 붙인다.
+    if (this.model) this.model.position.y = this.def.modelYOffset ?? 0;
     this.group.visible = true;
     this._syncMesh();
   }

@@ -25,7 +25,7 @@ export const meta = {
   label: '옥상',
   // 야외 — 포그를 옅게, 하늘색을 푸르게. 벽이 없어 손전등이 허공을 가른다.
   mood: { fogDensity: 0.026, fogColor: 0x0b1018, ambientIntensity: 0.075 },
-  typeWeights: { shambler: 5, listener: 2 },
+  typeWeights: { shambler: 5, listener: 2, crawler: 3 },
 };
 
 export function surfaceAt() { return 'concrete'; }

@@ -21,7 +21,7 @@ export const meta = {
   label: 'B1 영안실 · 기계실',
   // 완전 암흑 — 구역 A(0.06)보다 훨씬 어둡고 포그도 짙다
   mood: { fogDensity: 0.075, fogColor: 0x030406, ambientIntensity: 0.022 },
-  typeWeights: { shambler: 3, listener: 2 },
+  typeWeights: { shambler: 3, listener: 2, crawler: 1 },
 };
 
 /** 바닥 재질 — 기계실은 콘크리트, 영안실은 타일, 통로 중앙은 물이 고여 있다 */

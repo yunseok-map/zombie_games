@@ -25,6 +25,11 @@ export const CLIP_VARIANTS = {
   // standing_up / crawl 은 절대 넣지 마라 — 엎드린 자세를 골반 높이 이동으로 표현하는데
   // 변환할 때 루트 이동을 지웠기 때문에 공중에 뜬 채로 기어가는 것처럼 보인다.
   scream: ['scream', 'attack_02', 'attack_01'],
+
+  // 기어다니는 개체용. 풀은 타입을 모르고 미리 만들어지므로 클립은 전부 준비해 두고,
+  // 어떤 걸 쓸지는 Zombie._animKey() 가 def.crawler 를 보고 고른다.
+  crawl:     ['crawl'],
+  crawlIdle: ['crawl_idle'],
 };
 
 /**

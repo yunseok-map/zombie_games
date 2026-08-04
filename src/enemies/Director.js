@@ -24,7 +24,7 @@ export class Director {
     this.typeWeights = { shambler: 1 };
     this.enabled = true;
     this.pendingWave = 0;
-    this.pendingWaveType = 'shambler';
+    this.pendingWaveType = null;      // null = 구역 typeWeights 를 따른다
 
     // 소리는 좀비를 부른다
     bus.on(EV.NOISE, (n) => this.pool.broadcastNoise(n.x, n.z, n.radius));
@@ -44,8 +44,12 @@ export class Director {
     this.spawnTimer = 1.5;
   }
 
-  /** 이벤트용 강제 웨이브 (발전기 레버 등) */
-  triggerWave(count, typeKey = 'shambler') {
+  /**
+   * 이벤트용 강제 웨이브 (발전기 레버 등).
+   * @param typeKey 생략하면 **구역의 typeWeights 를 따른다.** 예전에는 'shambler' 로
+   *   고정돼 있어서, 청각체·포복체를 등록해도 이벤트 웨이브는 전부 배회체만 나왔다.
+   */
+  triggerWave(count, typeKey = null) {
     this.pendingWave += count;
     this.pendingWaveType = typeKey;
     this.phase = 'PEAK';
@@ -93,7 +97,8 @@ export class Director {
     const point = this._pickSpawnPoint();
     if (!point) { this.spawnTimer = 0.8; return; }
 
-    const type = wantWave ? this.pendingWaveType : this._pickType();
+    // 웨이브라도 타입을 지정하지 않았으면 구역 가중치를 따른다
+    const type = (wantWave && this.pendingWaveType) ? this.pendingWaveType : this._pickType();
     const z = this.pool.spawn(type, point.x, point.z);
     if (z && wantWave) {
       this.pendingWave--;

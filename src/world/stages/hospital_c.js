@@ -24,7 +24,7 @@ export const meta = {
   label: '2F 병동',
   // B1 보다는 밝지만 여전히 어둡다. 점멸이 주인공이라 기본 조도를 낮게 둔다.
   mood: { fogDensity: 0.055, fogColor: 0x060709, ambientIntensity: 0.035 },
-  typeWeights: { shambler: 4, listener: 2 },
+  typeWeights: { shambler: 4, listener: 2, crawler: 2 },
 };
 
 /** 병동은 전부 타일. 간호사 스테이션 앞은 물이 샜다 */

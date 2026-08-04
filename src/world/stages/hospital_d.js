@@ -24,7 +24,7 @@ export const meta = {
   label: '3F 수술부 · 중환자실',
   // 수술등이 아직 몇 개 살아 있어 A~C 중 가장 밝다. 대신 그림자가 길다.
   mood: { fogDensity: 0.05, fogColor: 0x070808, ambientIntensity: 0.045 },
-  typeWeights: { shambler: 4, listener: 3 },
+  typeWeights: { shambler: 4, listener: 3, crawler: 2 },
 };
 
 export function surfaceAt() { return 'tile'; }
