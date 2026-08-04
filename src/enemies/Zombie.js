@@ -3,8 +3,14 @@ import { ZOMBIE, AI } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 
-/** 모델이 바라보는 축 보정. Mixamo 는 +Z 를 보므로 0. 등을 보이면 Math.PI */
-const MODEL_YAW = 0;
+/**
+ * 모델 방향 보정.
+ * facing 은 플레이어와 같은 규약을 쓴다 — 전진 방향이 (-sin, -cos), 즉 로컬 -Z.
+ * (Zombie.js 239행: `const fx = -Math.sin(this.facing)`)
+ * Mixamo 캐릭터는 +Z 를 보므로 180° 돌려야 진행 방향을 바라본다.
+ * 이걸 0 으로 두면 좀비가 뒷걸음질로 다가온다.
+ */
+const MODEL_YAW = Math.PI;
 const FADE = 0.22;            // 클립 전환 시간(초). 짧으면 뚝뚝 끊기고 길면 흐물거린다
 
 const _tmp = new THREE.Vector3();
