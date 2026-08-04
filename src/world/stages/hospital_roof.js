@@ -9,6 +9,9 @@
  * 마지막 구역이므로 출구에 닿으면 Game.onClear() → EXTRACTED.
  */
 
+import { EVENTS } from '../../config/balance.js';
+import { bus, EV } from '../../core/EventBus.js';
+
 const WALL_T = 0.25;
 const PARAPET_D = 0.3;             // 난간 벽 두께
 const DECK_HALF = 15;              // 옥상 반폭 (x: -15 ~ 15)
@@ -29,7 +32,8 @@ export function surfaceAt() { return 'concrete'; }
 
 export function build(ctx) {
   const { addWall, addFloor, addLight, addSpawn, addBlood, addWallBlood,
-          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable } = ctx;
+          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable,
+          addLever, triggerWave, setMood, setLights, setExit } = ctx;
 
   let _s = 5150207;
   const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -104,15 +108,49 @@ export function build(ctx) {
   addLight(0, 3.2, PAD_Z, 'pulse', 0x8a3a2a);
   addSpawn(-7, PAD_Z); addSpawn(7, PAD_Z); addSpawn(0, PAD_Z + 6);
 
-  // ───────── 탈출 지점 ─────────
+  // ───────── 탈출 지점 (아직 열리지 않는다) ─────────
   addProp3D('handrail', 0, EXIT_Z, 6, true);
   addSign(12, 0, 2.1, DECK_Z1 - 0.2, Math.PI, 1.2, 0.48, true);
   addWallBlood(0, 1.2, DECK_Z1 - 0.2, Math.PI, 2.0, 'handprint');
   addLight(0, 2.6, EXIT_Z, 'steady', 0x6f8a63);
   scatterDebris(0, EXIT_Z, 10, 5, 0.2);
 
+  // ───────── 사건: 신호탄 → 버티기 → 헬기 ─────────
+  // 이 게임의 마지막 장면이다. 지금까지 아껴 온 탄약을 여기서 다 쓰게 만든다.
+  // 도망칠 곳이 없는 상태로 시간을 버티는 것이, 계속 도망쳐 온 네 구역과 대비된다.
+  const R = EVENTS.roof;
+  const timers = [];
+  const after = (sec, fn) => timers.push(setTimeout(fn, sec * 1000));
+
+  addLever(0, PAD_Z - 7.0, 0, '신호탄', () => {
+    setLights('pulse', 1.4);
+    bus.emit(EV.SFX, { name: 'flashlight', volume: 1.0 });
+
+    // 주기적으로 몰려온다. 시간이 갈수록 패드 쪽으로 몰리도록 웨이브가 겹친다.
+    for (let t = R.waveEvery; t < R.holdSeconds; t += R.waveEvery) {
+      after(t, () => triggerWave(R.waveSize));
+    }
+    for (const left of R.warnAt) {
+      if (left >= R.holdSeconds) continue;
+      after(R.holdSeconds - left, () =>
+        bus.emit(EV.HINT, { text: `버텨라 — ${left}초`, duration: 2.6 }));
+    }
+    after(R.holdSeconds - 6, () => triggerWave(R.finalWave));
+
+    // 헬기 도착 — 그제야 탈출 지점이 열린다
+    after(R.holdSeconds, () => {
+      setMood({ ambientIntensity: 0.4, fogDensity: 0.018 });
+      setLights('steady', 1.8);
+      bus.emit(EV.HINT, { text: '헬기 도착 — 난간 쪽으로', duration: 6 });
+      setExit({ x: 0, z: EXIT_Z + 1.2, radius: 2.4 });
+    });
+
+    return `신호탄 발사 — ${R.holdSeconds}초 버텨라`;
+  }, '쏘기');
+
   return {
     playerStart: { x: 0, z: HUT_Z - 1.0, yaw: 0 },   // 계단탑 안에서 시작, 문 쪽(+Z)을 본다
-    exit: { x: 0, z: EXIT_Z + 1.2, radius: 2.4 },
+    // exit 없음 — 신호탄을 쏘고 버텨야 열린다 (위 setExit)
+    onUnload: () => { for (const t of timers) clearTimeout(t); },
   };
 }

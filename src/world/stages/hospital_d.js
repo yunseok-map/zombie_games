@@ -8,6 +8,9 @@
  * 구조: 진입 계단실 → 수술부 복도 → (좌) 수술실 2 · (우) 중환자실 → 옥상 계단실
  */
 
+import { EVENTS } from '../../config/balance.js';
+import { bus, EV } from '../../core/EventBus.js';
+
 const WALL_T = 0.2;
 const HALL_HALF = 2.6;
 const HALL_Z0 = 4, HALL_Z1 = 34;
@@ -28,7 +31,8 @@ export function surfaceAt() { return 'tile'; }
 
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
-          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable } = ctx;
+          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable,
+          addLever, addDoor, triggerWave, setMood, setLights } = ctx;
 
   let _s = 771013;
   const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -149,6 +153,29 @@ export function build(ctx) {
   addLight(icuCx, 2.85, 11, 'flicker', 0x3d5560);
   addLight(icuCx, 2.85, 27, 'pulse', 0x3d5560);
   addSpawn(icuCx, 10); addSpawn(icuCx, 19); addSpawn(icuCx, 28);
+
+  // ───────── 사건: 수술부 봉쇄 해제 ─────────
+  // 옥상으로 가는 문이 안쪽에서 봉쇄돼 있다. 수술실 두 곳의 무영등에 전원을 넣어야 풀린다.
+  // 무영등을 켜면 수술실이 환해지는데, 그 순간 방 안이 다 보여서 오히려 더 나쁘다.
+  const S = EVENTS.surgery;
+  let lamps = 0;
+  const onLamp = () => {
+    lamps++;
+    setMood({ ambientIntensity: 0.045 + lamps * 0.03 });
+    if (lamps < S.lampCount) {
+      triggerWave(S.waveOnLamp);
+      return `무영등 ${lamps}/${S.lampCount} — 방이 환해졌다`;
+    }
+    setLights('steady', 1.4);
+    triggerWave(S.waveOnComplete);
+    bus.emit(EV.HINT, { text: '봉쇄 해제 — 옥상으로', duration: 5 });
+    return '봉쇄가 풀렸다';
+  };
+  OR_Z.forEach((cz, i) => {
+    addLever(-ROOM_X + 0.45, cz + 1.4, Math.PI / 2, `무영등 전원 ${i + 1}`, onLamp);
+  });
+  addDoor(0, HALL_Z1, HALL_HALF * 2, WALL_T, () => lamps >= S.lampCount,
+    '봉쇄문', '수술실 두 곳의 전원을 넣어야 한다');
 
   // ───────── 옥상 계단실 ─────────
   addFloor(0, EXIT_Z, 9, 8); addCeiling(0, EXIT_Z, 9, 8);

@@ -190,6 +190,9 @@ export class StageLoader {
   }
 
   unload() {
+    // 구역이 걸어 둔 타이머를 먼저 끊는다. 안 그러면 죽거나 다음 구역으로 넘어간 뒤에도
+    // 옥상 카운트다운이 계속 돌면서 엉뚱한 곳에 웨이브를 부른다.
+    if (this._onUnload) { this._onUnload(); this._onUnload = null; }
     if (this.group) {
       this.scene.remove(this.group);
       this.group.traverse((o) => {
@@ -319,7 +322,8 @@ export class StageLoader {
        * 레버 — 올리면 큰 소음이 나고 콜백이 불린다 (발전기 복구용).
        * onPull 은 몇 번째인지(1부터)를 받는다.
        */
-      addLever: (x, z, yaw, label, onPull) => {
+      /** @param verb 프롬프트 동사. 레버가 아닌 것(신호탄 등)에 쓴다 */
+      addLever: (x, z, yaw, label, onPull, verb = '올리기') => {
         const pulled = { done: false };
         for (const { mat, geo } of BUILDERS.lever()) {
           fitGenericUV(geo, SURFACE.propTile);
@@ -329,12 +333,18 @@ export class StageLoader {
         }
         this.interaction.add({
           x, z, radius: 2.0, once: true, noisy: true,
-          prompt: () => `[E]  ${label} 올리기`,
+          prompt: () => `[E]  ${label} ${verb}`,
           onUse: () => { pulled.done = true; return onPull?.() ?? `${label} 작동`; },
         });
       },
       /** 이벤트용 강제 웨이브 */
       triggerWave: (count, type) => this.director?.triggerWave(count, type),
+      /**
+       * 탈출 지점을 나중에 여는 용도. build() 가 exit 를 안 돌려주면 그 구역은
+       * 출구가 없는 상태로 시작하고, 사건이 끝난 뒤 이걸로 연다 (옥상 신호탄).
+       * null 을 주면 다시 닫는다.
+       */
+      setExit: (exit) => { this.exit = exit; },
       /** 구역 분위기 전환 (전원 복구 등) */
       setMood: (mood) => this.atmosphere.applyStageMood(mood),
       /** 등록된 비상등 전부의 모드·밝기를 바꾼다 */
@@ -373,10 +383,14 @@ export class StageLoader {
       },
 
       /**
-       * 잠긴 문. requires 를 가지고 있어야 열린다.
-       * 열리면 충돌이 꺼지고 문이 옆으로 미끄러진다.
+       * 잠긴 문. 열리면 충돌이 꺼지고 문이 옆으로 미끄러진다.
+       * @param requires 아이템 id(문자열) 또는 조건 함수 — 진행도로 열리는 문에 쓴다
+       * @param lockedMsg 잠겼을 때 보여줄 이유. 생략하면 카드키 문구
        */
-      addDoor: (cx, cz, w, d, requires, label) => {
+      addDoor: (cx, cz, w, d, requires, label, lockedMsg = '카드키가 필요하다') => {
+        const canOpen = typeof requires === 'function'
+          ? () => requires()
+          : ({ player }) => player.items.has(requires);
         const g = fitBoxUV(new THREE.BoxGeometry(w, WALL_H, d), w, WALL_H, d, SURFACE.wallTile);
         const m = new THREE.Mesh(g, this._propMat(0x4b5250));
         m.position.set(cx, WALL_H / 2, cz);
@@ -386,11 +400,11 @@ export class StageLoader {
 
         this.interaction.add({
           x: cx, z: cz, radius: 2.3, once: true, noisy: true,
-          prompt: ({ player }) => (player.items.has(requires)
+          prompt: (arg) => (canOpen(arg)
             ? `[E]  ${label} 열기`
-            : `${label} — 잠김. 카드키가 필요하다`),
-          onUse: ({ player }) => {
-            if (!player.items.has(requires)) return { msg: '카드키가 없다', done: false };
+            : `${label} — 잠김. ${lockedMsg}`),
+          onUse: (arg) => {
+            if (!canOpen(arg)) return { msg: lockedMsg, done: false };
             box.enabled = false;
             this.interaction.slide(m, w * 0.94, 0);
             return `${label} 개방`;
@@ -427,7 +441,9 @@ export class StageLoader {
     this.scatter.finalize(this.group);
     this.atmosphere.applyStageMood(stage.meta.mood ?? {});
     this.director?.setStage(this.spawnPoints, stage.meta.typeWeights);
+    // exit 가 없는 구역도 있다 — 사건이 끝나야 열린다 (옥상). ctx.setExit 으로 연다.
     this.exit = result.exit ?? null;
+    this._onUnload = result.onUnload ?? null;
 
     return result.playerStart ?? { x: 0, z: 0, yaw: 0 };
   }

@@ -8,6 +8,9 @@
  * 병실은 커튼으로 시야가 잘려 있어, 들어가 보기 전에는 안이 안 보인다.
  */
 
+import { EVENTS } from '../../config/balance.js';
+import { bus, EV } from '../../core/EventBus.js';
+
 const WALL_T = 0.2;
 const HALL_HALF = 2.8;
 const HALL_Z0 = 4, HALL_Z1 = 44;
@@ -32,7 +35,8 @@ export function surfaceAt(x, z) {
 
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
-          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable } = ctx;
+          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable,
+          addLever, addDoor, triggerWave, setLights } = ctx;
 
   let _s = 40517;
   const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -148,6 +152,31 @@ export function build(ctx) {
   addSearchable(-0.9, 23.4, '간호사 스테이션');
   addPropGLB('prop_firstaid', 1.2, 23.6, 0.4, { y: 0.0 });
   addSign(15, -HALL_HALF + 0.11, 1.9, 24.5, Math.PI / 2, 0.5, 0.2);
+
+  // ───────── 사건: 병실 무전기 4대 ─────────
+  // B1 의 레버가 "어둠을 걷어내는" 일이었다면, 여기는 반대다 — 켤수록 위치가 들킨다.
+  // 무전기는 병실 안쪽에 있어서, 켜려면 커튼 뒤가 안 보이는 방으로 들어가야 한다.
+  const W = EVENTS.ward;
+  let radios = 0;
+  const onRadio = () => {
+    radios++;
+    if (radios < W.radioCount) {
+      triggerWave(W.waveOnRadio);          // 소리가 났다. 대가는 즉시 치른다
+      return `무전 ${radios}/${W.radioCount} — 응답 없음. 소리가 났다`;
+    }
+    setLights('pulse', 1.3);
+    triggerWave(W.waveOnComplete);
+    bus.emit(EV.HINT, { text: '계단실 잠금 해제 — 위층으로', duration: 5 });
+    return '마지막 무전 — 계단실이 열렸다';
+  };
+  // 병실 4곳(좌우 번갈아). 안쪽 벽에 붙여 둔다.
+  [[-1, WARD_Z[0]], [1, WARD_Z[1]], [-1, WARD_Z[2]], [1, WARD_Z[3]]]
+    .forEach(([side, cz], i) => {
+      addLever(side * (ROOM_X - 0.5), cz - 1.2, side * Math.PI / 2, `무전기 ${i + 1}`, onRadio);
+    });
+  // 무전 4대를 다 켜야 열리는 문. 카드키가 아니라 진행도로 열린다.
+  addDoor(0, HALL_Z1, HALL_HALF * 2, WALL_T, () => radios >= W.radioCount,
+    '계단실 문', '무전을 전부 켜야 한다');
 
   // ───────── 탈출 계단실 (3F 로) ─────────
   addFloor(0, EXIT_Z, 9, 8); addCeiling(0, EXIT_Z, 9, 8);
