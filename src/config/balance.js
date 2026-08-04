@@ -232,6 +232,21 @@ export const GENERATOR = {
   litFog: 0.022,
 };
 
+/**
+ * GLB 무기 뷰모델의 배치. 모델마다 축·원점이 달라서 값으로 맞춘다.
+ * (Kenney CC0 킷은 Y-up · 원점이 바닥이라 눕히고 앞으로 밀어야 한다)
+ */
+export const WEAPON_VIEW = {
+  // Kenney 모델은 원본이 작다 (도끼 0.267m). 실물 크기로 키워야 한다 —
+  // 안 그러면 손에 장난감을 든 것처럼 보인다.
+  //   rot X = -90°  : 원본이 Y 로 서 있으므로 눕혀서 -Z(정면)로 향하게
+  axe:     { scale: 2.55, rot: [-Math.PI / 2, 0.28, 0.10], pos: [0, 0.02, -0.02] },
+  molotov: { scale: 1.70, rot: [-Math.PI / 2, 0.30, 0.00], pos: [0, -0.02, -0.02] },
+  // GLB 재질은 밝은 회색(c0c0c0). 손전등이 0.45m 앞에서 26cd 라
+  // 알베도 0.09 정도로도 클리핑된다. 화면 보고 이 값만 조절하면 된다.
+  colorMul: 0.12,
+};
+
 export const GAME = {
   difficultyMultiplier: 1.0,  // 0.7 쉬움 / 1.0 보통 / 1.4 어려움
 };

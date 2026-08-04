@@ -1,4 +1,28 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+/**
+ * GLB 무기 — 절차적 모델보다 나은 것만 쓴다.
+ * Kenney Survival Kit (CC0). 나머지는 아래 절차적 빌더가 담당한다.
+ */
+const GLB_DIR = `${import.meta.env.BASE_URL}assets/models/weapons/`;
+const GLB_WEAPONS = { axe: 'weapon_axe', molotov: 'weapon_molotov' };
+const _glb = {};
+
+/** 게임 시작 전에 부른다. 실패해도 절차적 모델로 대체된다 */
+export function preloadWeaponModels() {
+  const loader = new GLTFLoader();
+  return Promise.all(Object.entries(GLB_WEAPONS).map(([id, file]) =>
+    loader.loadAsync(`${GLB_DIR}${file}.glb`)
+      .then((g) => { _glb[id] = g.scene; })
+      .catch((e) => console.warn(`[weapon] ${file} 로드 실패 — 절차적 모델로 대체`, e))
+  ));
+}
+
+/** 로드된 GLB 사본. 없으면 null */
+export function cloneWeaponGLB(id) {
+  return _glb[id] ? _glb[id].clone(true) : null;
+}
 
 /**
  * ViewModels — 1인칭 무기 뷰모델 지오메트리 (절차적).

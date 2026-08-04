@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { NOISE, SURFACE } from '../config/balance.js';
+import { NOISE, SURFACE, WEAPON_VIEW } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
-import { WEAPON_MODELS } from './ViewModels.js';
+import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /**
@@ -91,13 +91,35 @@ export class WeaponSystem {
   }
 
   _buildViewModel() {
-    for (const m of this.viewParts) { this.viewRoot.remove(m); m.geometry.dispose(); }
+    for (const m of this.viewParts) { this.viewRoot.remove(m); m.geometry?.dispose(); }
     this.viewParts.length = 0;
-    if (this.viewMesh) { this.viewRoot.remove(this.viewMesh); this.viewMesh.geometry.dispose(); this.viewMesh = null; }
+    // GLB 는 Group 이라 geometry 가 없다 — 옵셔널로 접근해야 한다
+    if (this.viewMesh) { this.viewRoot.remove(this.viewMesh); this.viewMesh.geometry?.dispose(); this.viewMesh = null; }
 
     const def = this.current;
-    const build = WEAPON_MODELS[def.id];
 
+    // 1순위: CC0 GLB 모델
+    const glb = cloneWeaponGLB(def.id);
+    if (glb) {
+      const v = WEAPON_VIEW[def.id] ?? { scale: 1, rot: [0, 0, 0], pos: [0, 0, 0] };
+      glb.scale.setScalar(v.scale);
+      glb.rotation.set(...v.rot);
+      glb.position.set(...v.pos);
+      glb.traverse((o) => {
+        if (!o.isMesh) return;
+        o.frustumCulled = false;
+        // 손전등 코앞이라 원본 색 그대로면 하얗게 탄다
+        o.material = o.material.clone();
+        o.material.color.multiplyScalar(SURFACE.viewModelDim * (WEAPON_VIEW.colorMul ?? 1));
+      });
+      this.viewRoot.add(glb);
+      this.viewParts.push(glb);
+      this.viewMesh = glb;
+      return;
+    }
+
+    // 2순위: 절차적 모델
+    const build = WEAPON_MODELS[def.id];
     if (build) {
       // 재질별로 묶어 병합 — 무기 하나가 드로우콜 4~5개를 넘지 않게 한다
       const byMat = new Map();
