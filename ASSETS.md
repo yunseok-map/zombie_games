@@ -111,9 +111,14 @@ Korean and English warning text, torn corner, stained, flat lighting, 1024x1024
 
 ## 5. 라이선스 기록 (제출물 심사 대응 — 반드시 채운다)
 
-| 에셋 | 생성 툴 | 플랜 | 상업 이용 | 비고 |
+| 에셋 | 생성/출처 | 플랜 | 상업 이용 | 비고 |
 |---|---|---|---|---|
-| (예) wall_tile_concrete.webp | Higgsfield | — | — | |
-| | | | | |
+| wall_plaster_peeling_{color,normal,rough}.webp | ambientCG (PaintedPlaster015) | CC0 | 가능 | 512px WebP 로 리사이즈, AO를 color에 55% 합성 |
+| floor_tile_hospital_{color,normal,rough}.webp | ambientCG (Tiles040) | CC0 | 가능 | 동일 |
+| ceiling_panel_office_{color,normal,rough}.webp | ambientCG (OfficeCeiling001) | CC0 | 가능 | 동일 |
+
+> **왜 텍스처는 AI가 아닌가** — 이미지 생성 모델은 albedo 한 장만 내놓는다.
+> 실사감을 만드는 normal/roughness 맵이 없고 seamless 도 보장되지 않는다.
+> AI 는 **포스터·간판·경고문**(창작이 필요하고 타일링이 불필요)과 **SFX·트레일러**에 쓴다.
 
 > 제출 전 이 표가 비어 있으면 안 된다. "AI를 어떻게 썼는가"가 심사 항목일 가능성이 높다.

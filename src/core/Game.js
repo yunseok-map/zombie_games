@@ -4,6 +4,7 @@ import { Collision } from './Collision.js';
 import { AudioManager } from './AudioManager.js';
 import { bus, EV } from './EventBus.js';
 import { Atmosphere } from '../fx/Atmosphere.js';
+import { PostFX } from '../fx/PostFX.js';
 import { Player } from '../player/Player.js';
 import { Flashlight } from '../player/Flashlight.js';
 import { WeaponSystem } from '../weapons/WeaponSystem.js';
@@ -36,6 +37,7 @@ export class Game {
     this.collision = new Collision();
     this.audio = new AudioManager();
     this.atmosphere = new Atmosphere(this.scene, this.renderer);
+    this.post = new PostFX(this.renderer, this.scene, this.camera);
     this.hud = new HUD();
 
     this.player = new Player(this.camera, this.input, this.collision);
@@ -68,6 +70,7 @@ export class Game {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.post?.setSize(w, h);
   }
 
   async start() {
@@ -163,7 +166,8 @@ export class Game {
       }
     }
 
-    this.renderer.render(this.scene, this.camera);
+    if (this.post.enabled) this.post.render(dt);
+    else this.renderer.render(this.scene, this.camera);
     this.input.endFrame();
   }
 }

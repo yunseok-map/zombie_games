@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SURFACE } from '../config/balance.js';
 
 /**
  * StageLoader — 구역을 짓고, 지우고, 충돌/스폰/조명을 등록한다.
@@ -6,6 +7,59 @@ import * as THREE from 'three';
  * 덕분에 구역 파일이 데이터에 가까워져서 수정이 안전하다.
  */
 const WALL_H = 3.1;
+
+const TEX_DIR = `${import.meta.env.BASE_URL}assets/textures/`;
+const texLoader = new THREE.TextureLoader();
+
+/** 한 재질에 필요한 맵 3종(색·요철·거칠기)을 불러온다. 텍스처는 전 구역이 공유한다. */
+function loadMaps(name) {
+  const map = texLoader.load(`${TEX_DIR}${name}_color.webp`);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const normalMap = texLoader.load(`${TEX_DIR}${name}_normal.webp`);
+  const roughnessMap = texLoader.load(`${TEX_DIR}${name}_rough.webp`);
+  for (const t of [map, normalMap, roughnessMap]) {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;   // UV 가 1을 넘어도 반복되게
+    t.anisotropy = SURFACE.anisotropy;
+  }
+  return { map, normalMap, roughnessMap };
+}
+
+function makeMat(maps, tint, normalScale) {
+  return new THREE.MeshStandardMaterial({
+    ...maps,
+    color: tint,
+    roughness: 1,          // roughnessMap 에 곱해진다
+    metalness: 0,
+    normalScale: new THREE.Vector2(normalScale, normalScale),
+  });
+}
+
+/**
+ * 박스 UV 를 실제 크기에 맞춘다. 이걸 안 하면 텍스처가 벽 크기대로 늘어나서
+ * 긴 복도 벽 하나에 무늬가 딱 한 번만 나온다 — 그게 "종이 같아 보이는" 원인이다.
+ * BoxGeometry 면 순서: +X, -X, +Y, -Y, +Z, -Z (면당 정점 4개)
+ */
+function fitBoxUV(geo, w, h, d, tile) {
+  const uv = geo.attributes.uv;
+  const faceSize = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+  for (let f = 0; f < 6; f++) {
+    const [su, sv] = faceSize[f];
+    for (let i = f * 4; i < f * 4 + 4; i++) {
+      uv.setXY(i, (uv.getX(i) * su) / tile, (uv.getY(i) * sv) / tile);
+    }
+  }
+  uv.needsUpdate = true;
+  return geo;
+}
+
+function fitPlaneUV(geo, w, d, tile) {
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (uv.getX(i) * w) / tile, (uv.getY(i) * d) / tile);
+  }
+  uv.needsUpdate = true;
+  return geo;
+}
 
 export class StageLoader {
   constructor(scene, collision, atmosphere, director) {
@@ -17,25 +71,24 @@ export class StageLoader {
     this.spawnPoints = [];
     this.exit = null;
 
-    // 재질은 공유한다 (드로우콜/메모리 예산 — CLAUDE.md §3)
+    // 텍스처·재질은 전 구역이 공유한다 (메모리 예산 — CLAUDE.md §3)
+    this.tex = {
+      wall: loadMaps('wall_plaster_peeling'),
+      floor: loadMaps('floor_tile_hospital'),
+      ceiling: loadMaps('ceiling_panel_office'),
+    };
     this.mat = {
-      floor: new THREE.MeshStandardMaterial({ color: 0x2b2f2c, roughness: 0.96, metalness: 0.02 }),
-      wall: new THREE.MeshStandardMaterial({ color: 0x49544a, roughness: 0.93, metalness: 0.02 }),
-      ceiling: new THREE.MeshStandardMaterial({ color: 0x1d211f, roughness: 0.99, metalness: 0 }),
+      floor: makeMat(this.tex.floor, SURFACE.floorTint, SURFACE.floorNormalScale),
+      wall: makeMat(this.tex.wall, SURFACE.wallTint, SURFACE.wallNormalScale),
+      ceiling: makeMat(this.tex.ceiling, SURFACE.ceilingTint, SURFACE.ceilingNormalScale),
     };
     this.propMats = new Map();
-
-    this.geo = {
-      box: new THREE.BoxGeometry(1, 1, 1),
-      plane: new THREE.PlaneGeometry(1, 1),
-    };
   }
 
+  /** 소품은 벽과 같은 맵을 쓰고 색만 다르게 — 재질이 늘어나도 텍스처는 안 늘어난다 */
   _propMat(color) {
     if (!this.propMats.has(color)) {
-      this.propMats.set(color, new THREE.MeshStandardMaterial({
-        color, roughness: 0.9, metalness: 0.08,
-      }));
+      this.propMats.set(color, makeMat(this.tex.wall, color, SURFACE.propNormalScale));
     }
     return this.propMats.get(color);
   }
@@ -43,7 +96,7 @@ export class StageLoader {
   unload() {
     if (this.group) {
       this.scene.remove(this.group);
-      this.group.traverse((o) => { if (o.isMesh && o.geometry !== this.geo.box && o.geometry !== this.geo.plane) o.geometry.dispose(); });
+      this.group.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
       this.group = null;
     }
     this.collision.clear();
@@ -61,33 +114,33 @@ export class StageLoader {
     const ctx = {
       /** 벽 — 충돌 등록됨 */
       addWall: (cx, cz, w, d) => {
-        const m = new THREE.Mesh(this.geo.box, this.mat.wall);
+        const g = fitBoxUV(new THREE.BoxGeometry(w, WALL_H, d), w, WALL_H, d, SURFACE.wallTile);
+        const m = new THREE.Mesh(g, this.mat.wall);
         m.position.set(cx, WALL_H / 2, cz);
-        m.scale.set(w, WALL_H, d);
         m.castShadow = true; m.receiveShadow = true;
         this.group.add(m);
         this.collision.addBox(cx, cz, w, d);
       },
       addFloor: (cx, cz, w, d) => {
-        const m = new THREE.Mesh(this.geo.plane, this.mat.floor);
+        const g = fitPlaneUV(new THREE.PlaneGeometry(w, d), w, d, SURFACE.floorTile);
+        const m = new THREE.Mesh(g, this.mat.floor);
         m.rotation.x = -Math.PI / 2;
         m.position.set(cx, 0, cz);
-        m.scale.set(w, d, 1);
         m.receiveShadow = true;
         this.group.add(m);
       },
       addCeiling: (cx, cz, w, d) => {
-        const m = new THREE.Mesh(this.geo.plane, this.mat.ceiling);
+        const g = fitPlaneUV(new THREE.PlaneGeometry(w, d), w, d, SURFACE.ceilingTile);
+        const m = new THREE.Mesh(g, this.mat.ceiling);
         m.rotation.x = Math.PI / 2;
         m.position.set(cx, WALL_H, cz);
-        m.scale.set(w, d, 1);
         this.group.add(m);
       },
       /** 소품 — 충돌 등록됨 (h 는 높이) */
       addProp: (cx, cz, w, h, d, color) => {
-        const m = new THREE.Mesh(this.geo.box, this._propMat(color));
+        const g = fitBoxUV(new THREE.BoxGeometry(w, h, d), w, h, d, SURFACE.propTile);
+        const m = new THREE.Mesh(g, this._propMat(color));
         m.position.set(cx, h / 2, cz);
-        m.scale.set(w, h, d);
         m.castShadow = true; m.receiveShadow = true;
         this.group.add(m);
         this.collision.addBox(cx, cz, w, d);

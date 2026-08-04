@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { NOISE } from '../config/balance.js';
+import { NOISE, SURFACE } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
 /**
@@ -74,8 +74,11 @@ export class WeaponSystem {
     const def = this.current;
     const s = def.viewScale ?? [0.08, 0.1, 0.4];
     const geo = new THREE.BoxGeometry(s[0], s[1], s[2]);
+    // 뷰모델은 손전등 코앞(0.45m)에 있어서 그대로 두면 하얗게 타버린다.
+    // viewColor 는 밝은 곳 기준 색이므로 여기서 어둡게 눌러 쓴다.
     const mat = new THREE.MeshStandardMaterial({
-      color: def.viewColor ?? 0x555555, roughness: 0.72, metalness: 0.35,
+      color: new THREE.Color(def.viewColor ?? 0x555555).multiplyScalar(SURFACE.viewModelDim),
+      roughness: 0.55, metalness: 0.75,
     });
     this.viewMesh = new THREE.Mesh(geo, mat);
     this.viewMesh.position.z = -s[2] / 2;

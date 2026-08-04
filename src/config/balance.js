@@ -34,7 +34,8 @@ export const FLASHLIGHT = {
   range: 22,
   angleDeg: 26,
   penumbra: 0.55,
-  intensity: 3.2,
+  intensity: 26,       // three.js r155+ 는 물리 단위(칸델라)라 값이 커야 한다. 3.2 는 2m 앞도 못 비췄다
+
   color: 0xfff0d0,
   flickerBelow: 20,    // 이 % 미만이면 깜빡임
   detectionMultiplier: 1.6, // 켜면 좀비 감지 반경 배수 (핵심 트레이드오프)
@@ -144,6 +145,40 @@ export const FX = {
   emergencyLightColor: 0xff3b2e,
   emergencyLightIntensity: 0.9,
   emergencyLightRange: 7,
+};
+
+/** 후처리 — 텍스처만큼이나 "게임처럼 보이는가"를 좌우한다 (fx/PostFX.js) */
+export const POST = {
+  enabled: true,
+  bloomStrength: 0.28,     // 손전등 핫스팟·비상등이 번지는 정도
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,    // 이 밝기 위만 번진다. 낮추면 전체가 뿌예진다
+  grain: 0.03,             // 필름 노이즈. 어두운 곳일수록 강해진다. 0.08 넘으면 화면이 지저분해진다
+  vignette: 0.5,           // 화면 가장자리 어둡게 — 시야가 좁아 보인다
+  aberration: 0.004,       // 가장자리 색수차. 과하면 싸구려로 보인다
+  msaaSamples: 4,
+};
+
+export const SURFACE = {
+  // 텍스처 한 장이 덮는 실제 크기(m). 작을수록 무늬가 촘촘해진다.
+  wallTile: 2.4,
+  floorTile: 2.0,
+  ceilingTile: 1.2,
+  propTile: 1.0,
+
+  // 색 보정 — 텍스처는 회색 중립이다. 병원 톤은 여기서 입힌다. (ASSETS.md §3)
+  wallTint: 0x7e8c78,      // 병든 institutional green
+  floorTint: 0x585d56,
+  ceilingTint: 0x4a504a,
+
+  // 요철 세기. 1보다 크면 손전등이 지나갈 때 음영이 강해진다 — 실사감의 핵심
+  wallNormalScale: 1.35,
+  floorNormalScale: 0.85,
+  ceilingNormalScale: 1.0,
+  propNormalScale: 0.7,
+
+  anisotropy: 8,           // 바닥을 비스듬히 볼 때의 선명도
+  viewModelDim: 0.22,      // 무기 뷰모델 색을 누르는 배수 (손전등 바로 앞이라 안 누르면 탄다)
 };
 
 export const GAME = {
