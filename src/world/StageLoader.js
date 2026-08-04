@@ -225,7 +225,7 @@ export class StageLoader {
       /** 바닥 핏자국 (kind: 'pool' | 'splatter' | 'drag', 생략하면 무작위) */
       addBlood: (x, z, size, kind, y) => this.scatter.addFloorBlood(this.group, x, z, size, kind, y),
       /** 벽 핏자국 — yaw 는 벽이 바라보는 방향 */
-      addWallBlood: (x, y, z, yaw, size) => this.scatter.addWallBlood(this.group, x, y, z, yaw, size),
+      addWallBlood: (x, y, z, yaw, size, kind) => this.scatter.addWallBlood(this.group, x, y, z, yaw, size, kind),
       /**
        * 절차적 소품 배치 (world/Props.js).
        * @param kind BUILDERS 키 · @param yaw 라디안 · opts.args 빌더 인자 ·

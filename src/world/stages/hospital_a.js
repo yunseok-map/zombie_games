@@ -125,6 +125,8 @@ export function build(ctx) {
       // 경첩을 문틈 한쪽 끝에 두고, 방마다 다른 각도로 열어둔다
       // 문 상태 — 애니메이션 없이 정지 상태로 다양성을 만든다
       //   torn 경첩이 뜯겨 바닥에 · board 판자로 막힘 · 나머지는 열린 각도만 다름
+      // 판자로 막힌 방에는 수납장을 넣지 않는다 — 닿을 수 없는 전리품은 죽은 콘텐츠다
+      const roomSearch = (x, z, label) => { if (doorKind !== 'board') addSearchable(x, z, label); };
       const doorKind = (side === 0
         ? ['ajar', 'torn', 'ajar', 'board', 'ajar', 'torn']
         : ['torn', 'ajar', 'board', 'ajar', 'torn', 'ajar'])[i];
@@ -148,8 +150,8 @@ export function build(ctx) {
           sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0.34, 0.14, false, crooked);
       }
       // 문틀·명패 주변 핏자국 — 손자국처럼 문 옆에 남는다
-      if (i % 3 === 0) addWallBlood(wallX - sx * 0.12, 1.15, doorZ + DOOR_W / 2 + 0.3,
-        sx > 0 ? -Math.PI / 2 : Math.PI / 2, 1.1);
+      if (i % 3 === 0) addWallBlood(wallX - sx * 0.12, 1.25, doorZ + DOOR_W / 2 + 0.32,
+        sx > 0 ? -Math.PI / 2 : Math.PI / 2, 1.3, 'handprint');
 
       // ── Phase 2 · 복도 벽 걸레받이 + 핸드레일 ──
       const segLenT = (ROOM_PITCH - DOOR_W) / 2;
@@ -176,7 +178,7 @@ export function build(ctx) {
       } else if (preset === 1) {
         addProp3D('bed', bx, zc, 0, { collide: [0.95, 2.05], args: [bv] });
         addProp3D('cabinet', roomCx, zc + 2.4, Math.PI, { collide: [0.75, 0.5] });
-        addSearchable(roomCx, zc + 2.0, '서랍장');
+        roomSearch(roomCx, zc + 2.0, '서랍장');
         // 링거대가 넘어져 있다
         addProp3D('ivStandFallen', bx - sx * 0.9, zc - 1.3, rnd() * 6.28);
         bedBlood(bx, zc + 0.2, 1.25);
@@ -184,9 +186,9 @@ export function build(ctx) {
       } else if (preset === 2) {
         addProp(roomCx, zc - 2.0, 3.6, 0.95, 0.6, 0x4a4f45);   // 검사대 (카드키가 올라간다)
         addProp3D('cart', bx, zc + 1.8, rnd() * 6.28, { collide: [0.7, 0.5] });
-        addSearchable(bx, zc + 1.4, '처치 카트');
+        roomSearch(bx, zc + 1.4, '처치 카트');
         addProp3D('cabinet', roomCx - sx * 2.2, zc + 1.0, -sx * Math.PI / 2, { collide: [0.5, 0.75] });
-        addSearchable(roomCx - sx * 1.8, zc + 1.0, '약품 캐비닛');
+        roomSearch(roomCx - sx * 1.8, zc + 1.0, '약품 캐비닛');
         addBlood(roomCx, zc - 1.35, 1.4, 'pool', 0.955);       // 검사대 위
       } else {
         addProp3D('bed', bx, zc - 1.5, 0, { collide: [0.95, 2.05], args: [3] });  // 매트리스 바닥
@@ -194,12 +196,13 @@ export function build(ctx) {
         addProp3D('wheelchair', roomCx - sx * 1.8, zc + 1.2, rnd() * 6.28,
           { roll: Math.PI / 2 - 0.15, y: 0.3 });
         addProp3D('cart', roomCx, zc - 2.4, rnd() * 6.28, { collide: [0.7, 0.5] });
-        addSearchable(roomCx, zc - 2.0, '처치 카트');
+        roomSearch(roomCx, zc - 2.0, '처치 카트');
         bedBlood(bx + sx * 0.9, zc - 1.5, 1.3);                // 바닥에 떨어진 매트리스 위
       }
       // 병실 벽 핏자국 — 절반 정도만. 전부 넣으면 무뎌진다
       if ((i + side) % 3 === 0) {
-        addWallBlood(sx * (OUTER_X - 0.14), 1.25, zc - 2.2, -sx * Math.PI / 2, 1.7);
+        addWallBlood(sx * (OUTER_X - 0.14), 1.25, zc - 2.2, -sx * Math.PI / 2, 1.7,
+          i % 2 ? 'handprint' : 'splatter');
       }
       // 병실 벽 환기구
       if (i % 2 === 1) addProp3D('vent', sx * (OUTER_X - 0.13), zc + 1.6, -sx * Math.PI / 2,
@@ -246,6 +249,21 @@ export function build(ctx) {
   addProp(-0.9, 12.5, 1.6, 1.2, 0.7, 0x4a4136);
   addProp(1.15, 26.0, 1.3, 1.5, 0.8, 0x3e4a45);
   addProp(-1.0, 34.5, 1.7, 0.9, 0.6, 0x5a4a3a);   // 한쪽에 붙인다 — 가운데 두면 통과 폭이 0.1m 밖에 안 남는다
+
+  // 무너진 천장 — 타일이 떨어져 바닥에 흩어지고 그 자리엔 배선이 늘어져 있다
+  for (const [cz, ox] of [[8.5, 0.5], [19.0, -0.6], [31.5, 0.4]]) {
+    addProp3D('ceilingHole', ox, cz, 0, { y: WALL_H - 0.02 });
+    addProp3D('ceilingTileFallen', ox + 0.15, cz + 0.4, rnd() * 6.28);
+    addProp3D('ceilingTileFallen', ox - 0.5, cz - 0.7, rnd() * 6.28);
+  }
+  // 넘어진 이동침대 — 복도를 반쯤 막는다 (지나갈 수는 있다)
+  addProp3D('gurneyToppled', -1.05, 13.6, 0.18, { collide: [1.0, 1.6] });
+  addProp3D('gurneyToppled', 1.0, 27.6, Math.PI - 0.22, { collide: [1.0, 1.6] });
+  addWallBlood(-CORR_HALF + 0.12, 1.3, 14.4, Math.PI / 2, 1.5, 'handprint');
+  addWallBlood(CORR_HALF - 0.12, 1.3, 28.4, -Math.PI / 2, 1.5, 'handprint');
+
+  // 로비 — 바리케이드 옆 손자국
+  addWallBlood(-OUTER_X + 0.13, 1.3, -13.0, Math.PI / 2, 1.6, 'handprint');
 
   // 복도의 흔적 — 무언가가 계단실 쪽으로 끌려갔다. 플레이어가 가는 방향이다
   for (let i = 0; i < 6; i++) {

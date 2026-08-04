@@ -13,6 +13,7 @@ import { SCATTER } from '../config/balance.js';
 
 const TEX_DIR = `${import.meta.env.BASE_URL}assets/textures/`;
 const BLOOD_KINDS = ['pool', 'splatter', 'drag'];
+const WALL_KINDS = ['handprint'];      // 벽에만 쓴다. 바닥 무작위 풀에 넣으면 어색하다
 
 /** 고정 시드 난수 — 매 판 같은 자리에 나와야 레벨이 흔들리지 않는다 */
 function makeRng(seed) {
@@ -54,7 +55,7 @@ export class Scatter {
     const loader = new THREE.TextureLoader();
 
     this.decalMat = {};
-    for (const k of BLOOD_KINDS) {
+    for (const k of [...BLOOD_KINDS, ...WALL_KINDS]) {
       const map = loader.load(`${TEX_DIR}decal_blood_${k}.webp`);
       map.colorSpace = THREE.SRGBColorSpace;
       this.decalMat[k] = new THREE.MeshStandardMaterial({
@@ -108,8 +109,8 @@ export class Scatter {
   }
 
   /** 벽 핏자국. yaw 는 벽이 바라보는 방향(라디안) */
-  addWallBlood(group, x, y, z, yaw, size = 1.4) {
-    const m = new THREE.Mesh(this.decalGeo, this.decalMat.splatter);
+  addWallBlood(group, x, y, z, yaw, size = 1.4, kind = 'splatter') {
+    const m = new THREE.Mesh(this.decalGeo, this.decalMat[kind] ?? this.decalMat.splatter);
     m.rotation.set(0, yaw, this.rng() * 0.5 - 0.25);
     m.position.set(x, y, z);
     const s = size * (0.8 + this.rng() * 0.5);

@@ -258,6 +258,54 @@ export function curtain(w = 1.9, h = 1.95) {
   return parts;
 }
 
+/** 떨어진 천장 타일 — 밟으면 부서질 것 같은 조각들 */
+export function ceilingTileFallen() {
+  const parts = [];
+  const specs = [[0.58, 0.5, 0, 0, 0.12], [0.4, 0.34, 0.5, 0.3, -0.5], [0.26, 0.3, -0.45, -0.25, 0.7]];
+  for (const [w, d, x, z, r] of specs) {
+    const g = new THREE.BoxGeometry(w, 0.016, d);
+    g.rotateY(r); g.rotateZ(0.03);
+    g.translate(x, 0.012, z);
+    parts.push(P('fabric', g));
+  }
+  return parts;
+}
+
+/** 천장이 뚫린 자리 — 어두운 구멍과 늘어진 배선 */
+export function ceilingHole() {
+  const parts = [P('accentDark', box(1.0, 0.06, 0.9, 0, 0.04, 0))];
+  for (let i = 0; i < 4; i++) {
+    const a = i * 1.6;
+    const g = new THREE.CylinderGeometry(0.008, 0.008, 0.5 + (i % 2) * 0.35, 4);
+    g.rotateZ(0.25 + i * 0.08);
+    g.translate(Math.cos(a) * 0.24, -0.28 - (i % 2) * 0.16, Math.sin(a) * 0.22);
+    parts.push(P('accentDark', g));
+  }
+  return parts;
+}
+
+/** 옆으로 넘어진 이동침대 — 복도를 반쯤 막는다 */
+export function gurneyToppled() {
+  const w = 0.9, l = 1.95;
+  const parts = [
+    P('enamel', box(w, 0.07, l, 0, 0.5, 0)),          // 상판이 세로로 서 있다
+    P('fabric', box(w - 0.08, 0.12, l - 0.2, 0.12, 0.5, 0)),
+    P('enamel', box(w, 0.45, 0.06, 0, 0.72, -l / 2)),
+  ];
+  for (const sz of [-1, 1]) {
+    parts.push(P('metal', cyl(0.024, 0.62, -0.3, 0.2, sz * (l / 2 - 0.15), 6, 'x')));
+    parts.push(P('accentDark', cyl(0.055, 0.03, -0.58, 0.2, sz * (l / 2 - 0.15), 6, 'x')));
+  }
+  const g = mergeAll(parts);
+  return g;
+}
+
+function mergeAll(parts) {
+  // 통째로 90도 눕힌다
+  for (const p of parts) { p.geo.rotateZ(Math.PI / 2 - 0.12); p.geo.translate(0, 0.05, 0); }
+  return parts;
+}
+
 /* ───────────────── Phase 5 · 조명 기구 ───────────────── */
 
 /** 형광등 기구. broken 이면 발광 패널 없이 깨진 유리만 */
@@ -304,5 +352,5 @@ export const BUILDERS = {
   baseboard, handrail, cornerGuard, vent,
   doorFrame, doorPanel, doorFallen, boardedDoor,
   bed, ivStand, ivStandFallen, wheelchair, cart, cabinet, extinguisher, curtain,
-  ceilingLight, emergencyLamp,
+  ceilingLight, emergencyLamp, ceilingTileFallen, ceilingHole, gurneyToppled,
 };
