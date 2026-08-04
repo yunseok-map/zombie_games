@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SURFACE } from '../config/balance.js';
+import { Scatter } from './Scatter.js';
 
 /**
  * StageLoader — 구역을 짓고, 지우고, 충돌/스폰/조명을 등록한다.
@@ -83,6 +84,7 @@ export class StageLoader {
       ceiling: makeMat(this.tex.ceiling, SURFACE.ceilingTint, SURFACE.ceilingNormalScale),
     };
     this.propMats = new Map();
+    this.scatter = new Scatter();
   }
 
   /** 소품은 벽과 같은 맵을 쓰고 색만 다르게 — 재질이 늘어나도 텍스처는 안 늘어난다 */
@@ -96,7 +98,9 @@ export class StageLoader {
   unload() {
     if (this.group) {
       this.scene.remove(this.group);
-      this.group.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+      this.group.traverse((o) => {
+        if (o.isMesh && !o.geometry.userData.shared) o.geometry.dispose();
+      });
       this.group = null;
     }
     this.collision.clear();
@@ -147,9 +151,18 @@ export class StageLoader {
       },
       addLight: (x, y, z, mode, color) => this.atmosphere.addEmergencyLight(x, y, z, mode, color),
       addSpawn: (x, z) => this.spawnPoints.push({ x, z }),
+
+      /** 바닥 핏자국 (kind: 'pool' | 'splatter' | 'drag', 생략하면 무작위) */
+      addBlood: (x, z, size, kind) => this.scatter.addFloorBlood(this.group, x, z, size, kind),
+      /** 벽 핏자국 — yaw 는 벽이 바라보는 방향 */
+      addWallBlood: (x, y, z, yaw, size) => this.scatter.addWallBlood(this.group, x, y, z, yaw, size),
+      /** 의료폐기물 산포 — 직사각 구역에 뿌린다 */
+      scatterDebris: (cx, cz, w, d, density) => this.scatter.scatterDebris(cx, cz, w, d, density),
     };
 
+    this.scatter.reset();
     const result = stage.build(ctx) ?? {};
+    this.scatter.finalize(this.group);
     this.atmosphere.applyStageMood(stage.meta.mood ?? {});
     this.director?.setStage(this.spawnPoints, stage.meta.typeWeights);
     this.exit = result.exit ?? null;

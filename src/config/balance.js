@@ -147,6 +147,21 @@ export const FX = {
   emergencyLightRange: 7,
 };
 
+/** 핏자국 · 의료폐기물 산포 (world/Scatter.js) — 폐병원의 "사람이 있었다"는 증거 */
+export const SCATTER = {
+  seed: 20290417,          // 고정 시드. 매 판 같은 자리에 있어야 레벨이 안 흔들린다
+  bloodRoughness: 0.42,    // 바닥보다 매끈 = 손전등에 젖은 듯 반짝인다
+
+  debrisPerSqm: 0.35,      // 1m² 당 잔해 개수. 0.8 넘으면 쓰레기장처럼 보인다
+  debrisMaxTotal: 420,     // 인스턴싱이라 드로우콜은 3개로 고정, 삼각형 예산만 본다
+  debrisWeights: { syringe: 5, vial: 3, paper: 2 },
+
+  // 잔해 색 — 바닥이 어두워서 너무 낮추면 아예 안 보인다. 주사기는 반짝여야 눈에 띈다
+  syringeColor: 0x5c666d,
+  vialColor: 0x49563f,
+  paperColor: 0x615c4e,
+};
+
 /** 후처리 — 텍스처만큼이나 "게임처럼 보이는가"를 좌우한다 (fx/PostFX.js) */
 export const POST = {
   enabled: true,

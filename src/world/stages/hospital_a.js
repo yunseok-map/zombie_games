@@ -26,7 +26,8 @@ export const meta = {
 };
 
 export function build(ctx) {
-  const { addWall, addFloor, addCeiling, addProp, addLight, addSpawn } = ctx;
+  const { addWall, addFloor, addCeiling, addProp, addLight, addSpawn,
+          addBlood, addWallBlood, scatterDebris } = ctx;
 
   // ───────── 로비 (z: -16 ~ 0) ─────────
   addFloor(0, -8, OUTER_X * 2, 16);
@@ -49,6 +50,13 @@ export function build(ctx) {
   addLight(0, 2.85, -11, 'flicker');
   addLight(-5, 2.85, -4, 'pulse', 0x2e6a5a);
   addSpawn(-6.5, -14); addSpawn(6.5, -14); addSpawn(6.8, -4);
+
+  // 로비의 흔적 — 정문 바리케이드 앞에서 뭔가 벌어졌다
+  addBlood(0.8, -14.2, 2.4, 'pool');
+  addBlood(-3.2, -12.6, 1.7);
+  addWallBlood(0, 1.5, -15.85, 0, 2.6);              // 봉쇄된 정문 벽
+  addBlood(5.0, -9.0, 1.5, 'splatter');
+  scatterDebris(0, -8, OUTER_X * 2 - 1.5, 15, 0.30);
 
   // ───────── 중앙 복도 (z: 0 ~ 42) ─────────
   addFloor(0, CORR_LEN / 2, CORR_HALF * 2, CORR_LEN);
@@ -93,6 +101,15 @@ export function build(ctx) {
         addProp(roomCx - sx * 1.8, zc + 1.2, 0.65, 1.0, 0.65, 0x6a5a3a); // 휠체어
       }
 
+      // 병실의 흔적 — 전부 넣으면 무뎌진다. 절반 정도만 사건이 있었던 방으로 둔다
+      const inward = sx * (OUTER_X - WALL_T / 2 - 0.03);
+      if (preset === 0 || preset === 2) {
+        addBlood(bx, zc + (preset === 0 ? -1.6 : 1.8), 1.9);          // 침대·검사대 옆
+        addWallBlood(inward, 1.35, zc - 0.6, -sx * Math.PI / 2, 1.9); // 외벽에 분사
+      }
+      if (preset === 3) addBlood(roomCx, zc + 0.4, 2.2, 'drag');       // 끌려나간 자국
+      scatterDebris(roomCx, zc, ROOM_DEPTH - 1.2, ROOM_PITCH - 1.2, 0.55);
+
       addSpawn(roomCx, zc);
       if (i % 2 === 0) addLight(roomCx, 2.85, zc, i % 4 === 0 ? 'flicker' : 'steady', 0x3a4a52);
     }
@@ -109,6 +126,15 @@ export function build(ctx) {
   addProp(1.1, 26.0, 1.4, 1.5, 0.8, 0x3e4a45);
   addProp(0, 34.5, 2.2, 0.9, 0.6, 0x5a4a3a);
 
+  // 복도의 흔적 — 무언가가 계단실 쪽으로 끌려갔다. 플레이어가 가는 방향이다
+  for (let i = 0; i < 6; i++) {
+    addBlood(-0.5 + Math.sin(i * 1.7) * 0.9, 9 + i * 5.2, 2.6, 'drag');
+  }
+  addBlood(0.4, 6.0, 2.2, 'pool');
+  addBlood(-1.0, 30.5, 1.8, 'splatter');
+  addWallBlood(-CORR_HALF + 0.12, 1.45, 21.0, Math.PI / 2, 2.2);
+  scatterDebris(0, CORR_LEN / 2, CORR_HALF * 2 - 0.4, CORR_LEN, 0.22);
+
   // ───────── 계단실 (z: 42 ~ 50) ─────────
   const stZ = CORR_LEN + 4;
   addFloor(0, stZ, 8, 8);
@@ -122,6 +148,10 @@ export function build(ctx) {
   addProp(0, stZ + 3.2, 6.0, 1.2, 1.0, 0x3f453f);       // 계단 (탈출구 표식)
   addLight(0, 2.85, stZ, 'steady', 0x2e7a4a);
   addSpawn(-3, stZ); addSpawn(3, stZ);
+
+  // 계단실 — 끌린 자국이 여기서 끝난다
+  addBlood(0, stZ - 1.4, 3.0, 'pool');
+  scatterDebris(0, stZ, 7, 7, 0.45);
 
   return {
     playerStart: { x: 0, z: -11, yaw: Math.PI },   // 로비에서 복도(+Z) 를 바라본다

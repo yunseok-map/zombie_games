@@ -145,6 +145,7 @@ export class Game {
     if (this.state === 'PLAYING') {
       this.elapsed += dt;
       this.player.update(dt);
+      if (this.input.justPressed('KeyF')) this.flashlight.toggle();
       this.flashlight.update(dt);
       this.weapons.update(dt, this.input);
 

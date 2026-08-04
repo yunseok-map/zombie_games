@@ -116,6 +116,11 @@ Korean and English warning text, torn corner, stained, flat lighting, 1024x1024
 | wall_plaster_peeling_{color,normal,rough}.webp | ambientCG (PaintedPlaster015) | CC0 | 가능 | 512px WebP 로 리사이즈, AO를 color에 55% 합성 |
 | floor_tile_hospital_{color,normal,rough}.webp | ambientCG (Tiles040) | CC0 | 가능 | 동일 |
 | ceiling_panel_office_{color,normal,rough}.webp | ambientCG (OfficeCeiling001) | CC0 | 가능 | 동일 |
+| decal_blood_{pool,splatter,drag}.webp | 절차적 생성 (numpy/PIL 스크립트) | 자체 제작 | 가능 | fBm 노이즈 기반. 저작권 이슈 없음 |
+
+> 데칼 생성 스크립트는 `gen_blood.py` (BRIGHT 인자로 전체 밝기 조절).
+> **주의**: 출력은 반드시 sRGB 인코딩(`^(1/2.2)`)해야 한다. 선형 값을 그대로 쓰면
+> three.js 가 sRGB 로 디코딩해서 3~4배 어두워지고 화면에서 안 보인다.
 
 > **왜 텍스처는 AI가 아닌가** — 이미지 생성 모델은 albedo 한 장만 내놓는다.
 > 실사감을 만드는 normal/roughness 맵이 없고 seamless 도 보장되지 않는다.
