@@ -20,6 +20,14 @@ export class HUD {
     this._dmgTimer = 0;
     this._prompt = null;
 
+    // 진단 패널 — ` (백쿼트) 로 토글. 입력이 실제로 들어오는지 눈으로 본다
+    this.dbg = document.createElement('div');
+    this.dbg.style.cssText = 'position:fixed;left:10px;top:10px;z-index:99;display:none;'
+      + 'font:12px/1.6 ui-monospace,Consolas,monospace;color:#7fd97f;white-space:pre;'
+      + 'background:rgba(0,0,0,.72);padding:8px 10px;border:1px solid #2c4a2c;pointer-events:none';
+    document.body.appendChild(this.dbg);
+    this._fps = 0;
+
     bus.on(EV.HINT, ({ text, duration = 2 }) => this.showHint(text, duration));
     bus.on(EV.PLAYER_DAMAGED, () => this.flashDamage());
     bus.on(EV.AMMO_CHANGED, (a) => this.setAmmo(a));
@@ -55,6 +63,25 @@ export class HUD {
     } else {
       this.hint.classList.remove('on');
     }
+  }
+
+  toggleDebug() {
+    this.dbg.style.display = this.dbg.style.display === 'none' ? 'block' : 'none';
+  }
+
+  /** @param {{input:object, player:object, dt:number, renderer:object, zombies:number}} s */
+  updateDebug(s) {
+    if (this.dbg.style.display === 'none') return;
+    this._fps += (1 / Math.max(s.dt, 1e-4) - this._fps) * 0.1;
+    const held = [...s.input.keys].join(' ') || '(없음)';
+    const move = ['KeyW', 'KeyA', 'KeyS', 'KeyD']
+      .map((k) => (s.input.keys.has(k) ? k[3] : '·')).join('');
+    this.dbg.textContent =
+      `FPS ${this._fps.toFixed(0)}   드로우콜 ${s.renderer.info.render.calls}\n`
+      + `포인터락 ${s.input.locked ? 'O' : 'X'}   입력활성 ${s.input.enabled ? 'O' : 'X'}\n`
+      + `WASD  [${move}]\n`
+      + `눌린키 ${held}\n`
+      + `속도 ${s.player.speed.toFixed(2)} m/s   좀비 ${s.zombies}`;
   }
 
   flashDamage() {

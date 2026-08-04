@@ -23,6 +23,8 @@ export class Input {
       if (['Space', 'Tab', 'KeyE', 'KeyR', 'KeyF'].includes(c)) e.preventDefault();
     };
     this._onKeyUp = (e) => { this.keys.delete(e.code); };
+    // 창이 포커스를 잃으면 keyup 이 안 온다 → 키가 눌린 채로 굳는다
+    this._onBlur = () => { this.keys.clear(); this.mouseLeft = this.mouseRight = false; };
 
     this._onMouseMove = (e) => {
       if (!this.locked) return;
@@ -47,8 +49,10 @@ export class Input {
     // 포인터락이 조용히 실패했을 때의 탈출구 — 화면을 클릭하면 다시 건다
     this._onCanvasClick = () => { if (this.enabled && !this.locked) this.requestLock(); };
 
-    window.addEventListener('keydown', this._onKeyDown);
-    window.addEventListener('keyup', this._onKeyUp);
+    // capture 단계로 받는다 — 한글 IME 나 다른 핸들러가 먼저 삼키는 경우를 피한다
+    window.addEventListener('keydown', this._onKeyDown, true);
+    window.addEventListener('keyup', this._onKeyUp, true);
+    window.addEventListener('blur', this._onBlur);
     document.addEventListener('mousemove', this._onMouseMove);
     document.addEventListener('mousedown', this._onMouseDown);
     document.addEventListener('mouseup', this._onMouseUp);
@@ -62,21 +66,17 @@ export class Input {
    * - `unadjustedMovement`: OS 마우스 가속/스무딩을 끈 원시 입력. 조준이 훨씬 정확해진다.
    * - Esc 직후 재요청은 브라우저가 잠깐(약 1초) 거부한다. 실패하면 조용히 재시도한다.
    */
-  requestLock(retry = 2) {
+  requestLock() {
     const el = this.canvas;
     if (!el.requestPointerLock) return;
-    let p;
+    const plain = () => { try { el.requestPointerLock(); } catch { /* 무시 */ } };
     try {
-      p = el.requestPointerLock({ unadjustedMovement: true });
+      const p = el.requestPointerLock({ unadjustedMovement: true });
+      // 지원 안 하는 환경이면 거부된다. 곧바로 기본 방식으로 다시 건다.
+      // 절대 setTimeout 으로 미루면 안 된다 — 포인터락은 사용자 제스처 안에서만 허용된다.
+      if (p && typeof p.catch === 'function') p.catch(plain);
     } catch {
-      try { el.requestPointerLock(); } catch { /* 무시 */ }
-      return;
-    }
-    if (p && typeof p.catch === 'function') {
-      p.catch(() => {
-        if (retry > 0) setTimeout(() => this.requestLock(retry - 1), 350);
-        else { try { el.requestPointerLock(); } catch { /* 무시 */ } }
-      });
+      plain();
     }
   }
   releaseLock() { document.exitPointerLock?.(); }

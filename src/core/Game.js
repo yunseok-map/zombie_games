@@ -164,7 +164,13 @@ export class Game {
       // 상호작용 — 사거리 안 대상이 있으면 안내를 띄우고, E 로 사용한다
       this.interaction.update(dt);
       const target = this.interaction.findTarget(this.player.pos.x, this.player.pos.z);
-      this.hud.setPrompt(target ? target.prompt({ player: this.player }) : null);
+      // 포인터락이 안 걸리면 마우스 시야가 아예 안 돈다. 그 사실을 먼저 알려야 한다 —
+      // 안 그러면 "WASD 는 되는데 조작이 이상하다" 로만 보인다.
+      this.hud.setPrompt(
+        !this.input.locked ? '화면을 클릭해서 마우스를 잡아라'
+          : target ? target.prompt({ player: this.player })
+            : null
+      );
       if (target && this.input.justPressed('KeyE')) {
         this.hud.setPrompt(null);   // 먼저 지운다 — 안 그러면 획득 메시지가 안내에 가려진다
         this.interaction.use(target, { player: this.player });
@@ -172,6 +178,11 @@ export class Game {
 
       this.audio.setListener(this.player.pos.x, this.player.pos.z);
       this.hud.update(dt, { player: this.player, flashlight: this.flashlight });
+      if (this.input.justPressed('Backquote')) this.hud.toggleDebug();
+      this.hud.updateDebug({
+        input: this.input, player: this.player, dt,
+        renderer: this.renderer, zombies: this.pool.activeCount,
+      });
 
       // 탈출 판정
       const ex = this.stageLoader.exit;
