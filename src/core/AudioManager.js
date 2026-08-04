@@ -8,21 +8,21 @@ import { bus, EV } from './EventBus.js';
 
 const MANIFEST = {
   // 1순위 (ASSETS.md §4)
-  footstep_1: 'sfx/sfx_footstep_concrete_01.ogg',
-  footstep_2: 'sfx/sfx_footstep_concrete_02.ogg',
-  footstep_3: 'sfx/sfx_footstep_concrete_03.ogg',
-  footstep_4: 'sfx/sfx_footstep_concrete_04.ogg',
-  zombie_groan: 'sfx/sfx_zombie_idle_groan_01.ogg',
-  zombie_alert: 'sfx/sfx_zombie_alert.ogg',
-  zombie_attack: 'sfx/sfx_zombie_attack.ogg',
-  zombie_death: 'sfx/sfx_zombie_death.ogg',
-  pistol_fire: 'sfx/sfx_pistol_fire.ogg',
-  flashlight: 'sfx/sfx_flashlight_click.ogg',
-  melee_swing: 'sfx/sfx_axe_swing.ogg',
-  melee_hit: 'sfx/sfx_axe_hit_flesh.ogg',
-  reload: 'sfx/sfx_reload_pistol.ogg',
-  player_hurt: 'sfx/sfx_player_hurt.ogg',
-  ambience: 'ambience/amb_hospital_hum.ogg',
+  footstep_1: 'sfx/sfx_footstep_concrete_01.mp3',
+  footstep_2: 'sfx/sfx_footstep_concrete_02.mp3',
+  footstep_3: 'sfx/sfx_footstep_concrete_03.mp3',
+  footstep_4: 'sfx/sfx_footstep_concrete_04.mp3',
+  zombie_groan: 'sfx/sfx_zombie_idle_groan_01.mp3',
+  zombie_alert: 'sfx/sfx_zombie_alert.mp3',
+  zombie_attack: 'sfx/sfx_zombie_attack.mp3',
+  zombie_death: 'sfx/sfx_zombie_death.mp3',
+  pistol_fire: 'sfx/sfx_pistol_fire.mp3',
+  flashlight: 'sfx/sfx_flashlight_click.mp3',
+  melee_swing: 'sfx/sfx_axe_swing.mp3',
+  melee_hit: 'sfx/sfx_axe_hit_flesh.mp3',
+  reload: 'sfx/sfx_reload_pistol.mp3',
+  player_hurt: 'sfx/sfx_player_hurt.mp3',
+  ambience: 'ambience/amb_hospital_hum.mp3',
 };
 
 export class AudioManager {

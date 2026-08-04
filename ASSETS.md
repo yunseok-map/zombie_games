@@ -13,16 +13,16 @@
 | 특수 텍스처 (포스터·간판·서류) | PNG → WebP | 1024×1024 | `public/assets/textures/` |
 | 모델 (무기·소품) | **GLB** (Y-up, 1 unit = 1m) | ≤ 8k tri | `public/assets/models/` |
 | 모델 (좀비, 리깅+애니) | **GLB** | ≤ 6k tri | `public/assets/models/` |
-| SFX | **OGG** 모노 44.1kHz | ≤ 3초 | `public/assets/audio/sfx/` |
-| 앰비언스 | **OGG** 스테레오 | 30~90초 루프 | `public/assets/audio/ambience/` |
+| SFX | **MP3** 44.1kHz | ≤ 3초 | `public/assets/audio/sfx/` |
+| 앰비언스 | **MP3** | 20초 루프 | `public/assets/audio/ambience/` |
 | UI 아이콘 | SVG 또는 PNG 256px | — | `public/assets/ui/` |
 
 ### 파일명 규칙 — 소문자 + 언더스코어만
 ```
 wall_tile_concrete.webp      floor_linoleum_dirty.webp
 prop_wheelchair.glb          weapon_axe.glb
-zombie_shambler.glb          sfx_pistol_fire.ogg
-amb_hospital_hum.ogg
+zombie_shambler.glb          sfx_pistol_fire.mp3
+amb_hospital_hum.mp3
 ```
 > 대문자·공백·한글 파일명 금지. 로딩 실패의 90%가 여기서 난다.
 
@@ -117,6 +117,17 @@ Korean and English warning text, torn corner, stained, flat lighting, 1024x1024
 | floor_tile_hospital_{color,normal,rough}.webp | ambientCG (Tiles040) | CC0 | 가능 | 동일 |
 | ceiling_panel_office_{color,normal,rough}.webp | ambientCG (OfficeCeiling001) | CC0 | 가능 | 동일 |
 | decal_blood_{pool,splatter,drag}.webp | 절차적 생성 (numpy/PIL 스크립트) | 자체 제작 | 가능 | fBm 노이즈 기반. 저작권 이슈 없음 |
+| sfx_footstep_concrete_01~04.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 발소리 4종 |
+| sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
+| sfx_{pistol_fire,flashlight_click,axe_swing,axe_hit_flesh,reload_pistol,player_hurt}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
+| amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 20초 루프 (API 최대 길이 22초) |
+
+> **왜 OGG 가 아니라 MP3 인가** — ElevenLabs 는 OGG 를 내주지 않고 이 PC 에 ffmpeg 이 없다.
+> 브라우저 Web Audio 는 MP3 를 전부 디코딩하므로 게임 동작은 동일하다. MP3 특허는 2017년 만료.
+> 생성 스크립트는 `gen_sfx.py` (`.env.local` 의 키를 읽는다. 이미 있는 파일은 건너뛴다).
+
+> **제출 전 확인**: ElevenLabs 무료 플랜의 상업적 이용 조건을 약관에서 확인하고 위 표의
+> "상업 이용" 칸을 채울 것. 무료 플랜은 어트리뷰션을 요구하는 경우가 있다.
 
 > 데칼 생성 스크립트는 `gen_blood.py` (BRIGHT 인자로 전체 밝기 조절).
 > **주의**: 출력은 반드시 sRGB 인코딩(`^(1/2.2)`)해야 한다. 선형 값을 그대로 쓰면
