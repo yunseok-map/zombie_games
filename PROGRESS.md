@@ -50,10 +50,13 @@
 
 ## 다음 할 일 (우선순위 순 3개)
 
-1. **무기 뷰모델 GLB** — 지금은 박스. `SURFACE.viewModelDim` 으로 눌러 쓰는 중.
-   *완료 기준: 손에 든 것이 파이프/권총으로 보인다.*
-3. **기어다니는 좀비 타입** — `crawl`/`crawl_idle`/`standing_up` 클립은 이미 GLB 안에 있다.
-   `balance.js` 의 ZOMBIE 에 항목 추가 + height 0.6 + Director typeWeights 등록만 하면 된다.
+1. **구역 C (2F 병동 · 옥상)** — SPEC.md §3 의 마지막 구역. 점멸 조명, 병동 돌파 → 옥상 탈출.
+   *완료 기준: 옥상에 도달하면 EXTRACTED 가 뜬다.*
+2. **기어다니는 좀비 타입** — `crawl` / `crawl_idle` 클립은 이미 GLB 안에 있다.
+   `balance.js` 의 ZOMBIE 에 항목 추가 + height 0.6 + Director typeWeights 등록.
+   *주의: 변환 때 수직 루트 이동을 지웠으므로 그대로 쓰면 공중에 뜬다 (docs 별건 F 참조).*
+3. **D-1 마무리** — 값 조정 · 배포 URL · 데모 영상 · 발표자료.
+   *CLAUDE.md §1-8: D-2 이후에는 구조를 건드리지 않는다.*
 
 ---
 
