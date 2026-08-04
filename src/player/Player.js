@@ -82,10 +82,14 @@ export class Player {
     const target = this.crouching ? PLAYER.speedCrouch
       : this.sprinting ? PLAYER.speedSprint : PLAYER.speedWalk;
 
-    // 카메라 yaw 기준 월드 방향
+    // 카메라 yaw 기준 월드 방향.
+    // 기준은 getForward() 의 (-sin, -cos) 다 — three.js 카메라는 로컬 -Z 를 본다.
+    // 회전 부호를 반대로 쓰면 yaw=0 에서만 맞고 yaw=π 에서 전후·좌우가 통째로 뒤집힌다.
+    //   전진(fz=-1) → (-sin, -cos) = getForward()
+    //   우측(fx=+1) → ( cos, -sin) = forward 를 -90° 회전
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
-    const wx = fx * cos - fz * sin;
-    const wz = fx * sin + fz * cos;
+    const wx = fx * cos + fz * sin;
+    const wz = -fx * sin + fz * cos;
 
     // 지수 감쇠 — 프레임레이트가 흔들려도 감각이 같다 (dt 를 곱하기만 하면 60/144fps 가 달라진다)
     if (len > 0) {
