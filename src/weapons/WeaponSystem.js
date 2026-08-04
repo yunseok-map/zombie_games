@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
 import { NOISE, SURFACE } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
+import { WEAPON_MODELS } from './ViewModels.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /**
  * WeaponSystem — 무기 종류를 몰라야 한다. 전부 config/weapons.js 의 데이터로 동작한다.
@@ -28,6 +30,22 @@ export class WeaponSystem {
     this.viewRoot.position.set(0.26, -0.24, -0.45);
     camera.add(this.viewRoot);
     this.viewMesh = null;
+    this.viewParts = [];
+    // 뷰모델 재질 — 손전등 코앞이라 전부 눌러 쓴다. 무기마다 만들지 않고 공유한다.
+    const dim = SURFACE.viewModelDim;
+    const M = (c, rough, metal) => new THREE.MeshStandardMaterial({
+      color: new THREE.Color(c).multiplyScalar(dim), roughness: rough, metalness: metal,
+    });
+    this.viewMats = {
+      steel: M(0x9aa2aa, 0.34, 0.85),
+      dark:  M(0x6a6f74, 0.62, 0.55),
+      grip:  M(0x7b6f60, 0.92, 0.05),
+      accent: M(0xb2452e, 0.6, 0.15),
+      glass: new THREE.MeshStandardMaterial({
+        color: new THREE.Color(0x9fb4a8).multiplyScalar(dim * 1.6),
+        roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.55,
+      }),
+    };
     this._recoil = 0;
     this._swing = 0;
     this._bob = 0;
@@ -70,19 +88,43 @@ export class WeaponSystem {
   }
 
   _buildViewModel() {
-    if (this.viewMesh) { this.viewRoot.remove(this.viewMesh); this.viewMesh.geometry.dispose(); }
+    for (const m of this.viewParts) { this.viewRoot.remove(m); m.geometry.dispose(); }
+    this.viewParts.length = 0;
+    if (this.viewMesh) { this.viewRoot.remove(this.viewMesh); this.viewMesh.geometry.dispose(); this.viewMesh = null; }
+
     const def = this.current;
+    const build = WEAPON_MODELS[def.id];
+
+    if (build) {
+      // 재질별로 묶어 병합 — 무기 하나가 드로우콜 4~5개를 넘지 않게 한다
+      const byMat = new Map();
+      for (const { mat, geo } of build()) {
+        if (!byMat.has(mat)) byMat.set(mat, []);
+        byMat.get(mat).push(geo);
+      }
+      for (const [key, geos] of byMat) {
+        const merged = geos.length > 1 ? mergeGeometries(geos, false) : geos[0];
+        if (geos.length > 1) for (const g of geos) g.dispose();
+        if (!merged) continue;
+        const m = new THREE.Mesh(merged, this.viewMats[key] ?? this.viewMats.dark);
+        m.frustumCulled = false;      // 카메라 자식이라 컬링 판정이 어긋난다
+        this.viewRoot.add(m);
+        this.viewParts.push(m);
+      }
+      this.viewMesh = this.viewParts[0] ?? null;   // 애니메이션 코드가 참조한다
+      return;
+    }
+
+    // 모델이 없는 무기는 예전처럼 박스로 대체한다 (CLAUDE.md §1-2 — 없어도 돌아가야 한다)
     const s = def.viewScale ?? [0.08, 0.1, 0.4];
-    const geo = new THREE.BoxGeometry(s[0], s[1], s[2]);
-    // 뷰모델은 손전등 코앞(0.45m)에 있어서 그대로 두면 하얗게 타버린다.
-    // viewColor 는 밝은 곳 기준 색이므로 여기서 어둡게 눌러 쓴다.
     const mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(def.viewColor ?? 0x555555).multiplyScalar(SURFACE.viewModelDim),
       roughness: 0.55, metalness: 0.75,
     });
-    this.viewMesh = new THREE.Mesh(geo, mat);
+    this.viewMesh = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), mat);
     this.viewMesh.position.z = -s[2] / 2;
     this.viewRoot.add(this.viewMesh);
+    this.viewParts.push(this.viewMesh);
   }
 
   update(dt, input) {
