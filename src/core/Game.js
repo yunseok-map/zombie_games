@@ -16,9 +16,15 @@ import { Interaction } from '../world/Interaction.js';
 import { HUD } from '../ui/HUD.js';
 import * as hospitalA from '../world/stages/hospital_a.js';
 import * as hospitalB from '../world/stages/hospital_b.js';
+import * as hospitalC from '../world/stages/hospital_c.js';
+import * as hospitalD from '../world/stages/hospital_d.js';
+import * as hospitalRoof from '../world/stages/hospital_roof.js';
 
-/** 구역 진행 순서. 마지막 구역의 출구에 닿아야 클리어다. */
-const STAGES = [hospitalA, hospitalB];
+/**
+ * 구역 진행 순서. 마지막 구역의 출구에 닿아야 클리어다.
+ * 1F 격리병동 → B1 영안실 → 2F 병동 → 3F 수술부 → 옥상(탈출)
+ */
+const STAGES = [hospitalA, hospitalB, hospitalC, hospitalD, hospitalRoof];
 
 /**
  * Game — 시스템 조립과 루프만 담당한다. 게임 규칙은 각 시스템에 있다.
@@ -84,6 +90,9 @@ export class Game {
     this.camera.updateProjectionMatrix();
     this.post?.setSize(w, h);
   }
+
+  /** 디버그·QA 용 — 콘솔에서 `game.stages[i]` 로 개별 구역을 바로 열어볼 수 있다 */
+  get stages() { return STAGES; }
 
   async start() {
     await this.audio.init();

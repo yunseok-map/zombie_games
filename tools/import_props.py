@@ -51,10 +51,11 @@ HUMAN = 1.75              # 미리보기 기준 막대 = 플레이어 눈높이�
 MANIFEST = {
     # ── 단품 소품 ──
     "prop_bed_worn":    dict(src="old_and_worn_out_hospital_bed.glb",  size=2.05, axis="max", tris=3000),
-    "prop_bed":         dict(src="hospital_bed.glb",                   tris=6000),
+    # 병상은 2F·3F 에 22개가 깔린다. 6000 이면 그것만 13만 삼각형이라 예산을 먹는다.
+    "prop_bed":         dict(src="hospital_bed.glb",                   tris=2500),
     "prop_wheelchair":  dict(src="wheelchair_horror_game_hospital.glb", size=1.05, axis="max", tris=3500),
     "prop_panel":       dict(src="electrical_breaker_panel_box__lp_model.glb", tris=3000),
-    "prop_ivdrip":      dict(src="crutch_and_iv_drip.glb",             size=1.90, axis="y", tris=4000),
+    "prop_ivdrip":      dict(src="crutch_and_iv_drip.glb",             size=1.90, axis="y", tris=1800),
     "prop_ivpole":      dict(src="iv_pole.glb",                        size=1.90, axis="y", tris=2000),
     "prop_firstaid":    dict(src="first_aid_box.glb",                  size=0.32, axis="max", tris=1500),
     # 서류함만 원본이 눕혀서 저장돼 있다 (원본 0.57×0.70×1.10 에서 높이가 Z 축)
