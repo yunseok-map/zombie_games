@@ -142,6 +142,20 @@ export const AI = {
   separation: 0.9,        // 좀비끼리 밀어내는 거리
 };
 
+/**
+ * 시체 (enemies/Zombie.js). 죽자마자 사라지면 "게임이구나" 소리가 절로 난다.
+ * 다만 풀(DIRECTOR.poolSize)을 시체가 다 차지하면 새 좀비가 안 나오므로,
+ * 자리가 모자라면 ZombiePool 이 가장 오래된 시체부터 재활용한다.
+ */
+export const CORPSE = {
+  linger: 30,        // 쓰러진 뒤 남아 있는 시간(초)
+  sink: 1.4,         // 마지막 이 시간 동안 바닥으로 가라앉으며 사라진다
+  sinkDepth: 0.9,    // 가라앉는 깊이(m). 얕으면 사라지는 게 눈에 띈다
+  bloodSize: 2.2,    // 죽은 자리에 남는 핏자국 크기(m)
+  settleAt: 1.6,     // 쓰러지는 동작이 끝나 바닥에 붙이는 시점(초). 클립 길이보다 길게
+  restHeight: 0.06,  // 바닥에 붙일 때 띄우는 높이(m). 0이면 몸이 바닥에 파묻힌다
+};
+
 export const NOISE = {
   // 소음 반경 — Director/Zombie 가 이 값으로 유인된다
   walk: 6,

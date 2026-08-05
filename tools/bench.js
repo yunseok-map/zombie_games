@@ -85,6 +85,11 @@ export async function bench(game, { stage = 2, zombies = 14, frames = 22, runs =
   for (let i = 0; i < 35; i++) { game.flashlight.update(0.016); game.post.render(0.016); }  // 워밍업
 
   // GPU 시간이 우선. 못 재면 벽시계로 떨어진다(그때는 값이 흔들린다는 걸 표시한다).
+  //
+  // **첫 측정은 버린다.** 구역을 갈아치운 직후에는 텍스처·셰이더를 GPU 에 다시
+  // 올리는 시간이 프레임에 섞여서 값이 몇 배로 튄다 (62.5ms → 재측정 16.3ms).
+  // 워밍업 프레임만으로는 모자란다 — 업로드가 그보다 오래 걸린다.
+  await gpuMs(game, 6);
   const gpu = await gpuMs(game, Math.min(frames, 16));
   const ms = gpu ?? median(Array.from({ length: runs }, () => runOnce(game, frames)));
 

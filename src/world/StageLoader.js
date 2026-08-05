@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SURFACE, LOOT } from '../config/balance.js';
+import { SURFACE, LOOT, CORPSE } from '../config/balance.js';
+import { bus, EV } from '../core/EventBus.js';
 import { Scatter } from './Scatter.js';
 import { BUILDERS, signPlate } from './Props.js';
 import { propModels, pickFile } from './PropModels.js';
+
+// 전투 흔적 데칼 상한. 하나가 드로우콜 하나라 무한정 쌓으면 예산이 무너진다.
+const MAX_KILL_MARKS = 22;
 
 const SIGN_COLS = 4, SIGN_ROWS = 4;   // signage_atlas.webp 분할 (gen_signage.py 와 맞춰야 한다)
 
@@ -109,6 +113,21 @@ export class StageLoader {
     this.spawnPoints = [];
     this.exit = null;
 
+    // 좀비가 죽은 자리에 핏자국을 남긴다. 시체는 30초 뒤 사라지지만 자국은 남아서
+    // "여기서 싸웠다"가 지도처럼 읽힌다 — 되돌아왔을 때 길을 아는 단서가 된다.
+    // 데칼 하나가 드로우콜 하나라 개수를 막아 두고 오래된 것부터 지운다.
+    this._killMarks = [];
+    bus.on(EV.ZOMBIE_DIED, ({ x, z }) => {
+      if (!this.group) return;
+      const m = this.scatter.addFloorBlood(this.group, x, z, CORPSE.bloodSize, 'pool');
+      if (!m) return;
+      this._killMarks.push(m);
+      if (this._killMarks.length > MAX_KILL_MARKS) {
+        const old = this._killMarks.shift();
+        old.removeFromParent();
+      }
+    });
+
     // 텍스처·재질은 전 구역이 공유한다 (메모리 예산 — CLAUDE.md §3)
     this.tex = {
       wall: loadMaps('wall_plaster_peeling'),
@@ -208,6 +227,7 @@ export class StageLoader {
     // 구역이 걸어 둔 타이머를 먼저 끊는다. 안 그러면 죽거나 다음 구역으로 넘어간 뒤에도
     // 옥상 카운트다운이 계속 돌면서 엉뚱한 곳에 웨이브를 부른다.
     if (this._onUnload) { this._onUnload(); this._onUnload = null; }
+    this._killMarks.length = 0;   // 그룹째 사라지므로 참조만 버린다
     if (this.group) {
       this.scene.remove(this.group);
       this.group.traverse((o) => {

@@ -108,6 +108,7 @@ export class Scatter {
     m.scale.set(s, s, 1);
     m.renderOrder = 1;
     group.add(m);
+    return m;      // 런타임에 추가한 것(전투 흔적)은 호출부가 개수를 관리한다
   }
 
   /** 벽 핏자국. yaw 는 벽이 바라보는 방향(라디안) */

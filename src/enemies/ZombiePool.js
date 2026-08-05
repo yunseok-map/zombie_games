@@ -23,8 +23,15 @@ export class ZombiePool {
   }
 
   spawn(typeKey, x, z) {
-    const z0 = this.all.find((z) => !z.active);
-    if (!z0) return null;
+    let z0 = this.all.find((z) => !z.active);
+    // 빈 자리가 없으면 **가장 오래된 시체**를 재활용한다. 시체가 오래 남게 해 두면
+    // 풀(20)이 시체로 차서 새 좀비가 안 나오는 일이 생긴다 — 화면에는 아무 일도
+    // 안 일어나는데 압박만 사라진다.
+    if (!z0) {
+      const corpses = this.all.filter((z) => z.state === 'DEAD');
+      if (!corpses.length) return null;
+      z0 = corpses.reduce((a, b) => (a.deathTimer < b.deathTimer ? a : b));
+    }
     z0.spawn(typeKey, x, z);
     return z0;
   }

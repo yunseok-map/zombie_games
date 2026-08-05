@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZOMBIE, AI, KNOCK } from '../config/balance.js';
+import { ZOMBIE, AI, KNOCK, CORPSE } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 
@@ -157,6 +157,7 @@ export class Zombie {
     this._knockT = 0; this._knockTotal = 0;
     this._knockX = 0; this._knockZ = 0;
     this._flinchX = 0; this._flinchZ = 1;
+    this._settled = false; this._corpseY = 0;
     this.groanTimer = Math.random() * 6;
   }
 
@@ -192,6 +193,25 @@ export class Zombie {
     if (this.model) this.model.position.y = this.def.modelYOffset ?? 0;
     this.group.visible = true;
     this._syncMesh();
+  }
+
+  /**
+   * 지금 자세에서 **가장 낮은 뼈**를 찾아, 그것이 바닥에 닿도록 내릴 양을 돌려준다.
+   * 자세를 가리지 않으므로 어떤 사망 클립이 뽑혀도 통한다.
+   * (Box3.setFromObject 는 스킨 메시의 실제 자세를 반영하지 않아 못 쓴다)
+   */
+  _groundOffset() {
+    if (!this.model) return 0;
+    this.group.updateMatrixWorld(true);
+    let lowest = Infinity;
+    this.model.traverse((o) => {
+      if (!o.isBone) return;
+      o.getWorldPosition(_tmp);
+      if (_tmp.y < lowest) lowest = _tmp.y;
+    });
+    if (!Number.isFinite(lowest)) return 0;
+    // 뼈는 살 안쪽에 있으므로 조금 띄워야 몸이 바닥에 파묻히지 않는다
+    return this.group.position.y - lowest + CORPSE.restHeight;
   }
 
   despawn() {
@@ -251,7 +271,7 @@ export class Zombie {
 
     if (this.hp <= 0) {
       this.state = 'DEAD';
-      this.deathTimer = 1.2;
+      this.deathTimer = CORPSE.linger;
       bus.emit(EV.SFX, { name: 'zombie_death', x: this.pos.x, z: this.pos.z, volume: 0.8 });
       bus.emit(EV.ZOMBIE_DIED, { x: this.pos.x, z: this.pos.z, type: this.typeKey });
     } else if (this.state !== 'CHASE') {
@@ -266,10 +286,26 @@ export class Zombie {
 
     if (this.state === 'DEAD') {
       this.deathTimer -= dt;
+      const fallT = CORPSE.linger - this.deathTimer;          // 쓰러지기 시작한 뒤 지난 시간
       if (!this.model) {
         // 캡슐 폴백 — 손으로 눕힌다. 모델이 있으면 death 클립이 대신한다
-        this.group.rotation.x = Math.min(Math.PI / 2, (1.2 - this.deathTimer) * 2.2);
-        this.group.position.y = -Math.min(0.5, (1.2 - this.deathTimer) * 0.6);
+        this.group.rotation.x = Math.min(Math.PI / 2, fallT * 2.2);
+        this.group.position.y = -Math.min(0.5, fallT * 0.6);
+      }
+      // 쓰러지는 동작이 끝나면 실제 뼈 높이를 재서 바닥에 붙인다.
+      // 변환할 때 루트의 수직 이동을 지웠기 때문에(fbx_to_glb.py), 그냥 두면
+      // 골반이 선 자세 높이에 남아 **시체가 공중에 뜬다.**
+      // 1.2초 만에 사라지던 때는 안 보였지만 오래 남기니 바로 드러났다.
+      if (!this._settled && fallT > CORPSE.settleAt) {
+        this._settled = true;
+        this._corpseY = this._groundOffset();
+      }
+      this.group.position.y = this._settled ? this._corpseY : this.group.position.y;
+
+      // 사라질 때는 바닥으로 가라앉는다. 그냥 없어지면 "게임이구나" 소리가 절로 난다.
+      if (this.deathTimer < CORPSE.sink) {
+        const k = 1 - this.deathTimer / CORPSE.sink;
+        this.group.position.y = (this._corpseY ?? 0) - k * CORPSE.sinkDepth;
       }
       this._updateAnim(dt);
       if (this.deathTimer <= 0) this.despawn();
