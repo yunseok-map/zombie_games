@@ -77,8 +77,8 @@ export const ZOMBIE = {
     attackCooldown: 1.1,
     // 사거리에 들어온 순간 바로 맞으면 "닿았다"가 아니라 "갑자기 깎였다"가 된다.
     // 팔을 드는 시간이 있어야 뒤로 뺄 기회가 생긴다 — 이 값이 곧 반응 시간이다
-    attackWindup: 0.42,
-    turnRate: 4.2,        // 느리게 돈다. 옆으로 돌아 지나가는 것이 통해야 한다
+    attackWindup: 0.30,
+    turnRate: 6.6,        // 느리게 돈다. 옆으로 돌아 지나가는 것이 통해야 한다
     sightRange: 18,
     sightAngleDeg: 100,
     hearRange: 12,
@@ -95,8 +95,8 @@ export const ZOMBIE = {
     damage: 14,
     attackRange: 1.5,
     attackCooldown: 0.9,
-    attackWindup: 0.28,   // 빠르다. 붙으면 거의 즉시 온다
-    turnRate: 7.0,        // 소리를 따라 홱홱 돈다 — 이 종류만 빠른 회전이 어울린다
+    attackWindup: 0.20,   // 빠르다. 붙으면 거의 즉시 온다
+    turnRate: 9.5,        // 소리를 따라 홱홱 돈다 — 이 종류만 빠른 회전이 어울린다
     sightRange: 0,        // 눈이 없다 — 소리에만 반응
     sightAngleDeg: 0,
     hearRange: 26,
@@ -115,8 +115,8 @@ export const ZOMBIE = {
     damage: 15,          // 느린 대신 한 대가 아프다. 붙으면 떨어뜨리기 어렵다
     attackRange: 1.35,
     attackCooldown: 1.2,
-    attackWindup: 0.5,    // 엎드려서 팔을 뻗는 데 시간이 걸린다
-    turnRate: 2.6,        // 기어서 도는 것이라 가장 느리다. 뒤로 빠지면 따돌릴 수 있다
+    attackWindup: 0.34,    // 엎드려서 팔을 뻗는 데 시간이 걸린다
+    turnRate: 4.4,        // 기어서 도는 것이라 가장 느리다. 뒤로 빠지면 따돌릴 수 있다
     sightRange: 13,
     sightAngleDeg: 90,
     hearRange: 16,
@@ -136,8 +136,8 @@ export const ZOMBIE = {
     damage: 26,
     attackRange: 2.0,
     attackCooldown: 1.6,
-    attackWindup: 0.72,   // 크게 휘두른다. 보고 피할 수 있어야 한다
-    turnRate: 1.9,
+    attackWindup: 0.52,   // 크게 휘두른다. 보고 피할 수 있어야 한다
+    turnRate: 3.2,
     sightRange: 14,
     sightAngleDeg: 110,
     hearRange: 14,
@@ -148,10 +148,6 @@ export const ZOMBIE = {
   },
 };
 
-/**
- * 피격 반응 (enemies/Zombie.js). 애니메이션만으로는 "닿았다"가 안 느껴진다.
- * 좌표가 아니라 **보이는 위치만** 민다 — 실제로 밀면 벽을 뚫거나 경로가 꼬인다.
- */
 /**
  * 카메라 흔들림 · 히트스톱 (player/Player.js · core/Game.js).
  * 넉백·핏자국은 **맞는 쪽**의 반응이고, 이건 **때리는 쪽·맞는 쪽 모두의 손맛**이다.
@@ -169,6 +165,10 @@ export const SHAKE = {
   hitStop: 0.055,    // 근접이 닿는 순간 멈추는 시간(초). 0.1 을 넘기면 렉으로 느껴진다
 };
 
+/**
+ * 피격 반응 (enemies/Zombie.js). 애니메이션만으로는 "닿았다"가 안 느껴진다.
+ * 좌표가 아니라 **보이는 위치만** 민다 — 실제로 밀면 벽을 뚫거나 경로가 꼬인다.
+ */
 export const KNOCK = {
   distance: 0.34,   // 최대 밀림(m). 0.6 넘으면 몸이 미끄러지는 것처럼 보인다
   duration: 0.20,   // 초. 스턴이 클수록 길어진다
@@ -178,7 +178,7 @@ export const KNOCK = {
 export const AI = {
   // 좀비가 도는 속도(rad/s). 제한이 없으면 방향이 바뀌는 프레임마다 홱 돌아서
   // 살아 있는 것이 아니라 포탑처럼 보인다. 종류별로 덮어쓸 수 있다(ZOMBIE.*.turnRate)
-  turnRate: 5.0,
+  turnRate: 7.0,
   chaseGiveUpTime: 3.0,   // 시야에서 놓친 뒤 추격 유지 시간
   searchTime: 8.0,        // 마지막 목격 지점 수색 시간
   stuckTimeout: 15,       // 이 시간 동안 접근 실패하면 반납 (벽 끼임 방지)
@@ -191,6 +191,22 @@ export const AI = {
  * **보이기 전에 들린다** — 이 게임에서 가장 값싸고 가장 무서운 장치다(SPEC.md §5: 소리 > 시각).
  * 다만 14마리가 동시에 밟으면 소리가 뭉개져서 오히려 정보가 사라진다. 그래서 거리로 자른다.
  */
+/**
+ * 애니메이션 재생 (enemies/Zombie.js).
+ * 클립 길이를 게임 수치(쿨다운 등)에 억지로 맞추면 배속이 극단으로 튄다.
+ * `tools/qa_motion.js` 로 프레임 단위로 재서 잡은 값들이다.
+ */
+export const ANIM = {
+  // 공격 클립 최대 배속. 예전에는 클립 길이를 쿨다운에 그냥 맞췄는데,
+  // 4.5초짜리 클립이 1.1초 쿨다운에 들어가면서 **4.5배속 = 경련**이 나왔다.
+  // 상한을 걸면 휘두르는 동작이 쿨다운보다 일찍 끝나지만, 그 편이 훨씬 자연스럽다.
+  attackMaxSpeed: 2.0,
+  attackMinSpeed: 0.8,
+  // 포복체는 엎드린 공격 클립이 없다. 기는 동작을 빠르게 돌려 달려드는 것처럼 보이게 한다.
+  // (선 자세 공격 클립을 쓰면 modelYOffset 때문에 몸이 바닥에 묻힌다)
+  crawlerAttackSpeed: 1.9,
+};
+
 export const ZOMBIE_STEP = {
   stride: 1.5,          // 이 거리를 움직일 때마다 한 걸음
   maxDistance: 16,      // 이 밖에서는 아예 내지 않는다
@@ -209,7 +225,12 @@ export const CORPSE = {
   sink: 1.4,         // 마지막 이 시간 동안 바닥으로 가라앉으며 사라진다
   sinkDepth: 0.9,    // 가라앉는 깊이(m). 얕으면 사라지는 게 눈에 띈다
   bloodSize: 2.2,    // 죽은 자리에 남는 핏자국 크기(m)
-  settleAt: 1.6,     // 쓰러지는 동작이 끝나 바닥에 붙이는 시점(초). 클립 길이보다 길게
+  // 사망 클립 재생 속도. 원본이 3.0초라 그대로 두면 **너무 느리게 쓰러져 답답하다.**
+  // 1.65 배면 1.8초 — 무겁게 넘어가는 느낌은 남기고 늘어지지는 않는다.
+  deathSpeed: 1.65,
+  // 바닥에 고정하는 시점은 이제 **클립 길이에서 자동으로 구한다**(Zombie.js).
+  // 고정값을 쓰면 클립보다 짧을 때 몸이 계속 움직이면서 뼈가 바닥을 뚫는다.
+  settleMargin: 0.12,  // 클립이 끝난 뒤 이만큼 더 지켜본 다음 고정한다(초)
   restHeight: 0.06,  // 바닥에 붙일 때 띄우는 높이(m). 0이면 몸이 바닥에 파묻힌다
 };
 
@@ -330,7 +351,17 @@ export const FX = {
 
 /** 핏자국 · 의료폐기물 산포 (world/Scatter.js) — 폐병원의 "사람이 있었다"는 증거 */
 export const SCATTER = {
-  seed: 20290417,          // 고정 시드. 매 판 같은 자리에 있어야 레벨이 안 흔들린다
+  seed: 20290417,          // 기본 시드 (randomPerRun 이 false 일 때만 쓴다)
+
+  // **판마다 전리품·잔해 자리를 섞는다.** 같은 자리에서 같은 것이 나오면 두 번째 판부터
+  // 탐색이 사라지고 외운 길만 걷게 된다.
+  //   무엇이 바뀌나: 수납장에서 나오는 물건 종류, 잔해·핏자국 배치, 소품 각도.
+  //   무엇이 안 바뀌나: 벽·문·사건·스폰 지점 — 레벨 구조는 손대지 않는다.
+  //     (구조까지 흔들면 QA 로 검증한 동선이 매 판 달라져서 보증할 수 없다)
+  randomPerRun: true,
+  // 디버깅용 고정 시드. 숫자를 넣으면 randomPerRun 을 무시하고 그 판을 재현한다.
+  // 이상한 배치를 발견했을 때 `game.stageLoader.lastSeed` 를 여기 적으면 다시 볼 수 있다.
+  forceSeed: null,
   bloodRoughness: 0.42,    // 바닥보다 매끈 = 손전등에 젖은 듯 반짝인다
 
   debrisPerSqm: 0.35,      // 1m² 당 잔해 개수. 0.8 넘으면 쓰레기장처럼 보인다

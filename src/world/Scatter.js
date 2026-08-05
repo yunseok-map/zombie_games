@@ -91,9 +91,13 @@ export class Scatter {
     this.reset();
   }
 
-  /** 구역 로드 시작마다 호출 — 쌓아둔 잔해 목록을 비운다 */
-  reset() {
-    this.rng = makeRng(SCATTER.seed);
+  /**
+   * 구역 로드 시작마다 호출 — 쌓아둔 잔해 목록을 비운다.
+   * @param seed 이 판에 쓸 시드. StageLoader 가 넘긴다.
+   *   `SCATTER.randomPerRun` 이 true 면 판마다 달라져서 전리품·잔해 위치가 섞인다.
+   */
+  reset(seed = SCATTER.seed) {
+    this.rng = makeRng(seed);
     this._pending = { syringe: [], vial: [], paper: [] };
     this._debrisCount = 0;
   }

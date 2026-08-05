@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SURFACE, LOOT, CORPSE } from '../config/balance.js';
+import { SURFACE, LOOT, CORPSE, SCATTER } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { Scatter } from './Scatter.js';
 import { BUILDERS, signPlate } from './Props.js';
@@ -224,6 +224,32 @@ export class StageLoader {
   }
 
   /**
+   * 전리품 한 개를 뽑는다 — **독립 확률이 아니라 섞은 자루에서 꺼낸다.**
+   *
+   * 매번 따로 굴리면 "붕대 9개 · 배터리 0개" 같은 판이 실제로 나온다.
+   * 손전등이 핵심 자원인데 한 구역에서 배터리가 하나도 안 나오면 게임이 망가진다.
+   * 자루를 가중치대로 채워 섞어 두고 순서대로 꺼내면, **자리는 매 판 달라지지만
+   * 무엇이 몇 개 나오는지는 흔들리지 않는다.** 랜덤이 주는 재미만 가져오고 사고는 막는다.
+   */
+  _drawLoot() {
+    if (!this._lootBag?.length) {
+      const bag = [];
+      // 가중치를 8로 나눠 개수로 바꾼다 (40/18/26/30 → 5/2/3/4, 자루 하나에 14개)
+      for (const kind of ['battery', 'bandage', 'ammo', 'empty']) {
+        const n = Math.max(1, Math.round((LOOT[kind]?.weight ?? 0) / 8));
+        for (let i = 0; i < n; i++) bag.push(kind);
+      }
+      // 피셔–예이츠. scatter.rng 를 쓰므로 시드를 고정하면 그대로 재현된다
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = (this.scatter.rng() * (i + 1)) | 0;
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+      this._lootBag = bag;
+    }
+    return this._lootBag.pop();
+  }
+
+  /**
    * 바닥에 놓인 무기. 주우면 인벤토리에 들어간다.
    * weapons.js 에 8종이 정의돼 있는데 시작 2종 말고는 얻을 방법이 없었다 —
    * 정의만 있고 게임에 없으면 없는 것이다. 구역을 넘을 때마다 손에 쥔 것이 달라져야
@@ -368,13 +394,7 @@ export class StageLoader {
       addWeapon: (x, z, id, label) => this._weaponPickup(x, z, id, label),
 
       addSearchable: (x, z, label = '수납장') => {
-        const roll = this.scatter.rng();
-        const tot = LOOT.battery.weight + LOOT.bandage.weight + LOOT.ammo.weight + LOOT.empty.weight;
-        const r = roll * tot;
-        let acc = LOOT.battery.weight;
-        const kind = r < acc ? 'battery'
-          : r < (acc += LOOT.bandage.weight) ? 'bandage'
-            : r < (acc += LOOT.ammo.weight) ? 'ammo' : 'empty';
+        const kind = this._drawLoot();
         this.interaction.add({
           x, z, radius: 1.7, once: true, noisy: true,
           prompt: () => `[E]  ${label} 뒤지기`,
@@ -382,7 +402,9 @@ export class StageLoader {
             if (kind === 'empty') return '비어 있다';
             // 알림만 띄우지 않는다. 찾은 물건을 실제로 꺼내 놓고 직접 집게 한다.
             this._dropPickup(kind, x, z);
-            return kind === 'battery' ? '배터리가 나왔다' : '붕대가 나왔다';
+            // 탄약을 빠뜨리면 "붕대가 나왔다"로 떨어져서, 나온 물건과 안내가 어긋난다
+            return kind === 'battery' ? '배터리가 나왔다'
+              : kind === 'ammo' ? '9mm 탄약이 나왔다' : '붕대가 나왔다';
           },
         });
       },
@@ -482,7 +504,13 @@ export class StageLoader {
       },
     };
 
-    this.scatter.reset();
+    // 판마다 전리품·잔해 자리를 섞는다. 구역마다 시드를 달리해야 5개 구역이
+    // 똑같이 흔들리지 않는다 — 같은 시드를 쓰면 층만 바뀌고 배치 패턴은 똑같아진다.
+    this.lastSeed = SCATTER.forceSeed ?? (SCATTER.randomPerRun
+      ? ((Math.random() * 0xffffffff) >>> 0)
+      : SCATTER.seed);
+    this.scatter.reset((this.lastSeed + (stage.meta?.id?.length ?? 0) * 2654435761) >>> 0);
+    this._lootBag = null;   // 구역마다 자루를 새로 채운다
     this.interaction.reset();
     propModels.reset();
     // 바닥 재질 질의 — 발소리가 이걸 본다. 스테이지가 정의하지 않으면 콘크리트

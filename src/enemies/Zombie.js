@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP, STEALTH } from '../config/balance.js';
+import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP, STEALTH, ANIM } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 
@@ -77,9 +77,14 @@ export class Zombie {
     if (this.state === 'DEAD') return 'death';
     if (this.stun > 0 || this.flinch > 0) return 'hit';
     if (this._screamTimer > 0) return 'scream';        // 발견 순간의 포효
+    // 기어다니는 개체는 서는 동작이 없다 — 이동/정지/공격 전부 엎드린 클립을 쓴다.
+    // **공격 판정을 ATTACK 보다 먼저 본다.** 선 자세 공격 클립을 쓰면 modelYOffset(-0.62)
+    // 때문에 몸이 바닥 아래로 묻힌다 (tools/qa_motion.js 가 잡았다).
+    if (this.def.crawler) {
+      if (this.state === 'ATTACK') return 'crawl';     // 빠르게 돌려 달려드는 것처럼 (ANIM)
+      return this._moveSpeed > 0.15 ? 'crawl' : 'crawlIdle';
+    }
     if (this.state === 'ATTACK') return 'attack';
-    // 기어다니는 개체는 서는 동작이 없다 — 이동/정지 둘 다 엎드린 클립을 쓴다
-    if (this.def.crawler) return this._moveSpeed > 0.15 ? 'crawl' : 'crawlIdle';
     if (this.state === 'CHASE') return 'run';
     return this._moveSpeed > 0.25 ? 'walk' : 'idle';
   }
@@ -104,14 +109,25 @@ export class Zombie {
       const ref = key === 'run' ? this.def.speedChase : this.def.speedWander;
       next.timeScale = THREE.MathUtils.clamp(this._moveSpeed / Math.max(ref, 0.1), 0.4, 2.2)
         * this._jitter;
+    } else if (next && key === 'crawl') {
+      // 포복체의 공격은 기는 동작을 빠르게 돌린 것이다 (엎드린 공격 클립이 없다)
+      next.timeScale = (this.state === 'ATTACK' ? ANIM.crawlerAttackSpeed : 1) * this._jitter;
     } else if (next && key === 'hit') {
       // hit_01 은 2.6초짜리라 스턴(1.4초) 안에 절반만 나오고 잘린다.
       // 플린치 시간에 맞춰 압축해서 동작이 끝까지 보이게 한다.
       // 상한을 안 걸면 짧은 플린치(0.42초)에서 6배 속도가 나와 경련처럼 보인다.
       next.timeScale = Math.min(2.6, next.getClip().duration / Math.max(this._flinchTotal, 0.2));
     } else if (next && key === 'attack') {
-      // 한 번 휘두르는 시간이 공격 쿨다운과 맞게 — 루프로 계속 휘두르면 우스워진다
-      next.timeScale = (next.getClip().duration / this.def.attackCooldown) * this._jitter;
+      // 한 번 휘두르는 시간이 공격 쿨다운과 맞게 — 루프로 계속 휘두르면 우스워진다.
+      // **다만 상한을 걸어야 한다.** 4.5초짜리 클립을 1.1초 쿨다운에 맞추면 4.5배속이 되어
+      // 팔이 경련하는 것처럼 보인다 (tools/qa_motion.js 가 잡았다).
+      // 상한에 걸리면 동작이 쿨다운보다 일찍 끝나지만, 그 편이 훨씬 자연스럽다.
+      const fit = next.getClip().duration / this.def.attackCooldown;
+      next.timeScale = THREE.MathUtils.clamp(fit, ANIM.attackMinSpeed, ANIM.attackMaxSpeed)
+        * this._jitter;
+    } else if (next && key === 'death') {
+      // 원본이 3초라 그대로 두면 너무 느리게 쓰러져 답답하다
+      next.timeScale = CORPSE.deathSpeed * this._jitter;
     } else if (next) {
       next.timeScale = this._jitter;
     }
@@ -291,6 +307,10 @@ export class Zombie {
     if (this.hp <= 0) {
       this.state = 'DEAD';
       this.deathTimer = CORPSE.linger;
+      // 바닥 고정 시점을 **클립 길이에서 구한다.** 고정값(예전 1.6초)을 쓰면 3초짜리
+      // 사망 클립이 아직 움직이는 중에 위치가 잠겨서 뼈가 바닥을 뚫고 내려갔다.
+      const dClip = this.actions?.death?.getClip?.().duration ?? 1.5;
+      this._settleAt = dClip / (CORPSE.deathSpeed * this._jitter) + CORPSE.settleMargin;
       bus.emit(EV.SFX, { name: 'zombie_death', x: this.pos.x, z: this.pos.z, volume: 0.8 });
       bus.emit(EV.ZOMBIE_DIED, { x: this.pos.x, z: this.pos.z, type: this.typeKey });
     } else if (this.state !== 'CHASE') {
@@ -311,22 +331,29 @@ export class Zombie {
         this.group.rotation.x = Math.min(Math.PI / 2, fallT * 2.2);
         this.group.position.y = -Math.min(0.5, fallT * 0.6);
       }
-      // 쓰러지는 동작이 끝나면 실제 뼈 높이를 재서 바닥에 붙인다.
+      // 자세를 먼저 갱신하고 나서 높이를 잰다 — 순서가 반대면 한 프레임 늦은 자세로 재게 된다
+      this._updateAnim(dt);
+
       // 변환할 때 루트의 수직 이동을 지웠기 때문에(fbx_to_glb.py), 그냥 두면
       // 골반이 선 자세 높이에 남아 **시체가 공중에 뜬다.**
-      // 1.2초 만에 사라지던 때는 안 보였지만 오래 남기니 바로 드러났다.
-      if (!this._settled && fallT > CORPSE.settleAt) {
-        this._settled = true;
-        this._corpseY = this._groundOffset();
+      // 예전에는 settleAt(1.6초) **뒤에 한 번만** 쟀다. 그래서 쓰러지는 1.6초 동안은
+      // 공중에 뜬 채로 눕는 것이 그대로 보였다 — 죽는 순간이 제일 잘 보이는데 거기가 틀렸다.
+      // 자세가 매 프레임 바뀌므로 높이도 매 프레임 다시 재야 한다.
+      if (!this._settled) {
+        this.group.position.y = this._groundOffset();
+        if (fallT > (this._settleAt ?? 1.6)) {
+          this._settled = true;                 // 동작이 끝났다. 고정하고 뼈 순회를 멈춘다
+          this._corpseY = this.group.position.y;
+        }
+      } else {
+        this.group.position.y = this._corpseY;
       }
-      this.group.position.y = this._settled ? this._corpseY : this.group.position.y;
 
       // 사라질 때는 바닥으로 가라앉는다. 그냥 없어지면 "게임이구나" 소리가 절로 난다.
       if (this.deathTimer < CORPSE.sink) {
         const k = 1 - this.deathTimer / CORPSE.sink;
-        this.group.position.y = (this._corpseY ?? 0) - k * CORPSE.sinkDepth;
+        this.group.position.y = (this._corpseY ?? this.group.position.y) - k * CORPSE.sinkDepth;
       }
-      this._updateAnim(dt);
       if (this.deathTimer <= 0) this.despawn();
       return;
     }
