@@ -41,6 +41,11 @@ export class Player {
     this.alive = true;
     this.items.clear();        // 재시작하면 구역도 다시 만들어지므로 아이템도 초기화한다
     this._invuln = 0;
+    // 연출 상태도 되돌린다 — 달리다 죽으면 넓어진 시야각·기운 몸이 다음 판 시작에 남는다
+    this._strafe = 0;
+    this._roll = 0;
+    this.camera.fov = PLAYER.fov;
+    this.camera.updateProjectionMatrix();
     this._syncCamera(0);
   }
 
@@ -102,6 +107,8 @@ export class Player {
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const wx = fx * cos + fz * sin;
     const wz = -fx * sin + fz * cos;
+    // 몸 기준 좌우 성분. 카메라를 기울이는 데 쓴다 (월드 좌표로는 어느 쪽이 '옆'인지 모른다)
+    this._strafe = fx;
 
     // 지수 감쇠 — 프레임레이트가 흔들려도 감각이 같다 (dt 를 곱하기만 하면 60/144fps 가 달라진다)
     if (len > 0) {
@@ -173,26 +180,47 @@ export class Player {
     this.eyeHeight += (targetEye - this.eyeHeight) * Math.min(1, 9 * dt);
 
     // 헤드밥 — 걸을 때만
-    let bob = 0, roll = 0;
+    let bob = 0, sway = 0, roll = 0;
     const inj = this.injury;
     if (this.speed > 0.5) {
       this._bobPhase += dt * PLAYER.headBobSpeed * (this.sprinting ? 1.35 : 1);
       const sn = Math.sin(this._bobPhase);
-      bob = sn * PLAYER.headBobAmount * (this.sprinting ? 1.5 : 1);
+      const amp = PLAYER.headBobAmount * (this.sprinting ? 1.5 : 1);
+      bob = sn * amp;
+      // 가로는 절반 주기다 — 한 걸음마다 위아래 두 번, 좌우 한 번. 이래야 8자를 그린다.
+      // 위아래로만 흔들면 사람이 걷는 게 아니라 기계가 오르내리는 것처럼 보인다.
+      sway = Math.sin(this._bobPhase * 0.5) * amp * PLAYER.headBobSide;
       if (inj > 0) {
         // 성한 다리에선 평소대로, 다친 다리에선 훅 꺼진다 → 절뚝이는 리듬
         if (sn < 0) bob *= INJURY.limpDip;
-        roll = Math.sin(this._bobPhase * 0.5) * INJURY.limpRoll * inj;
+        roll += Math.sin(this._bobPhase * 0.5) * INJURY.limpRoll * inj;
       }
     } else {
       this._bobPhase = 0;
     }
 
-    this.camera.position.set(this.pos.x, this.pos.y + this.eyeHeight + bob, this.pos.z);
+    // 옆으로 갈 때 몸이 기운다. 입력이 아니라 실제 이동을 따라가야 벽에 막혔을 때 안 기운다
+    const wantRoll = roll - (this._strafe ?? 0) * PLAYER.strafeRoll;
+    this._roll = (this._roll ?? 0) + (wantRoll - (this._roll ?? 0)) * Math.min(1, PLAYER.rollLerp * dt);
+
+    // 시야각 — 달릴 때 넓어진다. 이 한 줄이 속도감의 대부분이다
+    const wantFov = this.sprinting ? PLAYER.fovSprint : PLAYER.fov;
+    if (Math.abs(this.camera.fov - wantFov) > 0.01) {
+      this.camera.fov += (wantFov - this.camera.fov) * Math.min(1, PLAYER.fovLerp * dt);
+      this.camera.updateProjectionMatrix();
+    }
+
+    // 카메라의 좌우 흔들림은 몸 기준이라 yaw 로 월드에 돌려서 더한다
+    const sn2 = Math.sin(this.yaw), cs = Math.cos(this.yaw);
+    this.camera.position.set(
+      this.pos.x + sway * cs,
+      this.pos.y + this.eyeHeight + bob,
+      this.pos.z - sway * sn2,
+    );
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch;
-    this.camera.rotation.z = roll;   // 다치면 몸이 기운다
+    this.camera.rotation.z = this._roll;   // 옆걸음 + 부상
   }
 
   damage(amount) {

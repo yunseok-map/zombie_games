@@ -327,7 +327,7 @@ export class Zombie {
       bus.emit(EV.SFX, { name: `zombie_groan_${gn}`, x: this.pos.x, z: this.pos.z, volume: 0.55 });
     }
 
-    if (this.stun > 0) { this.stun -= dt; this._syncMesh(); this._updateAnim(dt); return; }
+    if (this.stun > 0) { this.stun -= dt; this._syncMesh(dt); this._updateAnim(dt); return; }
 
     const dx = player.pos.x - this.pos.x;
     const dz = player.pos.z - this.pos.z;
@@ -351,7 +351,7 @@ export class Zombie {
       case 'ATTACK': this._attack(dt, player, dist, collision); break;
     }
 
-    this._syncMesh();
+    this._syncMesh(dt);
     this._updateAnim(dt);
   }
 
@@ -399,7 +399,13 @@ export class Zombie {
       if (this.loseTimer <= 0) { this.state = 'SEARCH'; this.searchTimer = AI.searchTime; return; }
     }
 
-    if (dist <= this.def.attackRange) { this.state = 'ATTACK'; this.attackTimer = 0; return; }
+    // 사거리에 들어와도 바로 때리지 않는다 — 팔을 드는 시간(attackWindup)이 있어야
+    // 맞는 쪽에 뒤로 뺄 기회가 생긴다. 없으면 "닿는 순간 깎였다"로만 느껴진다.
+    if (dist <= this.def.attackRange) {
+      this.state = 'ATTACK';
+      this.attackTimer = this.def.attackWindup ?? 0;
+      return;
+    }
 
     // 벽에 껴서 영원히 접근 못 하는 개체를 회수한다
     if (dist < this.bestDist - 0.4) { this.bestDist = dist; this.stuckTimer = 0; }
@@ -473,10 +479,23 @@ export class Zombie {
     this.pos.x = r.x; this.pos.z = r.z;
   }
 
-  _syncMesh() {
+  /**
+   * @param dt 0 이면 즉시 맞춘다 (스폰 직후 — 스폰 방향으로 도는 모습이 보이면 안 된다)
+   */
+  _syncMesh(dt = 0) {
     this.group.position.set(this.pos.x, this.pos.y, this.pos.z);
     if (this.state !== 'DEAD') {
-      this.group.rotation.y = this.facing;
+      // 방향을 즉시 덮어쓰면 회피·밀어내기로 목표 방향이 바뀔 때마다 홱 돈다 —
+      // 살아 있는 것이 아니라 포탑처럼 보인다. 초당 회전량을 제한해서 몸이 따라오게 한다.
+      if (dt > 0) {
+        const rate = (this.def.turnRate ?? AI.turnRate) * dt;
+        // 최단 경로로 돈다. 그냥 빼면 ±π 를 넘길 때 반대로 한 바퀴 돈다
+        let d = this.facing - this.group.rotation.y;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        this.group.rotation.y += THREE.MathUtils.clamp(d, -rate, rate);
+      } else {
+        this.group.rotation.y = this.facing;
+      }
       if (!this.model) {
         // 캡슐 폴백의 걷는 느낌. 진짜 애니메이션이 있으면 흔들면 안 된다
         const moving = this.state === 'CHASE' || this.state === 'ALERT' || this.state === 'WANDER';

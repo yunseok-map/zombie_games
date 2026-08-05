@@ -3,7 +3,7 @@ import { Input } from './Input.js';
 import { Collision } from './Collision.js';
 import { AudioManager } from './AudioManager.js';
 import { bus, EV } from './EventBus.js';
-import { FLASHLIGHT } from '../config/balance.js';
+import { FLASHLIGHT, PLAYER } from '../config/balance.js';
 import { Atmosphere } from '../fx/Atmosphere.js';
 import { PostFX } from '../fx/PostFX.js';
 import { Impact } from '../fx/Impact.js';
@@ -43,7 +43,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 120);
+    this.camera = new THREE.PerspectiveCamera(PLAYER.fov, 1, 0.1, 120);
     this.scene.add(this.camera);           // 뷰모델이 카메라 자식이라 필요하다
 
     this.clock = new THREE.Clock();

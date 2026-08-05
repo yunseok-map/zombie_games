@@ -26,6 +26,20 @@ export const PLAYER = {
   headBobAmount: 0.035,
   headBobSpeed: 9.5,
   invulnAfterHit: 0.45,
+
+  // ── 이동감 ──
+  // 시야각. 달릴 때 넓어지는 것만으로 속도감의 대부분이 만들어진다.
+  // 88 을 넘기면 손전등 원뿔이 화면보다 좁아 보여서 어둠이 답답해진다.
+  fov: 75,
+  fovSprint: 83,
+  fovLerp: 5.5,        // 시야각이 따라붙는 속도. 빠르면 멀미가 난다
+
+  // 옆으로 움직이면 몸이 기운다. 키우면 배를 탄 것처럼 된다
+  strafeRoll: 0.026,   // rad
+  rollLerp: 6.5,
+  // 세로 흔들림 대비 가로 흔들림의 비율. 위아래로만 흔들면 기계가 오르내리는 것 같다 —
+  // 사람은 8자를 그리며 걷는다 (가로는 세로의 절반 주기)
+  headBobSide: 0.6,
 };
 
 export const FLASHLIGHT = {
@@ -61,6 +75,10 @@ export const ZOMBIE = {
     damage: 12,
     attackRange: 1.55,
     attackCooldown: 1.1,
+    // 사거리에 들어온 순간 바로 맞으면 "닿았다"가 아니라 "갑자기 깎였다"가 된다.
+    // 팔을 드는 시간이 있어야 뒤로 뺄 기회가 생긴다 — 이 값이 곧 반응 시간이다
+    attackWindup: 0.42,
+    turnRate: 4.2,        // 느리게 돈다. 옆으로 돌아 지나가는 것이 통해야 한다
     sightRange: 18,
     sightAngleDeg: 100,
     hearRange: 12,
@@ -77,6 +95,8 @@ export const ZOMBIE = {
     damage: 14,
     attackRange: 1.5,
     attackCooldown: 0.9,
+    attackWindup: 0.28,   // 빠르다. 붙으면 거의 즉시 온다
+    turnRate: 7.0,        // 소리를 따라 홱홱 돈다 — 이 종류만 빠른 회전이 어울린다
     sightRange: 0,        // 눈이 없다 — 소리에만 반응
     sightAngleDeg: 0,
     hearRange: 26,
@@ -95,6 +115,8 @@ export const ZOMBIE = {
     damage: 15,          // 느린 대신 한 대가 아프다. 붙으면 떨어뜨리기 어렵다
     attackRange: 1.35,
     attackCooldown: 1.2,
+    attackWindup: 0.5,    // 엎드려서 팔을 뻗는 데 시간이 걸린다
+    turnRate: 2.6,        // 기어서 도는 것이라 가장 느리다. 뒤로 빠지면 따돌릴 수 있다
     sightRange: 13,
     sightAngleDeg: 90,
     hearRange: 16,
@@ -114,6 +136,8 @@ export const ZOMBIE = {
     damage: 26,
     attackRange: 2.0,
     attackCooldown: 1.6,
+    attackWindup: 0.72,   // 크게 휘두른다. 보고 피할 수 있어야 한다
+    turnRate: 1.9,
     sightRange: 14,
     sightAngleDeg: 110,
     hearRange: 14,
@@ -135,6 +159,9 @@ export const KNOCK = {
 };
 
 export const AI = {
+  // 좀비가 도는 속도(rad/s). 제한이 없으면 방향이 바뀌는 프레임마다 홱 돌아서
+  // 살아 있는 것이 아니라 포탑처럼 보인다. 종류별로 덮어쓸 수 있다(ZOMBIE.*.turnRate)
+  turnRate: 5.0,
   chaseGiveUpTime: 3.0,   // 시야에서 놓친 뒤 추격 유지 시간
   searchTime: 8.0,        // 마지막 목격 지점 수색 시간
   stuckTimeout: 15,       // 이 시간 동안 접근 실패하면 반납 (벽 끼임 방지)
