@@ -30,7 +30,7 @@ const jobs = [
 let done = 0;
 const step = (label) => {
   done++;
-  if (fill) fill.style.width = `${Math.round((done / jobs.length) * 100)}%`;
+  if (fill) fill.style.transform = `scaleX(${done / jobs.length})`;
   if (what) what.textContent = `${label} 확보 완료`;
 };
 Promise.all(jobs.map(([label, p]) => p.finally(() => step(label)))).finally(() => {

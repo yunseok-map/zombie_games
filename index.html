@@ -155,8 +155,10 @@
   #loading.hide { display:none; }
   #loading .l-title { font-size:13px; letter-spacing:.46em; text-indent:.46em; opacity:.42; }
   #loading .l-bar { width:min(300px,54vw); height:2px; background:rgba(200,204,198,.12); }
-  #loading .l-bar > i { display:block; height:100%; width:0%; background:#7b8a73;
-    transition:width .3s ease-out; }
+  /* width 가 아니라 scaleX 로 채운다 — width 를 애니메이션하면 매 프레임 레이아웃을
+     다시 계산한다. HUD 막대(.bar > i)도 같은 방식이다. */
+  #loading .l-bar > i { display:block; height:100%; width:100%; background:#7b8a73;
+    transform:scaleX(0); transform-origin:left; transition:transform .3s ease-out; }
   #loading .l-what { font-family:var(--body); font-size:11px; letter-spacing:.14em;
     opacity:.3; }
   #loading.hide { display:none; }
