@@ -34,6 +34,91 @@ export class Flashlight {
 
     scene.add(this.light);
     scene.add(this.target);
+    this._buildVolume(scene);
+  }
+
+  /**
+   * 빛줄기 속에 떠다니는 먼지.
+   *
+   * 원뿔 메시로 빛기둥을 그리는 방법은 **안에서 보면 원뿔 벽면이 통째로 빛나서**
+   * 즉시 가짜로 보인다(시선이 벽면과 나란해질수록 밝아진다). 그래서 대신
+   * 입자를 뿌리고, 손전등 원뿔 안에 들어온 것만 밝게 그린다.
+   * 공기가 보인다는 인상은 같은데 인공물이 안 생기고 훨씬 싸다.
+   *
+   * 입자는 카메라를 중심으로 한 정육면체 안에서 **감싸며 반복**된다(shader 의 mod).
+   * 그래서 어디로 가도 항상 주위에 있지만, 카메라에 붙어 따라오지는 않는다.
+   */
+  _buildVolume(scene) {
+    const N = FLASHLIGHT.dustCount;
+    const S = FLASHLIGHT.dustField;
+    const pos = new Float32Array(N * 3);
+    const seed = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      pos[i * 3] = Math.random() * S;
+      pos[i * 3 + 1] = Math.random() * S;
+      pos[i * 3 + 2] = Math.random() * S;
+      seed[i] = Math.random() * 6.283;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+
+    this.volumeMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: new THREE.Color(FLASHLIGHT.color) },
+        uIntensity: { value: 0 },
+        uTime: { value: 0 },
+        uCam: { value: new THREE.Vector3() },
+        uOrigin: { value: new THREE.Vector3() },
+        uDir: { value: new THREE.Vector3(0, 0, -1) },
+        uCos: { value: Math.cos(THREE.MathUtils.degToRad(FLASHLIGHT.angleDeg)) },
+        uRange: { value: FLASHLIGHT.range },
+        uField: { value: S },
+        uSize: { value: FLASHLIGHT.dustSize },
+      },
+      vertexShader: /* glsl */`
+        attribute float seed;
+        uniform vec3 uCam; uniform vec3 uOrigin; uniform vec3 uDir;
+        uniform float uCos; uniform float uRange; uniform float uField;
+        uniform float uTime; uniform float uSize;
+        varying float vA;
+        void main() {
+          // 카메라를 중심으로 감싸며 반복 — 어디로 가도 주위에 먼지가 있다
+          vec3 drift = vec3(sin(uTime * 0.3 + seed), sin(uTime * 0.21 + seed * 1.7) * 0.6,
+                            cos(uTime * 0.26 + seed)) * 0.35;
+          vec3 p = mod(position + drift - uCam + uField * 0.5, uField) + uCam - uField * 0.5;
+
+          vec3 toP = p - uOrigin;
+          float dist = length(toP);
+          float c = dot(normalize(toP), uDir);
+          // 원뿔 안쪽만, 가장자리는 부드럽게. 멀수록 옅게.
+          float cone = smoothstep(uCos, mix(uCos, 1.0, 0.45), c);
+          float fall = 1.0 - smoothstep(uRange * 0.15, uRange, dist);
+          vA = cone * fall;
+
+          vec4 mv = viewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = uSize / max(-mv.z, 0.4);
+        }`,
+      fragmentShader: /* glsl */`
+        uniform vec3 uColor; uniform float uIntensity;
+        varying float vA;
+        void main() {
+          if (vA <= 0.001) discard;
+          vec2 d = gl_PointCoord - 0.5;
+          float r = 1.0 - smoothstep(0.15, 0.5, length(d));   // 동그란 알갱이
+          gl_FragColor = vec4(uColor, vA * r * uIntensity);
+        }`,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    this.volume = new THREE.Points(geo, this.volumeMat);
+    this.volume.frustumCulled = false;   // 항상 카메라 주위라 컬링 계산이 무의미하다
+    this.volume.renderOrder = 3;
+    this.volume.visible = false;
+    scene.add(this.volume);
   }
 
   toggle() {
@@ -72,6 +157,18 @@ export class Flashlight {
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
     this.light.position.addScaledVector(right, 0.22).y -= 0.14;
     this.target.position.copy(this.light.position).addScaledVector(dir, 10);
+
+    // 빛기둥은 광원과 같은 자리·같은 방향
+    const vol = this.volume;
+    vol.visible = this.on && FLASHLIGHT.volumeIntensity > 0;
+    if (vol.visible) {
+      const u = this.volumeMat.uniforms;
+      u.uCam.value.copy(cam.position);
+      u.uOrigin.value.copy(this.light.position);
+      u.uDir.value.copy(dir);
+      u.uIntensity.value = FLASHLIGHT.volumeIntensity * this._flicker;
+      u.uTime.value += dt * FLASHLIGHT.volumeDustSpeed;
+    }
   }
 
   addBattery(amount) {

@@ -39,6 +39,14 @@ export const FLASHLIGHT = {
   color: 0xfff0d0,
   flickerBelow: 20,    // 이 % 미만이면 깜빡임
   detectionMultiplier: 1.6, // 켜면 좀비 감지 반경 배수 (핵심 트레이드오프)
+
+  // 빛줄기 속 먼지. 손전등 하나로 버티는 게임이라, 공기가 보이는 것만으로 화면이
+  // 크게 달라진다. 0 으로 두면 꺼진다.
+  volumeIntensity: 0.55,   // 너무 올리면 눈이 온 것처럼 보인다
+  volumeDustSpeed: 1.0,    // 먼지가 떠도는 속도
+  dustCount: 1400,         // 입자 수. Points 라 드로우콜은 1이다
+  dustField: 26,           // 카메라를 감싸는 정육면체 한 변(m). range 보다 커야 한다
+  dustSize: 42,            // 화면상 크기 배수 (거리로 나눈다)
 };
 
 export const ZOMBIE = {
@@ -164,6 +172,8 @@ export const FX = {
   fogDensity: 0.055,       // 실내 기본 (구역별로 StageLoader 가 덮어씀)
   ambientIntensity: 0.055, // 거의 0 — 어둠이 기본이다
   exposure: 0.95,
+  // 환경맵 세기. 금속·유리가 형태를 읽히게 하는 정도만 — 올리면 어둠이 걷힌다
+  envIntensity: 0.16,
   emergencyLightColor: 0xff3b2e,
   emergencyLightIntensity: 0.9,
   emergencyLightRange: 7,
@@ -221,7 +231,8 @@ export const SURFACE = {
   // 손전등(26cd) 아래에서는 그대로 쓰면 하얗게 탄다. 텍스처는 살리고 색만 누른다.
   propModelDim: 0.55,
   propModelRoughMin: 0.45,   // 너무 반질거리면 손전등 반사가 점으로 튄다
-  propModelMetalMax: 0.35,   // 환경맵이 없어서 금속도가 높으면 새까맣게 죽는다
+  propModelMetalMax: 0.55,   // 환경맵이 생겨서 예전(0.35)보다 금속을 살려도 된다
+  propModelEnv: 1.0,         // 소품의 환경맵 반사 세기 (전체 세기는 FX.envIntensity)
 };
 
 /** 서랍·캐비닛 수색 (world/Interaction.js) — 아포칼립스의 기본 루프 */

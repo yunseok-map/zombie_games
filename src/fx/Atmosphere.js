@@ -24,6 +24,40 @@ export class Atmosphere {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    this._buildEnvironment();
+  }
+
+  /**
+   * 아주 약한 환경맵.
+   *
+   * 없으면 금속·유리가 **반사할 것이 없어 새까맣게 죽는다** — 링거대 봉이나 침대
+   * 프레임이 실루엣만 남아 종이처럼 보이는 원인이 이것이다.
+   * 다만 환경맵은 사방에서 들어오는 빛이라 세게 넣으면 어둠이 통째로 걷혀 버린다.
+   * 그래서 `FX.envIntensity` 로 아주 낮게 눌러, **형태를 읽히게 하는 정도**만 쓴다.
+   */
+  _buildEnvironment() {
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    // 실내용 저해상도 큐브맵을 직접 만든다 (외부 HDR 을 받지 않는다 — CLAUDE.md §1-6)
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    const grd = ctx.createLinearGradient(0, 0, 0, 64);
+    grd.addColorStop(0, '#2a3138');      // 천장 쪽이 조금 밝다
+    grd.addColorStop(0.55, '#141a1f');
+    grd.addColorStop(1, '#0a0d10');      // 바닥은 거의 검정
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(c);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+
+    this.scene.environment = pmrem.fromEquirectangular(tex).texture;
+    if ('environmentIntensity' in this.scene) {
+      this.scene.environmentIntensity = FX.envIntensity;
+    }
+    tex.dispose();
+    pmrem.dispose();
   }
 
   /** 구역별 분위기 덮어쓰기 — StageLoader 가 호출 */

@@ -101,7 +101,9 @@ class PropModelLibrary {
     if (m.color) m.color.multiplyScalar(SURFACE.propModelDim);
     if (m.roughness !== undefined) m.roughness = Math.max(m.roughness, SURFACE.propModelRoughMin);
     if (m.metalness !== undefined) m.metalness = Math.min(m.metalness, SURFACE.propModelMetalMax);
-    m.envMapIntensity = 0;      // 환경맵이 없다 — 켜두면 검게 죽는다
+    // 씬 환경맵(Atmosphere)이 생겼으므로 반사를 켠다. 이게 0 이면 금속 봉·프레임이
+    // 반사할 것이 없어 실루엣만 남고 종이처럼 보인다.
+    m.envMapIntensity = SURFACE.propModelEnv;
   }
 
   /** 배치 예약. 스테이지 조립 중에 부르고, 실제 메시는 flush 에서 만든다. */
