@@ -62,6 +62,31 @@
     border-color:rgba(200,204,198,.13); color:rgba(200,204,198,.5); }
   #over h1 { color:#7d2b26; }
 
+  /* 타이틀 — 뒤에서 실제 복도가 돌아간다. 배경을 비워 그게 보이게 하고,
+     아래위 그라디언트로 글자만 읽히게 한다. */
+  #title { background:transparent; justify-content:flex-end; padding-bottom:9vh; gap:16px; }
+  #title::before { content:''; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 42%, transparent 0%, rgba(3,4,3,.72) 100%),
+      linear-gradient(180deg, rgba(3,4,3,.85) 0%, transparent 26%, transparent 58%, rgba(3,4,3,.92) 100%); }
+  #title > * { position:relative; }
+  #title h1 { font-size:min(13vw,104px); letter-spacing:.3em; text-indent:.3em;
+    color:#c3ccbc; margin-bottom:2px; }
+  #title .sub { opacity:.5; }
+  #title .keys { opacity:.42; }
+  /* 켜졌다 꺼지는 형광등처럼 — 타이틀만 불규칙하게 깜빡인다 */
+  @keyframes titleFlicker {
+    0%,100%   { opacity:1; }
+    41%       { opacity:1; }
+    42%       { opacity:.28; }
+    43%       { opacity:1; }
+    77%       { opacity:1; }
+    78%       { opacity:.42; }
+    79.5%     { opacity:1; }
+  }
+  #title h1 { animation:titleFlicker 7.5s infinite steps(1, end); }
+  @media (prefers-reduced-motion: reduce) { #title h1 { animation:none; } }
+
   /* 크레딧 — CC BY 제작자 표기는 의무라 읽히는 것이 우선이다 */
   #credits { justify-content:flex-start; padding:8vh 24px 4vh; overflow-y:auto; gap:14px; }
   .credit-body { max-width:640px; width:100%; }

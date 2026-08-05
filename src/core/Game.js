@@ -3,6 +3,7 @@ import { Input } from './Input.js';
 import { Collision } from './Collision.js';
 import { AudioManager } from './AudioManager.js';
 import { bus, EV } from './EventBus.js';
+import { FLASHLIGHT } from '../config/balance.js';
 import { Atmosphere } from '../fx/Atmosphere.js';
 import { PostFX } from '../fx/PostFX.js';
 import { Player } from '../player/Player.js';
@@ -94,6 +95,38 @@ export class Game {
   /** 디버그·QA 용 — 콘솔에서 `game.stages[i]` 로 개별 구역을 바로 열어볼 수 있다 */
   get stages() { return STAGES; }
 
+  /**
+   * 시작 화면 배경 — 실제 구역을 띄워 놓고 손전등이 복도를 훑게 한다.
+   * 검은 화면에 글자만 얹는 것보다, 게임이 이미 살아 움직이는 걸 보여주는 편이
+   * 훨씬 강하다. 좀비는 띄우지 않는다(첫인상은 정적이어야 한다).
+   * 소리는 못 낸다 — 브라우저가 사용자 클릭 전 재생을 막는다.
+   */
+  startAttract() {
+    this.stageLoader.load(STAGES[0]);
+    this.pool.despawnAll();
+    this.flashlight.on = true;
+    this.flashlight.battery = FLASHLIGHT.maxBattery;
+    this._attractT = 0;
+    // 손에 든 무기는 안 보이게 — 시작 화면은 "장소"를 보여주는 자리다
+    this.weapons.viewRoot.visible = false;
+    this.state = 'TITLE';
+  }
+
+  _updateAttract(dt) {
+    this._attractT += dt;
+    const t = this._attractT;
+    const cam = this.camera;
+    cam.rotation.order = 'YXZ';
+    // 복도를 아주 느리게 오가며 좌우로 훑는다. 전부 sin 이라 끊기는 지점이 없다.
+    // 시선 폭이 넓으면 벽·소품이 화면을 꽉 채워 답답하다. 복도 깊이가 보이도록 좁게 훑는다.
+    cam.position.set(Math.sin(t * 0.09) * 0.5, 1.63 + Math.sin(t * 0.5) * 0.015,
+      21 + Math.sin(t * 0.05) * 8);
+    cam.rotation.set(-0.015 + Math.sin(t * 0.08) * 0.02, Math.PI + Math.sin(t * 0.11) * 0.26, 0);
+    cam.updateMatrixWorld(true);
+    this.flashlight.update(dt);
+    this.atmosphere.update(dt);
+  }
+
   async start() {
     await this.audio.init();
     // 소품 GLB 는 스테이지를 짓기 전에 다 읽혀 있어야 한다 (조립이 동기라서).
@@ -107,6 +140,7 @@ export class Game {
 
   restart() {
     this.stageIndex = 0;
+    this.weapons.viewRoot.visible = true;   // 시작 화면에서 숨겨 놓았다
     this.pool.despawnAll();
     const start = this.stageLoader.load(STAGES[0]);
     this.player.surfaceAt = this.stageLoader.surfaceAt;
@@ -233,6 +267,8 @@ export class Game {
         }
       }
     }
+
+    if (this.state === 'TITLE') this._updateAttract(dt);
 
     if (this.post.enabled) this.post.render(dt);
     else this.renderer.render(this.scene, this.camera);

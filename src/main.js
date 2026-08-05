@@ -4,6 +4,7 @@
 import { Game } from './core/Game.js';
 import { preloadZombieModel } from './enemies/ZombieModel.js';
 import { preloadWeaponModels } from './weapons/ViewModels.js';
+import { propModels } from './world/PropModels.js';
 
 const canvas = document.getElementById('app');
 const game = new Game(canvas);
@@ -13,12 +14,14 @@ const over = document.getElementById('over');
 const pause = document.getElementById('pause');
 const loading = document.getElementById('loading');
 
-// 좀비 모델을 먼저 받는다. 없이 시작하면 첫 스폰이 캡슐로 나온다.
+// 모델을 먼저 받는다. 없이 시작하면 첫 스폰이 캡슐로, 소품이 절차적 상자로 나온다.
+// 소품까지 여기서 받는 이유: 시작 화면 배경에 실제 구역을 띄우기 때문이다.
 const startBtn = document.getElementById('btn-start');
 startBtn.disabled = true;
-Promise.all([preloadZombieModel(), preloadWeaponModels()]).finally(() => {
+Promise.all([preloadZombieModel(), preloadWeaponModels(), propModels.preload()]).finally(() => {
   loading.classList.add('hide');
   startBtn.disabled = false;
+  game.startAttract();          // 타이틀 뒤에서 복도가 살아 움직인다
 });
 
 async function begin() {
