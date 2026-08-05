@@ -151,6 +151,7 @@ export function build(ctx) {
   return {
     playerStart: { x: 0, z: HUT_Z - 1.0, yaw: 0 },   // 계단탑 안에서 시작, 문 쪽(+Z)을 본다
     // exit 없음 — 신호탄을 쏘고 버텨야 열린다 (위 setExit)
+    exitWhenReady: { x: 0, z: EXIT_Z + 1.2, radius: 2.4 },
     onUnload: () => { for (const t of timers) clearTimeout(t); },
   };
 }

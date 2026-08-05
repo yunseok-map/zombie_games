@@ -236,7 +236,10 @@ export function build(ctx) {
       if (preset === 3) addBlood(roomCx, zc + 0.4, 2.2, 'drag');       // 끌려나간 자국
       scatterDebris(roomCx, zc, ROOM_DEPTH - 1.2, ROOM_PITCH - 1.2, 0.55);
 
-      addSpawn(roomCx, zc);
+      // 판자로 막힌 방에는 스폰하지 않는다. 문이 벽이라 나올 수가 없어서,
+      // 거기 나온 좀비는 15초 뒤 자동 반납될 때까지 하드캡(14)만 차지한다 —
+      // 화면에는 아무 일도 안 일어나는데 압박만 줄어든다.
+      if (doorKind !== 'board') addSpawn(roomCx, zc);
       if (i % 2 === 0) {
         addLight(roomCx, 2.85, zc, i % 4 === 0 ? 'flicker' : 'steady', 0x3a4a52);
         addProp3D('ceilingLight', roomCx, zc, sx * Math.PI / 2, { y: WALL_H, args: [false] });

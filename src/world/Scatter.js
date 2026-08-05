@@ -152,6 +152,9 @@ export class Scatter {
       const mesh = new THREE.InstancedMesh(this.debrisGeo[kind], this.debrisMat[kind], list.length);
       mesh.castShadow = false;      // 잔해까지 그림자를 만들면 예산이 무너진다
       mesh.receiveShadow = true;
+      // 잔해임을 표시한다 — 소품 위에 걸쳐도 정상이라, 배치 검사(tools/qa_stages.js)가
+      // 소품 겹침으로 세면 안 된다
+      mesh.userData.scatter = true;
       list.forEach((it, i) => {
         dummy.position.set(it.x, it.y, it.z);
         dummy.rotation.set(it.tilt, it.yaw, it.tilt * 0.5);

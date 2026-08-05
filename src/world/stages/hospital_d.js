@@ -139,7 +139,9 @@ export function build(ctx) {
       args: [i % 2], collide: [2.05, 0.95],
     });
     addPropGLB('prop_ivdrip', ROOM_X - 2.5, bz - 1.1, rnd() * 6.28);
-    addProp3D('curtain', ROOM_X - 2.9, bz + 2.1, 0, { args: [1.9, 1.95] });
+    // 커튼은 침상 **앞쪽**에 둔다. 뒤(bz+2.1)에 두면 마지막 침상 것이 z=32.1 이 되어
+    // 중환자실 뒤 벽(z=32) 안에 박힌다.
+    addProp3D('curtain', ROOM_X - 2.9, bz - 2.1, 0, { args: [1.9, 1.95] });
     if (i % 3 === 0) addSearchable(ROOM_X - 2.2, bz + 0.6, '침상 옆 서랍');
     if (i === 2) addPropGLB('prop_bodybag', icuCx - 1.2, bz, 0.4);
     if (i === 4) addProp3D('wheelchair', icuCx - 1.4, bz - 1.2, rnd() * 6.28, { collide: [0.8, 1.0] });

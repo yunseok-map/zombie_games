@@ -443,6 +443,9 @@ export class StageLoader {
     this.director?.setStage(this.spawnPoints, stage.meta.typeWeights);
     // exit 가 없는 구역도 있다 — 사건이 끝나야 열린다 (옥상). ctx.setExit 으로 연다.
     this.exit = result.exit ?? null;
+    // 사건이 끝나야 열리는 구역은 "열릴 예정인 출구"를 따로 알려준다.
+    // 검사 도구가 목표 지점을 알 수 있어야 경로를 확인할 수 있다.
+    this.exitPending = result.exitWhenReady ?? null;
     this._onUnload = result.onUnload ?? null;
 
     return result.playerStart ?? { x: 0, z: 0, yaw: 0 };
