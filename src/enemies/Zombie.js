@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZOMBIE, AI } from '../config/balance.js';
+import { ZOMBIE, AI, KNOCK } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 
@@ -56,7 +56,8 @@ export class Zombie {
     this._reset();
   }
 
-  _attachModel({ root, mixer, actions, jitter }) {
+  _attachModel({ root, mixer, actions, jitter, outfit }) {
+    this.outfit = outfit;        // 'coat' 흰 가운 / 'scrub' 수술복 / null 원본 (검사용)
     this.group.remove(this.body, this.head);
     this.body.geometry.dispose();
     this.head.geometry.dispose();
@@ -116,13 +117,26 @@ export class Zombie {
     if (this._screamTimer > 0) this._screamTimer -= dt;
     if (this.flinch > 0) {
       this.flinch -= dt;
-      // 충격으로 상체가 뒤로 젖혀진다 — 애니메이션만으로는 타격감이 약하다
-      const t = Math.max(0, this.flinch / Math.max(this._flinchTotal, 0.01));
+      // 충격으로 몸이 젖혀진다 — 애니메이션만으로는 타격감이 약하다.
       // 맞는 순간 최대로 젖혀지고 서서히 돌아온다.
       // sin(t*PI) 로 하면 중간에 최대가 되어 타격 순간에 반응이 없다.
-      this.group.rotation.x = -Math.sin(t * Math.PI * 0.5) * 0.18;
-    } else if (this.group.rotation.x !== 0 && this.state !== 'DEAD') {
+      const t = Math.max(0, this.flinch / Math.max(this._flinchTotal, 0.01));
+      const bend = Math.sin(t * Math.PI * 0.5) * KNOCK.bend;
+      // 맞은 방향으로 젖힌다. 옆에서 맞으면 옆으로 비틀린다.
+      this.group.rotation.x = -bend * (this._flinchZ ?? 1);
+      this.group.rotation.z = bend * (this._flinchX ?? 0) * 0.8;
+    } else if (this.state !== 'DEAD' && (this.group.rotation.x || this.group.rotation.z)) {
       this.group.rotation.x = 0;
+      this.group.rotation.z = 0;
+    }
+
+    // 보이는 위치만 뒤로 밀린다 (좌표는 그대로 — 벽을 뚫거나 경로가 꼬이면 안 된다)
+    if (this._knockT > 0) {
+      this._knockT = Math.max(0, this._knockT - dt);
+      const k = this._knockT / Math.max(this._knockTotal, 0.01);
+      const amt = KNOCK.distance * k * k;
+      this.group.position.x += this._knockX * amt;
+      this.group.position.z += this._knockZ * amt;
     }
 
     this.mixer.update(dt);
@@ -140,6 +154,9 @@ export class Zombie {
     this.wanderTimer = 0;
     this.deathTimer = 0;
     this.flinch = 0;
+    this._knockT = 0; this._knockTotal = 0;
+    this._knockX = 0; this._knockZ = 0;
+    this._flinchX = 0; this._flinchZ = 1;
     this.groanTimer = Math.random() * 6;
   }
 
@@ -194,7 +211,11 @@ export class Zombie {
     this.searchTimer = AI.searchTime;
   }
 
-  hit(damage, stun = 0, headshot = false) {
+  /**
+   * @param from 때린 쪽의 위치 {x,z}. 주면 그 방향으로 밀리고 젖혀진다 —
+   *   어디서 맞았든 똑같이 뒤로 젖혀지면 타격이 "닿았다"는 느낌이 안 난다.
+   */
+  hit(damage, stun = 0, headshot = false, from = null) {
     if (!this.active || this.state === 'DEAD') return;
     this.hp -= damage;
     this.stun = Math.max(this.stun, stun / (this.def.stunResist || 1));
@@ -202,6 +223,25 @@ export class Zombie {
     // 플린치는 연출 전용 — AI 를 멈추지 않는다. 스턴이 0인 총알도 움찔하게 만든다.
     this._flinchTotal = Math.max(0.42, this.stun);
     this.flinch = this._flinchTotal;
+
+    // 넉백·젖힘 방향. 위치는 건드리지 않고 **보이는 것만** 민다 —
+    // 실제 좌표를 밀면 벽을 뚫거나 경로가 꼬인다.
+    let kx = 0, kz = 1;
+    if (from) {
+      kx = this.pos.x - from.x; kz = this.pos.z - from.z;
+      const L = Math.hypot(kx, kz) || 1;
+      kx /= L; kz /= L;
+    }
+    this._knockX = kx; this._knockZ = kz;
+    this._knockT = KNOCK.duration * (headshot ? 1.25 : 1)
+      * (1 + Math.min(1, stun)) / (this.def.stunResist || 1);
+    this._knockTotal = this._knockT;
+    // 맞은 방향을 좀비 기준으로 분해한다 — 앞뒤 성분은 젖힘, 좌우 성분은 비틀림.
+    // 전진 방향은 (-sin, -cos) 이고(파일 상단 MODEL_YAW 주석), 오른쪽은 그것과 직교하는
+    // (cos, -sin) 이다. 회전행렬을 그대로 쓰면 축이 어긋나 옆에서 맞아도 뒤로 젖혀진다.
+    const sf = Math.sin(this.facing), cf = Math.cos(this.facing);
+    this._flinchZ = kx * -sf + kz * -cf;   // +면 앞으로 밀림 = 뒤에서 맞았다
+    this._flinchX = kx * cf + kz * -sf;    // +면 오른쪽으로 밀림
 
     // 피격음 — 둔기(스턴 큼)는 뼈 소리, 총알은 살점 소리, 헤드샷은 따로
     const impact = headshot ? 'hit_headshot'

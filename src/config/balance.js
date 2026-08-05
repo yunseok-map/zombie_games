@@ -124,6 +124,16 @@ export const ZOMBIE = {
   },
 };
 
+/**
+ * 피격 반응 (enemies/Zombie.js). 애니메이션만으로는 "닿았다"가 안 느껴진다.
+ * 좌표가 아니라 **보이는 위치만** 민다 — 실제로 밀면 벽을 뚫거나 경로가 꼬인다.
+ */
+export const KNOCK = {
+  distance: 0.34,   // 최대 밀림(m). 0.6 넘으면 몸이 미끄러지는 것처럼 보인다
+  duration: 0.20,   // 초. 스턴이 클수록 길어진다
+  bend: 0.26,       // 젖혀지는 각도(rad). 맞은 방향으로 젖히고 옆이면 비튼다
+};
+
 export const AI = {
   chaseGiveUpTime: 3.0,   // 시야에서 놓친 뒤 추격 유지 시간
   searchTime: 8.0,        // 마지막 목격 지점 수색 시간
@@ -332,6 +342,19 @@ export const WEAPON_VIEW = {
   // GLB 재질은 밝은 회색(c0c0c0). 손전등이 0.45m 앞에서 26cd 라
   // 알베도 0.09 정도로도 클리핑된다. 화면 보고 이 값만 조절하면 된다.
   colorMul: 0.12,
+};
+
+/**
+ * 총구 화염 (weapons/WeaponSystem.js).
+ * 칠흑 속에서 총을 쏘면 한순간 주변이 전부 드러나야 한다. 이게 없으면
+ * 소리만 나고 화면은 그대로라 "쐈다"는 감각이 안 산다.
+ * 그림자는 만들지 않는다 — 그림자 광원은 손전등뿐이다 (CLAUDE.md §3).
+ */
+export const MUZZLE = {
+  color: 0xffd9a0,
+  intensity: 420,     // 손전등(26)보다 훨씬 세다. 한 프레임짜리라 눈이 안 아프다
+  range: 16,
+  duration: 0.065,    // 초. 길면 손전등이 하나 더 생긴 것처럼 보인다
 };
 
 export const GAME = {

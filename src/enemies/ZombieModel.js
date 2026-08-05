@@ -37,7 +37,9 @@ export const CLIP_VARIANTS = {
  * 같은 지오메트리를 공유하므로 개체가 늘어나도 성능 비용은 사실상 0.
  * null 은 원본(피 묻은 셔츠). 텍스처는 gen_zombie_variants.py 가 만든다.
  */
-const OUTFITS = ['coat', 'coat', 'scrub', null];
+// 흰 가운이 이 병원의 얼굴이다 — 의료진이 먼저 감염됐다는 이야기가 옷으로 읽혀야 한다.
+// 배열에 들어간 비율만큼 뽑힌다: 가운 5 / 수술복 2 / 원본 1.
+const OUTFITS = ['coat', 'coat', 'coat', 'coat', 'coat', 'scrub', 'scrub', null];
 const TEX_DIR = `${import.meta.env.BASE_URL}assets/textures/`;
 
 let _gltf = null;

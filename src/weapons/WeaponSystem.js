@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { NOISE, SURFACE, WEAPON_VIEW } from '../config/balance.js';
+import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -29,6 +29,14 @@ export class WeaponSystem {
     this.viewRoot = new THREE.Group();
     this.viewRoot.position.set(0.26, -0.24, -0.45);
     camera.add(this.viewRoot);
+
+    // 총구 화염 — 칠흑 속에서 총을 쏘면 한순간 주변이 전부 드러나야 한다.
+    // 그림자는 만들지 않는다 (CLAUDE.md §3 — 그림자 광원은 손전등뿐).
+    this._muzzle = 0;
+    this.muzzleLight = new THREE.PointLight(MUZZLE.color, 0, MUZZLE.range, 1.6);
+    this.muzzleLight.castShadow = false;
+    this.muzzleLight.position.set(0.1, -0.05, -0.55);
+    camera.add(this.muzzleLight);
     this.viewMesh = null;
     this.viewParts = [];
     // 뷰모델 재질 — 손전등 코앞이라 전부 눌러 쓴다. 무기마다 만들지 않고 공유한다.
@@ -204,6 +212,7 @@ export class WeaponSystem {
     a.mag--;
     this.cooldown = def.cooldown;
     this._recoil = 1;
+    this._muzzle = MUZZLE.duration;    // 총구 화염 — 한순간 복도 전체가 드러난다
 
     const origin = new THREE.Vector3().copy(this.camera.position);
     const baseDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -250,7 +259,7 @@ export class WeaponSystem {
 
     if (best) {
       const headshot = (origin.y + dir.y * bestT) > best.pos.y + best.def.height * 0.78;
-      best.hit(damage * (headshot ? 2.2 : 1), stun, headshot);
+      best.hit(damage * (headshot ? 2.2 : 1), stun, headshot, origin);
     }
   }
 
@@ -278,7 +287,7 @@ export class WeaponSystem {
       if (dot < halfArc) continue;
       // 팔에 힘이 빠진다 — 다칠수록 근접이 약해진다 (Player.meleeMul)
       const mul = this.player.meleeMul ?? 1;
-      z.hit(def.damage * mul, def.stun * mul, false);
+      z.hit(def.damage * mul, def.stun * mul, false, this.player.pos);
       hitAny = true;
     }
 
@@ -305,7 +314,7 @@ export class WeaponSystem {
       for (const z of this.getZombies()) {
         if (!z.active || z.state === 'DEAD') continue;
         const d = Math.hypot(z.pos.x - tx, z.pos.z - tz);
-        if (d <= def.radius) z.hit(def.damage, 0.5, false);
+        if (d <= def.radius) z.hit(def.damage, 0.5, false, { x: tx, z: tz });
       }
       bus.emit(EV.NOISE, { x: tx, z: tz, radius: NOISE.melee, source: 'throw' });
     }
@@ -360,6 +369,16 @@ export class WeaponSystem {
     const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 
     this._recoil = Math.max(0, this._recoil - dt * 7);
+
+    // 총구 화염은 아주 짧게, 그리고 세기를 조금씩 흔든다 (매번 같으면 스트로브처럼 보인다)
+    if (this._muzzle > 0) {
+      this._muzzle = Math.max(0, this._muzzle - dt);
+      const k = this._muzzle / MUZZLE.duration;
+      this.muzzleLight.intensity = MUZZLE.intensity * k * k * (0.82 + Math.random() * 0.36);
+    } else if (this.muzzleLight.intensity !== 0) {
+      this.muzzleLight.intensity = 0;
+    }
+
     this._idle += dt;
     const sp = this.player.speed;
     this._bob += dt * (sp > 0.5 ? 8.5 : 0);
