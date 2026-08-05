@@ -192,9 +192,17 @@ export class Game {
     this.input.enabled = false;
     this.input.releaseLock();
     this.hud.hide();
+    const over = document.getElementById('over');
+    // 제목을 매번 되돌린다 — onClear 가 'EXTRACTED'(초록)로 바꿔 놓기 때문에,
+    // 한 번 탈출한 뒤 다시 시작해 죽으면 초록 EXTRACTED 가 그대로 뜬다
+    const h1 = over?.querySelector('h1');
+    if (h1) { h1.textContent = 'SIGNAL LOST'; h1.style.color = ''; }
     const sub = document.getElementById('over-sub');
-    if (sub) sub.textContent = `생존 시간 ${this._formatTime(this.elapsed)}`;
-    document.getElementById('over')?.classList.remove('hide');
+    if (sub) {
+      const label = STAGES[this.stageIndex]?.meta?.label ?? '';
+      sub.textContent = `${label} · 생존 시간 ${this._formatTime(this.elapsed)}`;
+    }
+    over?.classList.remove('hide');
   }
 
   onClear() {

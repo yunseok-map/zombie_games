@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { POST } from '../config/balance.js';
 
 /**
@@ -80,6 +81,25 @@ export class PostFX {
     this.composer = new EffectComposer(renderer, target);
     this.composer.addPass(new RenderPass(scene, camera));
 
+    // 앰비언트 오클루전 — 물체가 바닥·벽에 "닿아 보이게" 만드는 요소.
+    // 이게 없으면 소품이 바닥 위에 떠 있는 스티커처럼 보인다.
+    // 후처리 AO 라서 손전등이 만든 밝은 영역의 틈새에도 걸린다(재질의 aoMap 과 다르다).
+    if (POST.ao) {
+      // AO 는 절반 해상도로 굽는다. 전체 해상도로 하면 프레임이 배로 든다
+      // (측정: 14.5ms → 30.2ms). AO 는 부드러운 신호라 절반이어도 티가 잘 안 난다.
+      this.ao = new GTAOPass(scene, camera,
+        Math.round(size.x * POST.aoScale), Math.round(size.y * POST.aoScale));
+      this.ao.output = GTAOPass.OUTPUT.Default;
+      this.ao.updateGtaoMaterial({
+        radius: POST.aoRadius,
+        distanceExponent: 1.0,
+        thickness: 1.0,
+        scale: POST.aoStrength,
+        samples: POST.aoSamples,
+      });
+      this.composer.addPass(this.ao);
+    }
+
     this.bloom = new UnrealBloomPass(
       new THREE.Vector2(size.x, size.y),
       POST.bloomStrength, POST.bloomRadius, POST.bloomThreshold
@@ -96,6 +116,7 @@ export class PostFX {
   setSize(w, h) {
     this.composer.setSize(w, h);
     this.bloom.setSize(w, h);
+    this.ao?.setSize(Math.round(w * POST.aoScale), Math.round(h * POST.aoScale));
   }
 
   render(dt) {
