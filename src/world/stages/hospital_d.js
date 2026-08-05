@@ -8,7 +8,7 @@
  * 구조: 진입 계단실 → 수술부 복도 → (좌) 수술실 2 · (우) 중환자실 → 옥상 계단실
  */
 
-import { EVENTS } from '../../config/balance.js';
+import { EVENTS, SCATTER } from '../../config/balance.js';
 import { bus, EV } from '../../core/EventBus.js';
 
 const WALL_T = 0.2;
@@ -152,13 +152,30 @@ export function build(ctx) {
     if (i % 3 === 0) addSearchable(ROOM_X - 2.2, bz + 0.6, '침상 옆 서랍');
     if (i === 2) addPropGLB('prop_bodybag', icuCx - 1.2, bz, 0.4);
     if (i === 4) addProp3D('wheelchair', icuCx - 1.4, bz - 1.2, rnd() * 6.28, { collide: [0.8, 1.0] });
+
+    // ── 침상마다 다른 흔적 ──
+    // 중환자실은 **누워 있던 사람들이 그대로 당한 곳**이다. 침상만 늘어놓으면
+    // 가구 전시장이고, 흔적이 있어야 여기서 무슨 일이 있었는지가 읽힌다.
+    if (i % 2 === 0) {
+      addBlood(ROOM_X - 2.0, bz + 0.4, 2.0 + rnd() * 0.8, 'pool');
+      addWallBlood(ROOM_X - 0.06, 1.1 + rnd() * 0.5, bz - 0.6, -Math.PI / 2,
+        1.0 + rnd() * 0.6, rnd() < 0.5 ? 'handprint' : 'splatter');
+    } else {
+      addBlood(ROOM_X - 3.2, bz - 0.8, 2.4, 'drag');   // 침상에서 통로 쪽으로 끌린 자국
+    }
+    if (i === 1) addProp3D('ivStandFallen', ROOM_X - 3.4, bz + 1.0, rnd() * 6.28, { collide: [1.2, 0.4] });
+    if (i === 3) addProp3D('gurneyToppled', icuCx + 0.6, bz + 0.8, rnd() * 6.28, { collide: [1.8, 0.9] });
+    if (i === 5) {
+      addProp3D('ceilingTileFallen', icuCx + 0.4, bz - 0.8, rnd() * 6.28);
+      addProp3D('ceilingHole', icuCx + 0.4, bz - 0.8, 0, { y: 2.84 });
+    }
   }
   addPropGLB('prop_panel', ROOM_X - 0.35, ICU_Z0 + 1.6, -Math.PI / 2, { collide: [0.5, 0.3] });
   addPropGLB('prop_computer_cart', icuCx - 1.0, icuMid, 0.2, { collide: [0.6, 0.8] });
   addPropGLB('prop_water_cooler', icuCx - 1.6, ICU_Z1 - 1.8, 0, { collide: [0.4, 0.4] });
   addBlood(icuCx, icuMid - 4, 3.0, 'pool');
   addBlood(icuCx + 1.0, icuMid + 6, 2.4, 'splatter');
-  scatterDebris(icuCx, icuMid, icuW - 1.4, icuD - 2, 0.28);
+  scatterDebris(icuCx, icuMid, icuW - 1.4, icuD - 2, SCATTER.wardDebris);
   addLight(icuCx, 2.85, 11, 'flicker', 0x3d5560);
   addLight(icuCx, 2.85, 27, 'pulse', 0x3d5560);
   addSpawn(icuCx, 10); addSpawn(icuCx, 19); addSpawn(icuCx, 28);

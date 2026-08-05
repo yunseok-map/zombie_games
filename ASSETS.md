@@ -187,6 +187,25 @@ blender --background --python tools/extract_swing.py -- fbx_src/person public/as
   리그 크기나 cm/m 단위 차이를 게임 쪽 숫자 하나로 흡수하려는 것이다.
 - 곡선 파일이 없으면 **기존 절차적 스윙으로 조용히 떨어진다.** 게임은 그대로 돌아간다.
 
+### 6-3-D. 변환 시 **본체 파일을 반드시 지정한다**
+
+```
+blender --background --python tools/fbx_to_glb.py -- fbx_src public/assets/models/zombie_shambler.glb idle_03.fbx
+```
+
+마지막 인자가 **몸을 가져올 파일**이다. 생략하면 "메시가 든 첫 파일"을 자동으로 고르는데,
+`fbx_src` 안에는 스킨이 든 파일이 여러 개라 **엉뚱한 캐릭터가 본체가 된다.**
+
+| 파일 | 들어 있는 몸 |
+|---|---|
+| **`idle_03.fbx`** (16MB) | **`ZombieGirl_Body` ← 이게 진짜 좀비다. 항상 이걸 본체로 준다** |
+| `idle_01.fbx` (2MB) | `Beta_Joints` — Mixamo 기본 마네킹. 본체로 쓰면 좀비가 마네킹이 된다 |
+
+> 2026-08-05 에 `idle_01.fbx` 를 본체로 줬다가 **좀비가 통째로 회색 마네킹으로 바뀌었다.**
+> 클립 수와 파일 크기는 정상이라 눈으로 열기 전까지 티가 안 났다.
+> 어느 파일에 어떤 몸이 들었는지는 Blender 없이도 확인된다:
+> `grep -a -o -m1 "ZombieGirl[A-Za-z_]*" fbx_src/*.fbx`
+
 ### 6-4. 보관 위치
 
 ```

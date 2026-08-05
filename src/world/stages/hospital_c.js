@@ -8,7 +8,7 @@
  * 병실은 커튼으로 시야가 잘려 있어, 들어가 보기 전에는 안이 안 보인다.
  */
 
-import { EVENTS } from '../../config/balance.js';
+import { EVENTS, SCATTER } from '../../config/balance.js';
 import { bus, EV } from '../../core/EventBus.js';
 
 const WALL_T = 0.2;
@@ -148,8 +148,44 @@ export function build(ctx) {
     if (idx % 4 === 2) addPropGLB('prop_bodybag', cx, cz - 1.0, rnd() * 6.28);
     if (idx % 4 === 3) addProp3D('wheelchair', cx - side * 0.9, cz - 2.0, rnd() * 6.28, { collide: [0.8, 1.0] });
 
-    addBlood(cx, cz + rnd() * 3 - 1.5, 2.2 + rnd(), rnd() < 0.5 ? 'splatter' : 'pool');
-    scatterDebris(cx, cz, w - 1.4, WARD_D - 1.4, 0.22);
+    // ───────── 이 방에서 무슨 일이 있었는가 ─────────
+    // 방마다 다른 사고를 둔다. 같은 얼룩이 여덟 번 반복되면 배경이 되어 아무도 안 본다.
+    // 병실은 **사람이 살던 방**이라, 비어 있으면 즉시 세트장처럼 보인다.
+    const inner = side * (ROOM_X - 2.0);        // 침대와 복도 사이의 빈 바닥
+    switch (idx % 4) {
+      case 0:  // 침대에서 끌려 나갔다
+        addBlood(bedX - side * 0.6, cz - 2.0, 2.4, 'pool');
+        addBlood(inner, cz - 0.4, 3.0, 'drag');
+        addWallBlood(side * (ROOM_X - 0.06), 1.15, cz - 2.4, -side * Math.PI / 2, 1.1, 'handprint');
+        addProp3D('ivStandFallen', inner + side * 0.4, cz - 1.4, rnd() * 6.28, { collide: [1.2, 0.4] });
+        break;
+      case 1:  // 이동침대가 뒤집힌 채 문을 막고 있다
+        addBlood(cx, cz + 1.2, 2.6, 'splatter');
+        addBlood(inner, cz + 3.0, 2.2, 'drag');
+        addProp3D('gurneyToppled', cx - side * 0.5, cz + 2.4, rnd() * 6.28, { collide: [1.8, 0.9] });
+        break;
+      case 2:  // 천장이 내려앉았다
+        // 스폰 지점이 방 중앙(cx, cz)이다 — 잔해를 거기 두면 좀비가 갇힌다.
+        // QA 가 "스폰 충돌없음"으로 잡아 준 자리다. 벽 쪽으로 붙여 둔다.
+        addProp3D('ceilingHole', cx - side * 1.1, cz - 2.2, 0, { y: 2.84 });
+        addProp3D('ceilingTileFallen', cx - side * 0.7, cz - 2.4, rnd() * 6.28);
+        addProp3D('rubblePile', cx - side * 1.1, cz - 2.2, rnd() * 6.28, { collide: [1.2, 0.8] });
+        addBlood(cx - side * 1.0, cz - 2.0, 2.0, 'splatter');
+        break;
+      default: // 벽까지 튀었다
+        addBlood(bedX - side * 0.9, cz + 2.0, 2.8, 'pool');
+        addWallBlood(side * (ROOM_X - 0.06), 1.55, cz + 1.6, -side * Math.PI / 2, 1.6, 'splatter');
+        addProp3D('wheelchair', inner, cz + 1.4, rnd() * 6.28,
+          { roll: 1.45, y: 0.28, forceProc: true });   // 옆으로 넘어진 휠체어
+        break;
+    }
+    // 방마다 하나는 무조건 더 — 위 사고와 겹쳐서 자국이 층을 이룬다
+    for (let b = SCATTER.wardBloodMin; b < SCATTER.wardBloodMax; b++) {
+      if (rnd() > 0.55) continue;
+      addBlood(cx + (rnd() - 0.5) * (w - 2.2), cz + (rnd() - 0.5) * (WARD_D - 2.4),
+        1.4 + rnd() * 1.2, rnd() < 0.5 ? 'splatter' : 'drag');
+    }
+    scatterDebris(cx, cz, w - 1.4, WARD_D - 1.4, SCATTER.wardDebris);
     addLight(cx, 2.85, cz, rnd() < 0.5 ? 'flicker' : 'pulse', 0x37505c);
     addSpawn(cx, cz);
   };

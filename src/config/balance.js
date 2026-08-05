@@ -384,6 +384,12 @@ export const SCATTER = {
   bloodRoughness: 0.42,    // 바닥보다 매끈 = 손전등에 젖은 듯 반짝인다
 
   debrisPerSqm: 0.35,      // 1m² 당 잔해 개수. 0.8 넘으면 쓰레기장처럼 보인다
+
+  // 병실 내부 밀도. 복도는 사람이 지나가는 곳이라 비어 있어도 되지만, 병실은
+  // **사람이 살던 방**이라 비어 있으면 세트장처럼 보인다. 여기만 따로 올린다.
+  wardDebris: 0.62,        // 병실 바닥 잔해 밀도 (복도 0.3 대비)
+  wardBloodMin: 2,         // 방 하나에 들어가는 핏자국 최소 개수
+  wardBloodMax: 4,         // 데칼 하나가 드로우콜 하나다 — 예산(300) 안에서 올린다
   debrisMaxTotal: 420,     // 인스턴싱이라 드로우콜은 3개로 고정, 삼각형 예산만 본다
   debrisWeights: { syringe: 5, vial: 3, paper: 2 },
 
