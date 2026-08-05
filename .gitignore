@@ -6,3 +6,6 @@ dist/
 .env
 .env.local
 fbx_src/
+
+# ambientCG 원본 (CC0). 49MB 라 저장소에 넣지 않는다 — tools/gen_surfaces.py 주석의 URL 로 다시 받는다
+tools/source_textures/*.zip

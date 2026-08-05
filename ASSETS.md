@@ -319,9 +319,9 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 
 | 에셋 | 생성/출처 | 플랜 | 상업 이용 | 비고 |
 |---|---|---|---|---|
-| wall_plaster_peeling_{color,normal,rough}.webp | ambientCG (PaintedPlaster015) | CC0 | 가능 | 512px WebP 로 리사이즈, AO를 color에 55% 합성 |
-| floor_tile_hospital_{color,normal,rough}.webp | ambientCG (Tiles040) | CC0 | 가능 | 동일 |
-| ceiling_panel_office_{color,normal,rough}.webp | ambientCG (OfficeCeiling001) | CC0 | 가능 | 동일 |
+| wall_plaster_peeling_{color,normal,rough}.webp | ambientCG (PaintedPlaster015) | CC0 | 가능 | 색 1024 · 노멀/러프 512 WebP, AO를 color에 55% 합성 (`tools/gen_surfaces.py`) |
+| floor_tile_hospital_{color,normal,rough}.webp | ambientCG (Tiles040) | CC0 | 가능 | 색 1024 · 노멀/러프 512 WebP, AO를 color에 55% 합성 (`tools/gen_surfaces.py`) |
+| ceiling_panel_office_{color,normal,rough}.webp | ambientCG (OfficeCeiling001) | CC0 | 가능 | 색 1024 · 노멀/러프 512 WebP, AO를 color에 55% 합성 (`tools/gen_surfaces.py`) |
 | decal_blood_{pool,splatter,drag}.webp | 절차적 생성 (numpy/PIL 스크립트) | 자체 제작 | 가능 | fBm 노이즈 기반. 저작권 이슈 없음 |
 | sfx_footstep_concrete_01~04.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 발소리 4종 |
 | sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |

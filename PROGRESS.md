@@ -133,11 +133,15 @@
 | `python tools/glb_inspect.py --sizes <glb...>` | Blender 없이 노드·삼각형·실측 크기 조사 |
 | `blender --background --python tools/import_props.py -- [이름]` | 소품 GLB 변환 (이름 생략 시 전부) |
 | `python tools/preview_sheet.py` | 변환 결과 미리보기를 한 장으로 모음 |
+| `python tools/gen_surfaces.py [px]` | 벽·바닥·천장 텍스처 재인코딩 (기본 1024, `512` 로 되돌림) |
 | 브라우저 콘솔에서 아래 2줄 | **구역별 자동 QA 25항목 × 5구역 = 125** |
 
 ```js
 const { runQA, summarize } = await import('/tools/qa_stages.js');
 console.log(summarize(runQA(window.game)));   // 실패 목록이 좌표까지 찍힌다
+
+const { benchAll } = await import('/tools/bench.js');
+console.table(await benchAll(window.game));   // 구역별 GPU 프레임 시간
 ```
 
 > 배치를 바꿨으면 이걸 먼저 돌린다. 어두운 화면에서는 눈으로 못 찾는 것이 많다 —
