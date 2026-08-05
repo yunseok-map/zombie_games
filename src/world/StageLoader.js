@@ -193,9 +193,13 @@ export class StageLoader {
    */
   _dropPickup(kind, x, z) {
     const isBattery = kind === 'battery';
+    const isAmmo = kind === 'ammo';
+    // 모양으로 구분된다 — 배터리는 세로로 선 각기둥, 탄약은 납작한 상자, 붕대는 원통
     const geo = isBattery
       ? new THREE.BoxGeometry(0.05, 0.11, 0.05)
-      : new THREE.CylinderGeometry(0.045, 0.045, 0.055, 8);
+      : isAmmo
+        ? new THREE.BoxGeometry(0.11, 0.06, 0.07)
+        : new THREE.CylinderGeometry(0.045, 0.045, 0.055, 8);
     const m = new THREE.Mesh(geo, this._itemMat());
     m.position.set(x + (this.scatter.rng() - 0.5) * 0.3, 0.92, z + (this.scatter.rng() - 0.5) * 0.3);
     m.rotation.set(0.3, this.scatter.rng() * 6.28, 0.25);
@@ -203,11 +207,15 @@ export class StageLoader {
 
     this.interaction.add({
       x: m.position.x, z: m.position.z, radius: 1.5, once: true, mesh: m,
-      prompt: () => (isBattery ? '[E]  배터리 줍기' : '[E]  붕대 줍기'),
-      onUse: ({ player, flashlight }) => {
+      prompt: () => (isBattery ? '[E]  배터리 줍기' : isAmmo ? '[E]  9mm 탄약 줍기' : '[E]  붕대 줍기'),
+      onUse: ({ player, flashlight, weapons }) => {
         if (isBattery) {
           flashlight.addBattery(LOOT.battery.amount);
           return `배터리  +${LOOT.battery.amount}`;
+        }
+        if (isAmmo) {
+          weapons.addAmmo(LOOT.ammo.weaponId, LOOT.ammo.amount);
+          return `9mm  +${LOOT.ammo.amount}`;
         }
         player.heal(LOOT.bandage.heal);
         return `붕대  +${LOOT.bandage.heal}`;
@@ -338,9 +346,12 @@ export class StageLoader {
        */
       addSearchable: (x, z, label = '수납장') => {
         const roll = this.scatter.rng();
-        const tot = LOOT.battery.weight + LOOT.bandage.weight + LOOT.empty.weight;
-        const kind = roll * tot < LOOT.battery.weight ? 'battery'
-          : roll * tot < LOOT.battery.weight + LOOT.bandage.weight ? 'bandage' : 'empty';
+        const tot = LOOT.battery.weight + LOOT.bandage.weight + LOOT.ammo.weight + LOOT.empty.weight;
+        const r = roll * tot;
+        let acc = LOOT.battery.weight;
+        const kind = r < acc ? 'battery'
+          : r < (acc += LOOT.bandage.weight) ? 'bandage'
+            : r < (acc += LOOT.ammo.weight) ? 'ammo' : 'empty';
         this.interaction.add({
           x, z, radius: 1.7, once: true, noisy: true,
           prompt: () => `[E]  ${label} 뒤지기`,

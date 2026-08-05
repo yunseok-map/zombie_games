@@ -292,9 +292,12 @@ export const SURFACE = {
 
 /** 서랍·캐비닛 수색 (world/Interaction.js) — 아포칼립스의 기본 루프 */
 export const LOOT = {
-  battery: { weight: 44, amount: 35 },    // 손전등 배터리 — 가장 흔하다
+  battery: { weight: 40, amount: 35 },    // 손전등 배터리 — 가장 흔하다
   bandage: { weight: 18, heal: 25 },
-  empty:   { weight: 38 },                // 헛수고가 있어야 찾는 행위에 긴장이 생긴다
+  // 9mm 탄약. 시작 48발이 전부였고 보급이 없어서, 옥상 90초를 총으로 버티는 것이
+  // 애초에 불가능했다 (필요 ~2600 피해 vs 탄약 1632). 수색해야 총을 쓸 수 있게 한다.
+  ammo:    { weight: 26, amount: 10, weaponId: 'pistol' },
+  empty:   { weight: 30 },                // 헛수고가 있어야 찾는 행위에 긴장이 생긴다
   noise: 12,                              // 뒤지는 소리 반경(m). 좀비가 들을 수 있다
 };
 

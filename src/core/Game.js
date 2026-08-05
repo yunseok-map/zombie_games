@@ -258,7 +258,7 @@ export class Game {
       );
       if (target && this.input.justPressed('KeyE')) {
         this.hud.setPrompt(null);   // 먼저 지운다 — 안 그러면 획득 메시지가 안내에 가려진다
-        this.interaction.use(target, { player: this.player, flashlight: this.flashlight });
+        this.interaction.use(target, { player: this.player, flashlight: this.flashlight, weapons: this.weapons });
       }
 
       this.audio.setListener(this.player.pos.x, this.player.pos.z, this.player.yaw);
