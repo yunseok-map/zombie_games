@@ -124,7 +124,12 @@ export function build(ctx) {
     addWall(side * ROOM_X, cz, WALL_T, WARD_D);                 // 바깥 벽
     addWall(cx, cz - WARD_D / 2, w, WALL_T);                    // 앞 칸막이
     addWall(cx, cz + WARD_D / 2, w, WALL_T);                    // 뒤 칸막이
-    addSign(14, side * (HALL_HALF - 0.11), 1.62, cz - 1.3, side * Math.PI / 2, 0.4, 0.16);
+    // 명패는 방마다 달라야 한다. 14번은 **영안실(MORTUARY)** 명패라, 병실 문마다
+    // "영안실"이 붙어 있었다. 0~2 가 일반병실(301·302·303) 이다.
+    // 한 칸은 일부러 비뚤게 매단다 — 다 반듯하면 사람이 관리하는 건물처럼 보인다.
+    const plateRoll = idx % 3 === 2 ? (rnd() - 0.5) * 0.55 : 0;
+    addSign(idx % 3, side * (HALL_HALF - 0.11), 1.62 - Math.abs(plateRoll) * 0.06,
+      cz - 1.3, side * Math.PI / 2, 0.4, 0.16, false, plateRoll);
 
     // 침대 2개 — 머리를 바깥 벽에 붙인다. 회전이 ±90° 라 충돌 박스는 가로로 길다.
     const bedX = side * (ROOM_X - 1.3);
@@ -202,7 +207,20 @@ export function build(ctx) {
   // 이 구역까지는 싸우거나 도망치는 것뿐이었다. 여기서 **피해 가는 선택지**가 생긴다.
   addWeapon(1.4, 23.0, 'radio', '라디오');
   addPropGLB('prop_firstaid', 1.2, 23.6, 0.4, { y: 0.0 });
-  addSign(15, -HALL_HALF + 0.11, 1.9, 24.5, Math.PI / 2, 0.5, 0.2);
+  // 15번은 **기계실 B1** 명패다 — 간호사 스테이션에 붙어 있었다. 5번이 간호사실이다
+  addSign(5, -HALL_HALF + 0.11, 1.9, 24.5, Math.PI / 2, 0.5, 0.2);
+
+  // ── 망가진 안내 ──
+  // 사람이 관리하던 건물이 관리를 멈춘 지점을 표지판으로 보여 준다.
+  // 반듯한 표지판만 있으면 "아직 운영 중인 병원"으로 읽힌다.
+  //   · 천장 방향표지가 한쪽 줄이 끊겨 매달려 있다
+  addSign(11, 0.35, 2.42, 16.0, Math.PI, 1.5, 0.42, false, 0.62);
+  //   · 비상구 등이 죽었다 — glow 를 끄면 같은 판이 꺼진 등이 된다
+  addSign(12, 0, 2.35, 34.0, Math.PI, 0.9, 0.36, false, -0.14);
+  //   · 뜯긴 공고문. 벽에 남은 것과 바닥에 떨어진 조각
+  addSign(13, -HALL_HALF + 0.1, 1.5, 30.5, Math.PI / 2, 0.5, 0.62, false, 0.1);
+  // 떨어진 조각은 눕혀야 한다(pitch). roll 만 주면 바닥에 반쯤 박힌 판이 된다
+  addSign(13, -2.2, 0.03, 31.4, 0.7, 0.42, 0.5, false, 0, -Math.PI / 2);
 
   // ───────── 사건: 병실 무전기 4대 ─────────
   // B1 의 레버가 "어둠을 걷어내는" 일이었다면, 여기는 반대다 — 켤수록 위치가 들킨다.

@@ -107,7 +107,10 @@ export function build(ctx) {
     addWall(-ROOM_X, cz, WALL_T, OR_D);
     addWall(orCx, cz - OR_D / 2, orW, WALL_T);
     addWall(orCx, cz + OR_D / 2, orW, WALL_T);
-    addSign(15, -HALL_HALF + 0.11, 1.66, cz - 1.4, Math.PI / 2, 0.45, 0.18);
+    // 15번은 **기계실 B1** 명패다 — 수술실 문에 붙어 있었다. 3번이 처치실이다.
+    // 두 수술실 중 하나는 명패가 비뚤어져 있다
+    addSign(3, -HALL_HALF + 0.11, 1.66, cz - 1.4, Math.PI / 2, 0.45, 0.18,
+      false, i === 1 ? -0.42 : 0);
 
     // 수술대 + 무영등. 수술등은 천장에 매단다.
     addPropGLB('prop_autopsy_table', orCx, cz, i === 0 ? 0.1 : -0.15, { collide: [2.0, 0.9] });
@@ -137,7 +140,13 @@ export function build(ctx) {
   addWall(ROOM_X, icuMid, WALL_T, icuD);
   addWall(icuCx, ICU_Z0, icuW, WALL_T);
   addWall(icuCx, ICU_Z1, icuW, WALL_T);
-  addSign(14, HALL_HALF - 0.11, 1.66, 20.6, -Math.PI / 2, 0.45, 0.18);
+  // 14번은 **영안실** 명패다 — 중환자실에 붙어 있었다. 4번이 격리 A 다
+  addSign(4, HALL_HALF - 0.11, 1.66, 20.6, -Math.PI / 2, 0.45, 0.18);
+
+  // ── 망가진 안내 ── 봉쇄된 층이라 안내가 제일 먼저 망가진다
+  addSign(11, -0.4, 2.44, 14.5, Math.PI, 1.5, 0.42, false, -0.55);   // 한쪽 줄이 끊겨 매달림
+  addSign(13, HALL_HALF - 0.1, 1.48, 9.0, -Math.PI / 2, 0.5, 0.62, false, -0.12);  // 뜯긴 공고문
+  addSign(13, 1.6, 0.03, 10.2, -0.5, 0.4, 0.48, false, 0, -Math.PI / 2);           // 바닥 조각
 
   // 침상 6개가 커튼으로 나뉘어 늘어서 있다 — 커튼 때문에 안쪽이 한 번에 안 보인다
   for (let i = 0; i < 6; i++) {

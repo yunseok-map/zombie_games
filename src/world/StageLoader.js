@@ -446,10 +446,15 @@ export class StageLoader {
       },
 
       /** 명패·포스터·표지. slot 은 아틀라스 칸 번호 (0~15), glow 면 자체발광 */
-      addSign: (slot, x, y, z, yaw, w, h, glow = false, roll = 0) => {
+      /**
+       * @param roll  판을 화면 안에서 기울인다 — 한쪽 줄이 끊겨 매달린 표지판
+       * @param pitch 판을 앞뒤로 눕힌다 — 바닥에 떨어진 조각(-Math.PI/2 면 완전히 눕는다)
+       */
+      addSign: (slot, x, y, z, yaw, w, h, glow = false, roll = 0, pitch = 0) => {
         const col = slot % SIGN_COLS, row = Math.floor(slot / SIGN_COLS);
         for (const { geo } of signPlate(w, h, col, row, SIGN_COLS, SIGN_ROWS)) {
           if (roll) geo.rotateZ(roll);
+          if (pitch) geo.rotateX(pitch);
           geo.rotateY(yaw);
           geo.translate(x, y, z);
           bucket(glow ? 'plateGlow' : 'plate').push(geo);
