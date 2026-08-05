@@ -47,7 +47,11 @@
       + 좀비가 처음 경계할 때 나는 소리. 손전등을 켜는 대가가 처음으로 화면에 보인다
 - [x] 상호작용(E) · 수색/전리품 · 부상 시스템 · 거리 기반 3D 오디오
 - [x] **수색에서 9mm 탄약이 나온다** — 한 판 전체 +50발(48 → 98). 전에는 보급이 아예 없었다
-- [x] 사운드 34종 (ElevenLabs) · 좀비 GLB + 애니 19클립 (Mixamo)
+- [x] 사운드 34종 (ElevenLabs) · 좀비 GLB + 애니 **27클립** (Mixamo)
+- [x] **무기 스윙이 사람 모션 궤적을 따른다** — 사람 근접공격에서 오른손 궤적만 뽑아
+      뷰모델에 입혔다. 절차적 사인 곡선과 달리 예비동작에서 뜸을 들이고 타격에서 확 빠진다
+- [x] **모션 프레임 단위 점검 도구** `tools/qa_motion.js` — 바닥뚫림·공중부양·배속이상을
+      1482프레임에서 자동으로 잡는다
 
 ### 구역 — **1F → B1 → 2F → 3F → 옥상, 전부 연결됨**
 - [x] **구역 A (1F 격리병동)** — 복도 + 병실. 카드키 → 잠긴 계단실 문
@@ -132,6 +136,11 @@
   `pool.update` 를 돌리며 hp 가 떨어지는 시점을 본다 — **플레이어 무적시간(0.45초)은
   `player.update` 를 같이 안 돌리면 안 풀려서 두 번째 타격이 영영 안 온다.**
 - 수치를 바꾸려면 `src/config/balance.js` 와 `src/config/weapons.js` **만** 열면 된다.
+- **`fbx_src/` 변환은 오래 걸린다 — 20분 이상.** `idle_04`(63MB)·`idle_05`(54MB)가
+  With Skin 으로 받아진 탓이다(§6-2 위반). 클립 하나 추가하려고 전체를 다시 굽는 구조라
+  건드릴 때마다 이 비용을 낸다. 급하면 그 둘을 잠시 빼고 굽는다.
+- **Mixamo 팩(Pack)으로 받으면 안 된다.** 변환기는 FBX 하나당 애니메이션 하나를 전제하고
+  파일명을 클립 이름으로 쓴다. 팩은 내부 take 이름이 전부 `mixamo.com` 이라 쪼개도 못 살린다.
 - **에셋을 AudioManager 에 등록만 해도 게임에 없는 것이다.** `zombie_notice.mp3` 는 등록만 되고
   두 세션 동안 한 번도 재생되지 않았다. `weapons.js` 의 무기 6종도 같은 상태였다.
   새 에셋을 넣었으면 **호출자가 있는지 grep 으로 확인**한다.
@@ -205,11 +214,16 @@
 | `blender --background --python tools/import_props.py -- [이름]` | 소품 GLB 변환 (이름 생략 시 전부) |
 | `python tools/preview_sheet.py` | 변환 결과 미리보기를 한 장으로 모음 |
 | `python tools/gen_surfaces.py [px]` | 벽·바닥·천장 텍스처 재인코딩 (기본 1024, `512` 로 되돌림) |
+| `blender --background --python tools/extract_swing.py -- fbx_src/person public/assets/models/swing_curves.json` | 사람 모션 → 무기 스윙 궤적 |
 | 브라우저 콘솔에서 아래 2줄 | **구역별 자동 QA 25항목 × 5구역 = 125** |
 
 ```js
 const { runQA, summarize } = await import('/tools/qa_stages.js');
 console.log(summarize(runQA(window.game)));   // 실패 목록이 좌표까지 찍힌다
+
+// 모션을 프레임 단위로 — 바닥뚫림·공중부양·배속이상(경련/늘어짐)을 잡는다
+const { runMotionQA, summarize: mSum } = await import('/tools/qa_motion.js');
+console.log(mSum(await runMotionQA(window.game)));
 
 const { benchAll } = await import('/tools/bench.js');
 console.table(await benchAll(window.game));   // 구역별 GPU 프레임 시간
