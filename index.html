@@ -129,42 +129,65 @@
     gap:0; padding:0 clamp(30px,7vw,112px) clamp(40px,8vh,78px); }
 
   /* 아주 느리게 밀려든다. 정지 이미지도 움직이면 살아난다 */
-  /* 배경색을 주지 않는다 — 이미지가 없을 때 뒤의 3D 복도가 그대로 비쳐야 폴백이 된다 */
-  #title .art { position:absolute; inset:0; background:transparent center/cover no-repeat;
+  /* 배경색을 주지 않는다 — 이미지가 없을 때 뒤의 3D 복도가 그대로 비쳐야 폴백이 된다.
+     겹 순서를 z-index 로 못 박는다: ::before(스크림)는 생성 순서상 .art 보다 먼저라
+     명시하지 않으면 이미지가 스크림을 덮는다. */
+  #title .art { position:absolute; inset:0; z-index:0;
+    background:transparent center/cover no-repeat;
     background-image:url('/assets/ui/title_keyart.webp');
     transform-origin:56% 46%;
-    animation:artDrift 52s ease-in-out infinite alternate,
+    /* ── 포스터 가공 ──
+       실사 사진 그대로 두면 "게임 화면"으로 오해받는다. 게임은 거의 검은 화면에
+       각진 지오메트리라 본편과 체급이 다르기 때문. 채도를 걷어 녹·빨만 남기고,
+       대비를 올려 검정을 게임만큼 깊게 떨어뜨리고, 아주 약하게 흐려서 사진 특유의
+       미세 질감을 죽인다. 그 위에 인쇄 그레인을 얹으면 **사진이 아니라 인쇄물**로 읽힌다. */
+    --g:saturate(.5) contrast(1.2) brightness(1.02) blur(.4px);
+    filter:var(--g);
+    animation:artDrift 64s ease-in-out infinite alternate,
               artFlicker 8.5s steps(1,end) infinite; }
+  /* 포스터는 움직이지 않는다 — 살아 있다는 기척만 남기고 거의 멈춘다 */
   @keyframes artDrift {
-    from { transform:scale(1.04); }
-    to   { transform:scale(1.13) translate3d(-1.4%,-0.9%,0); }
+    from { transform:scale(1.02); }
+    to   { transform:scale(1.055) translate3d(-0.7%,-0.5%,0); }
   }
-  /* 복도 끝 형광등이 죽어 가는 것처럼 — 화면 전체가 아주 잠깐 꺼진다 */
+  /* 복도 끝 형광등이 죽어 가는 것처럼 — 화면이 아주 잠깐 꺼진다.
+     매 키프레임에 var(--g) 를 다시 써야 한다. filter 는 통째로 교체되기 때문. */
   @keyframes artFlicker {
-    0%,100% { filter:none; }
-    45.6%   { filter:none; }
-    46.2%   { filter:brightness(.42) saturate(.7); }
-    46.9%   { filter:none; }
-    79.4%   { filter:none; }
-    79.9%   { filter:brightness(.66); }
-    80.6%   { filter:none; }
+    0%,100% { filter:var(--g); }
+    45.6%   { filter:var(--g); }
+    46.2%   { filter:var(--g) brightness(.45); }
+    46.9%   { filter:var(--g); }
+    79.4%   { filter:var(--g); }
+    79.9%   { filter:var(--g) brightness(.7); }
+    80.6%   { filter:var(--g); }
   }
 
+  /* 색 계조 — 게임의 벽 색(institutional green)으로 중간톤을 끌어온다.
+     soft-light 라 붉은 비상등은 살아남는다. color/multiply 로 하면 빨강까지 녹색이 된다. */
+  #title .grade { position:absolute; inset:0; z-index:1; pointer-events:none;
+    background:linear-gradient(176deg, #7e8c78 0%, #55634f 48%, #222a20 100%);
+    mix-blend-mode:soft-light; opacity:.58; }
+
   /* 스크림 — 이미지를 어둡게 덮는 게 아니라 **글자 자리만** 눌러 준다 */
-  #title::before { content:''; position:absolute; inset:0; pointer-events:none;
+  #title::before { content:''; position:absolute; inset:0; z-index:2; pointer-events:none;
     background:
       /* 활자가 앉는 왼쪽 아래를 가장 세게 눌러 둔다 — 여기가 부족하면 흰 글자가
          바닥 타일 무늬에 갈려서 읽히지 않는다 */
-      radial-gradient(ellipse 74% 62% at 4% 86%, rgba(2,3,3,.95) 0%, rgba(2,3,3,.6) 46%, transparent 74%),
-      radial-gradient(ellipse 80% 64% at 64% 36%, transparent 0%, rgba(2,3,3,.5) 64%, rgba(2,3,3,.88) 100%),
-      linear-gradient(180deg, rgba(2,3,3,.72) 0%, rgba(2,3,3,.1) 24%, rgba(2,3,3,.3) 46%, rgba(2,3,3,.97) 100%),
-      linear-gradient(90deg, rgba(2,3,3,.9) 0%, rgba(2,3,3,.5) 30%, transparent 60%); }
+      radial-gradient(ellipse 68% 56% at 4% 88%, rgba(2,3,3,.82) 0%, rgba(2,3,3,.38) 46%, transparent 72%),
+      radial-gradient(ellipse 84% 68% at 64% 34%, transparent 0%, rgba(2,3,3,.26) 62%, rgba(2,3,3,.66) 100%),
+      linear-gradient(180deg, rgba(2,3,3,.5) 0%, transparent 22%, transparent 48%, rgba(2,3,3,.86) 100%),
+      linear-gradient(90deg, rgba(2,3,3,.66) 0%, rgba(2,3,3,.26) 30%, transparent 58%); }
   /* 필름 그레인 — 실사 이미지가 CG 처럼 안 보이게 붙잡아 주는 게 이 한 겹이다.
      overlay 는 중간톤을 들어 올려 스크림을 되돌린다 → soft-light 로 얹는다 */
-  #title::after { content:''; position:absolute; inset:0; pointer-events:none;
-    opacity:.3; mix-blend-mode:soft-light; background-size:170px 170px;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='170' height='170'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
-  #title > * { position:relative; }
+  /* 두 겹으로 얹는다 — 고운 그레인(필름 입자)과 굵은 얼룩(종이 결).
+     한 겹만 쓰면 규칙적인 노이즈로 보여서 오히려 디지털처럼 읽힌다. */
+  #title::after { content:''; position:absolute; inset:0; z-index:4; pointer-events:none;
+    opacity:.5; mix-blend-mode:overlay;
+    background-size:150px 150px, 620px 620px;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='620' height='620'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.014' numOctaves='4' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23p)' opacity='0.55'/></svg>"); }
+  #title > * { position:relative; z-index:3; }
 
   #title .kick { font-family:var(--ui); font-size:clamp(10px,1vw,11.5px); letter-spacing:.42em;
     color:rgba(214,222,208,.82); display:flex; align-items:center; gap:12px; margin-bottom:18px;
@@ -269,6 +292,7 @@
 
 <div class="screen" id="title">
   <div class="art"></div>
+  <div class="grade"></div>
   <div class="kick"><i></i>접근 통제 구역 · 방역 등급 4</div>
   <h1>QUARANTINE</h1>
   <div class="rule"></div>

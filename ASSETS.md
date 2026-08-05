@@ -332,6 +332,13 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | prop_{enamel,metal,fabric}_*.webp | ambientCG (PaintedMetal013 / Metal038 / Fabric045) | CC0 | 가능 | 소품 PBR |
 | ui/title_keyart.webp | **Higgsfield** (nano_banana_2) 생성 · 2026-08-05 | 유료 크레딧 | 가능 | 타이틀 배경 키아트. 1376×768 WebP q84, 59KB. 프롬프트에 `no real-world logos, no brand names, fictional signage only` 포함, 인물·글자 없음 (CLAUDE.md §2) |
 
+> **키아트는 원본 그대로 쓰지 않는다 — `index.html` 의 `#title .art` 에서 CSS 로 가공한다.**
+> 생성 원본은 맑은 실사 사진이라 그대로 깔면 "포스터"가 아니라 **"다른 게임의 스크린샷"**으로
+> 읽힌다(본편은 거의 검은 화면에 각진 지오메트리라 체급이 다르다). 그래서
+> 채도를 걷어 녹·빨만 남기고, 대비를 올려 검정을 게임만큼 떨어뜨리고, 0.4px 흐림으로
+> 사진 특유의 미세 질감을 죽인 뒤 인쇄 그레인 두 겹을 얹는다.
+> **파일은 원본 그대로 두고 가공은 전부 CSS 에 있다** — 값만 고쳐서 다시 맞출 수 있어야 하기 때문.
+
 > **왜 OGG 가 아니라 MP3 인가** — ElevenLabs 는 OGG 를 내주지 않고 이 PC 에 ffmpeg 이 없다.
 > 브라우저 Web Audio 는 MP3 를 전부 디코딩하므로 게임 동작은 동일하다. MP3 특허는 2017년 만료.
 > 생성 스크립트는 `gen_sfx.py` (`.env.local` 의 키를 읽는다. 이미 있는 파일은 건너뛴다).
