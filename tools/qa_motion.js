@@ -94,7 +94,10 @@ function diagnose(row, motion, offsetTuned) {
     // 그리고 modelYOffset 으로 눈으로 맞춘 타입(포복체)은 그 오프셋이 **클립 평균**에
     // 맞춰져 있어서, 한 주기 안에서 골반이 오르내리는 만큼 값이 흔들린다.
     // 여기서 좁게 잡으면 화면상 멀쩡한 것을 계속 결함이라고 외친다.
-    const above = motion === '사망' ? TOL_ABOVE * 2.2
+    // 몸을 젖히는 동작(사망·비명)은 발뒤꿈치가 뜨는 것이 정상이다 — 좁게 잡으면
+    // 클립이 의도한 자세를 계속 결함이라고 외친다
+    const rearing = motion === '사망' || /^(scream|death)/.test(row.클립 ?? '');
+    const above = rearing ? TOL_ABOVE * 2.2
       : offsetTuned ? TOL_ABOVE * 3.4
         : TOL_ABOVE;
     const below = offsetTuned ? TOL_BELOW * 4 : TOL_BELOW;
