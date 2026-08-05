@@ -231,9 +231,22 @@ export const IMPACT = {
   pixelScale: 26,    // 화면상 크기 배수 (거리로 나눈다)
 };
 
+/**
+ * 스텔스 (ui/HUD.js · enemies/Zombie.js).
+ * 앉기·손전등·발소리는 처음부터 있었지만 **플레이어가 그 효과를 볼 수 없었다.**
+ * 보이지 않는 시스템은 없는 시스템이다 — 아무도 앉지 않는다.
+ */
+export const STEALTH = {
+  noticeCooldown: 2.6,   // 같은 개체가 "눈치챘다" 소리를 연달아 내지 않게(초)
+  // 노출도 막대의 경계값. 이 위로 올라가면 색이 바뀐다
+  warnAt: 0.55,
+  dangerAt: 0.85,
+};
+
 export const NOISE = {
   // 소음 반경 — Director/Zombie 가 이 값으로 유인된다
   walk: 6,
+  crouchMul: 0.4,   // 앉으면 walk 반경이 이만큼으로 줄어든다. HUD 노출도도 이 값을 쓴다
   sprint: 14,
   gunshot: 40,
   gunshotSilenced: 8,

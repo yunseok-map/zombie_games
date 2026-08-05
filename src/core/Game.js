@@ -339,7 +339,10 @@ export class Game {
       }
 
       this.audio.setListener(this.player.pos.x, this.player.pos.z, this.player.yaw);
-      this.hud.update(dt, { player: this.player, flashlight: this.flashlight });
+      this.hud.update(dt, {
+        player: this.player, flashlight: this.flashlight,
+        zombies: this.pool.getActive(),   // 노출도 표시가 "누가 나를 눈치챘나"를 봐야 한다
+      });
       if (this.input.justPressed('Backquote')) this.hud.toggleDebug();
       this.hud.updateDebug({
         input: this.input, player: this.player, dt,

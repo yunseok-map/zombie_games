@@ -42,6 +42,16 @@ export class Player {
 
   addShake(v) { this._trauma = Math.min(1, this._trauma + v); }
 
+  /**
+   * 지금 내가 내는 소리가 닿는 거리(m). 발소리와 HUD 노출도가 **같은 값**을 봐야 한다 —
+   * 따로 계산하면 화면에 보이는 것과 실제로 좀비가 듣는 것이 어긋난다.
+   * 서 있기만 해도 이 값이다. 실제 소리는 걸을 때만 난다(_footsteps).
+   */
+  get noiseRadius() {
+    if (this.crouching) return NOISE.walk * NOISE.crouchMul;
+    return this.sprinting ? NOISE.sprint : NOISE.walk;
+  }
+
   spawn(x, z, yaw = 0) {
     this.pos.set(x, 0, z);
     this.vel.set(0, 0, 0);
@@ -180,8 +190,7 @@ export class Player {
         rate: (this.sprinting ? 0.88 : this.crouching ? 1.1 : 1.0) * (0.95 + Math.random() * 0.1),
       });
       // 발소리는 좀비를 부른다
-      const radius = this.crouching ? NOISE.walk * 0.4
-        : this.sprinting ? NOISE.sprint : NOISE.walk;
+      const radius = this.noiseRadius;
       bus.emit(EV.NOISE, { x: this.pos.x, z: this.pos.z, radius, source: 'footstep' });
     }
   }

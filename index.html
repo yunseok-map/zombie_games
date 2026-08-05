@@ -54,6 +54,14 @@
   #hp   > i { background:#8e2b26; }
   #stam > i { background:#5c6b52; }
   #batt > i { background:#a8912f; }
+  /* 노출도 — 다른 계기와 달리 "낮을수록 좋다". 그래서 평소엔 눈에 안 띄는 회녹색이고
+     올라갈 때만 색이 변한다. 처음부터 붉으면 경고의 의미가 사라진다. */
+  #exp > i { background:#4d5f4a; transition:background .3s; }
+  #exp.warn > i { background:#9a7c2a; }
+  #exp.danger > i { background:#a33630; }
+  /* 발각되면 라벨이 맥동한다 — 숫자를 안 보고 있어도 눈에 걸린다 */
+  #exp-state.seen { color:#c4564a; opacity:.95; animation:vitalPulse .8s ease-in-out infinite; }
+  #exp-state.heard { color:#b39433; opacity:.9; }
   /* 위험 상태는 맥동한다 — 숫자를 안 보고 있어도 눈에 걸린다 */
   @keyframes vitalPulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
   .bar.low > i { animation:vitalPulse 1.1s ease-in-out infinite; }
@@ -397,6 +405,10 @@
     <div class="bar" id="stam"><i></i></div>
     <div class="row"><span>BATTERY</span><b id="batt-n">100</b></div>
     <div class="bar" id="batt"><i></i></div>
+    <!-- 노출도 — 앉기·달리기·손전등이 감지에 어떤 영향을 주는지 보여 준다.
+         이게 없으면 아무도 앉지 않는다. 보이지 않는 시스템은 없는 시스템이다. -->
+    <div class="row"><span id="exp-state">EXPOSURE</span><b id="exp-n">6m</b></div>
+    <div class="bar" id="exp"><i></i></div>
   </div>
   <div id="ammo"><div class="w">—</div><div class="n">—</div></div>
   <!-- 지금 해야 할 일. 어두운 5구역에서 "뭘 하라는 거지"가 되면 그냥 끈다.

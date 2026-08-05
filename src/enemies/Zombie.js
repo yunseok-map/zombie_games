@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP } from '../config/balance.js';
+import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP, STEALTH } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 
@@ -50,6 +50,7 @@ export class Zombie {
     this.curAnim = null;
     this._prevX = 0; this._prevZ = 0; this._moveSpeed = 0;
     this._jitter = 1; this._screamTimer = 0; this.flinch = 0; this._flinchTotal = 0.5;
+    this._noticeCd = 0;   // "눈치챘다" 소리 재사용 대기
     requestZombieModel((inst) => this._attachModel(inst));
 
     this.def = ZOMBIE.shambler;
@@ -226,6 +227,16 @@ export class Zombie {
     const effective = Math.min(radius, this.def.hearRange * (radius > 20 ? 2.4 : 1));
     if (d > effective) return;
     if (this.state === 'CHASE') return;
+
+    // 경계 상태로 **처음** 들어가는 순간에만 소리를 낸다.
+    // 이게 스텔스의 유일한 경고다 — "들켰다"가 아니라 "무언가 눈치챘다".
+    // 이 소리를 듣고 멈추거나 앉을 기회를 주는 것이 이 장치의 전부다.
+    const wasCalm = this.state === 'WANDER' || this.state === 'SEARCH';
+    if (wasCalm && this._noticeCd <= 0) {
+      this._noticeCd = STEALTH.noticeCooldown;
+      bus.emit(EV.SFX, { name: 'zombie_notice', x: this.pos.x, z: this.pos.z, volume: 0.7 });
+    }
+
     this.target.x = x; this.target.z = z;
     this.state = 'ALERT';
     this.searchTimer = AI.searchTime;
@@ -327,6 +338,7 @@ export class Zombie {
       bus.emit(EV.SFX, { name: `zombie_groan_${gn}`, x: this.pos.x, z: this.pos.z, volume: 0.55 });
     }
 
+    if (this._noticeCd > 0) this._noticeCd -= dt;
     if (this.stun > 0) { this.stun -= dt; this._syncMesh(dt); this._updateAnim(dt); return; }
 
     const dx = player.pos.x - this.pos.x;

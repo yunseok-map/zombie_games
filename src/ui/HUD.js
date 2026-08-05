@@ -1,4 +1,4 @@
-import { PLAYER, FLASHLIGHT } from '../config/balance.js';
+import { PLAYER, FLASHLIGHT, NOISE, STEALTH } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
 /**
@@ -17,6 +17,9 @@ export class HUD {
     this.dmg = document.getElementById('dmg');
     this.objective = document.getElementById('objective');
     this.objectiveText = document.querySelector('#objective span');
+    this.exp = document.querySelector('#exp > i');
+    this.expBar = document.getElementById('exp');
+    this.expState = document.getElementById('exp-state');
 
     this._hintTimer = 0;
     this._dmgTimer = 0;
@@ -58,6 +61,7 @@ export class HUD {
       hp: document.getElementById('hp-n'),
       stam: document.getElementById('stam-n'),
       batt: document.getElementById('batt-n'),
+      exp: document.getElementById('exp-n'),
     };
     this._numCache = {};
     this.crosshair = document.getElementById('crosshair');
@@ -161,7 +165,37 @@ export class HUD {
     if (el) el.textContent = String(v);
   }
 
-  update(dt, { player, flashlight }) {
+  /**
+   * 노출도 — "지금 얼마나 들키기 쉬운가"를 하나의 값으로 보여 준다.
+   * 소음 반경(자세)과 손전등 감지 배수를 곱해서 쓴다. 이 게임의 핵심 거래가
+   * **손전등을 켤 것인가**인데, 지금까지 그 대가가 화면 어디에도 안 보였다.
+   */
+  _updateExposure({ player, flashlight, zombies }) {
+    if (!this.exp) return;
+    const noise = player.noiseRadius;
+    const mul = flashlight.on ? FLASHLIGHT.detectionMultiplier : 1;
+    const ratio = Math.min(1, (noise / NOISE.sprint) * mul);
+    this.exp.style.transform = `scaleX(${ratio})`;
+    this._setNum('exp', `${Math.round(noise * mul)}m`);
+    this.expBar?.classList.toggle('warn', ratio >= STEALTH.warnAt && ratio < STEALTH.dangerAt);
+    this.expBar?.classList.toggle('danger', ratio >= STEALTH.dangerAt);
+
+    // 감지 상태 — 발각 > 경계 > 은폐. 스텔스에서 가장 알고 싶은 한 가지다
+    let seen = false, heard = false;
+    for (const z of zombies ?? []) {
+      if (!z.active || z.state === 'DEAD') continue;
+      if (z.state === 'CHASE' || z.state === 'ATTACK') { seen = true; break; }
+      if (z.state === 'ALERT' || z.state === 'SEARCH') heard = true;
+    }
+    if (!this.expState) return;
+    const label = seen ? '발각됨' : heard ? '경계' : 'EXPOSURE';
+    if (this.expState.textContent !== label) this.expState.textContent = label;
+    this.expState.classList.toggle('seen', seen);
+    this.expState.classList.toggle('heard', !seen && heard);
+  }
+
+  update(dt, { player, flashlight, zombies }) {
+    this._updateExposure({ player, flashlight, zombies });
     this.hp.style.transform = `scaleX(${player.hp / PLAYER.maxHp})`;
     this.stam.style.transform = `scaleX(${player.stamina / PLAYER.maxStamina})`;
     this.batt.style.transform = `scaleX(${flashlight.battery / FLASHLIGHT.maxBattery})`;
