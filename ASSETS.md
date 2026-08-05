@@ -330,6 +330,7 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 19클립. 6k tri / 1024 WebP |
 | weapon_axe.glb · weapon_molotov.glb | **Kenney** Survival Kit | CC0 | 가능 | 나머지 무기는 절차적 생성 (SF 광선총은 세계관에 안 맞아 제외) |
 | prop_{enamel,metal,fabric}_*.webp | ambientCG (PaintedMetal013 / Metal038 / Fabric045) | CC0 | 가능 | 소품 PBR |
+| ui/title_keyart.webp | **Higgsfield** (nano_banana_2) 생성 · 2026-08-05 | 유료 크레딧 | 가능 | 타이틀 배경 키아트. 1376×768 WebP q84, 59KB. 프롬프트에 `no real-world logos, no brand names, fictional signage only` 포함, 인물·글자 없음 (CLAUDE.md §2) |
 
 > **왜 OGG 가 아니라 MP3 인가** — ElevenLabs 는 OGG 를 내주지 않고 이 PC 에 ffmpeg 이 없다.
 > 브라우저 Web Audio 는 MP3 를 전부 디코딩하므로 게임 동작은 동일하다. MP3 특허는 2017년 만료.
@@ -344,6 +345,8 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 
 > **왜 텍스처는 AI가 아닌가** — 이미지 생성 모델은 albedo 한 장만 내놓는다.
 > 실사감을 만드는 normal/roughness 맵이 없고 seamless 도 보장되지 않는다.
-> AI 는 **포스터·간판·경고문**(창작이 필요하고 타일링이 불필요)과 **SFX·트레일러**에 쓴다.
+> AI 는 **포스터·간판·경고문·타이틀 키아트**(창작이 필요하고 타일링이 불필요)와
+> **SFX·트레일러**에 쓴다. 키아트는 게임 화면과 톤이 어긋나면 안 되므로 §3 의 톤 고정 문구
+> (병든 institutional green, cold desaturated palette)를 그대로 넣는다.
 
 > 제출 전 이 표가 비어 있으면 안 된다. "AI를 어떻게 썼는가"가 심사 항목일 가능성이 높다.

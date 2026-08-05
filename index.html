@@ -101,6 +101,14 @@
     -webkit-backdrop-filter:blur(7px) saturate(.6); }
   #pause .sub { font-size:13px; opacity:.5; }
   #pause .keys { opacity:.3; }
+  /* 조작법 — 키 이름만 활자를 바꿔서 눈이 키를 먼저 잡게 한다 */
+  #pause .ctrl { opacity:.66; font-size:12.5px; line-height:2.5; letter-spacing:.02em; }
+  #pause .ctrl b { font-family:var(--ui); font-weight:400; font-size:11.5px;
+    letter-spacing:.16em; color:#dde3d8; padding:2px 7px; margin-right:5px;
+    border:1px solid rgba(214,222,210,.2); }
+  #pause .ctrl i { display:inline-block; width:1px; height:9px; margin:0 13px;
+    background:rgba(214,222,210,.16); vertical-align:baseline; }
+  #pause .note { font-size:11px; opacity:.26; margin-top:2px; }
 
   /* 사망·탈출 — 화면이 서서히 가라앉는다 */
   #over { background:rgba(3,4,3,.94); }
@@ -113,30 +121,106 @@
   #over h1 { letter-spacing:.42em; text-indent:.42em; }
   @media (prefers-reduced-motion: reduce) { #over:not(.hide) { animation:none; } }
 
-  /* 타이틀 — 뒤에서 실제 복도가 돌아간다. 배경을 비워 그게 보이게 하고,
-     아래위 그라디언트로 글자만 읽히게 한다. */
-  #title { background:transparent; justify-content:flex-end; padding-bottom:9vh; gap:16px; }
+  /* ---------- 타이틀 ----------
+     키아트 한 장 위에 활자를 앉힌다. 이미지가 없으면 뒤에서 도는 실제 복도(3D)가
+     그대로 비쳐서 폴백이 된다 — 그래서 배경은 transparent 로 둔다.
+     글자는 화면 왼쪽 아래에 모은다. 정중앙 일렬은 이미지를 가리고 밋밋하다. */
+  #title { background:transparent; align-items:flex-start; justify-content:flex-end;
+    gap:0; padding:0 clamp(30px,7vw,112px) clamp(40px,8vh,78px); }
+
+  /* 아주 느리게 밀려든다. 정지 이미지도 움직이면 살아난다 */
+  /* 배경색을 주지 않는다 — 이미지가 없을 때 뒤의 3D 복도가 그대로 비쳐야 폴백이 된다 */
+  #title .art { position:absolute; inset:0; background:transparent center/cover no-repeat;
+    background-image:url('/assets/ui/title_keyart.webp');
+    transform-origin:56% 46%;
+    animation:artDrift 52s ease-in-out infinite alternate,
+              artFlicker 8.5s steps(1,end) infinite; }
+  @keyframes artDrift {
+    from { transform:scale(1.04); }
+    to   { transform:scale(1.13) translate3d(-1.4%,-0.9%,0); }
+  }
+  /* 복도 끝 형광등이 죽어 가는 것처럼 — 화면 전체가 아주 잠깐 꺼진다 */
+  @keyframes artFlicker {
+    0%,100% { filter:none; }
+    45.6%   { filter:none; }
+    46.2%   { filter:brightness(.42) saturate(.7); }
+    46.9%   { filter:none; }
+    79.4%   { filter:none; }
+    79.9%   { filter:brightness(.66); }
+    80.6%   { filter:none; }
+  }
+
+  /* 스크림 — 이미지를 어둡게 덮는 게 아니라 **글자 자리만** 눌러 준다 */
   #title::before { content:''; position:absolute; inset:0; pointer-events:none;
     background:
-      radial-gradient(ellipse 70% 55% at 50% 42%, transparent 0%, rgba(3,4,3,.72) 100%),
-      linear-gradient(180deg, rgba(3,4,3,.85) 0%, transparent 26%, transparent 58%, rgba(3,4,3,.92) 100%); }
+      /* 활자가 앉는 왼쪽 아래를 가장 세게 눌러 둔다 — 여기가 부족하면 흰 글자가
+         바닥 타일 무늬에 갈려서 읽히지 않는다 */
+      radial-gradient(ellipse 74% 62% at 4% 86%, rgba(2,3,3,.95) 0%, rgba(2,3,3,.6) 46%, transparent 74%),
+      radial-gradient(ellipse 80% 64% at 64% 36%, transparent 0%, rgba(2,3,3,.5) 64%, rgba(2,3,3,.88) 100%),
+      linear-gradient(180deg, rgba(2,3,3,.72) 0%, rgba(2,3,3,.1) 24%, rgba(2,3,3,.3) 46%, rgba(2,3,3,.97) 100%),
+      linear-gradient(90deg, rgba(2,3,3,.9) 0%, rgba(2,3,3,.5) 30%, transparent 60%); }
+  /* 필름 그레인 — 실사 이미지가 CG 처럼 안 보이게 붙잡아 주는 게 이 한 겹이다.
+     overlay 는 중간톤을 들어 올려 스크림을 되돌린다 → soft-light 로 얹는다 */
+  #title::after { content:''; position:absolute; inset:0; pointer-events:none;
+    opacity:.3; mix-blend-mode:soft-light; background-size:170px 170px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='170' height='170'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
   #title > * { position:relative; }
-  #title h1 { font-size:min(13vw,104px); letter-spacing:.3em; text-indent:.3em;
-    color:#c3ccbc; margin-bottom:2px; }
-  #title .sub { opacity:.5; }
-  #title .keys { opacity:.42; }
-  /* 켜졌다 꺼지는 형광등처럼 — 타이틀만 불규칙하게 깜빡인다 */
-  @keyframes titleFlicker {
-    0%,100%   { opacity:1; }
-    41%       { opacity:1; }
-    42%       { opacity:.28; }
-    43%       { opacity:1; }
-    77%       { opacity:1; }
-    78%       { opacity:.42; }
-    79.5%     { opacity:1; }
+
+  #title .kick { font-family:var(--ui); font-size:clamp(10px,1vw,11.5px); letter-spacing:.42em;
+    color:rgba(214,222,208,.82); display:flex; align-items:center; gap:12px; margin-bottom:18px;
+    text-shadow:0 1px 12px rgba(0,0,0,.95); }
+  #title .kick i { display:block; width:26px; height:1px; background:#a33630; opacity:1; }
+
+  #title h1 { font-size:clamp(44px,8.6vw,124px); font-weight:200; letter-spacing:.14em;
+    text-indent:.14em; line-height:.94; color:#e4e9de; margin:0;
+    text-shadow:0 2px 34px rgba(0,0,0,.85), 0 0 90px rgba(0,0,0,.6); }
+
+  /* 제목과 부제를 가르는 선. 왼쪽 끝만 붉게 — 비상등의 잔영처럼 */
+  #title .rule { width:min(46vw,430px); height:1px; margin:20px 0 16px;
+    background:linear-gradient(90deg, rgba(142,43,38,.85) 0%, rgba(214,222,210,.4) 14%, rgba(214,222,210,.03) 100%); }
+
+  #title .sub2 { font-family:var(--ui); display:flex; align-items:baseline; flex-wrap:wrap;
+    gap:0 16px; font-size:clamp(11px,1.35vw,15px); letter-spacing:.4em;
+    color:rgba(214,222,208,.8); text-shadow:0 1px 12px rgba(0,0,0,.95); }
+  #title .sub2 em { font-style:normal; color:#dfe6da; letter-spacing:.28em; }
+  #title .sub2 span { font-family:var(--body); font-size:.78em; letter-spacing:.22em;
+    color:rgba(206,215,202,.34); padding-left:16px; border-left:1px solid rgba(206,215,202,.16); }
+
+  /* 메뉴 — 네모 버튼은 웹 폼처럼 보인다. 눈금이 미끄러져 들어오는 쪽이 게임의 활자다 */
+  #title .menu { display:flex; align-items:center; gap:clamp(18px,3vw,40px);
+    margin-top:clamp(26px,4.2vh,48px); }
+  #title .menu button { margin:0; padding:11px 2px 11px 30px; border:0; background:transparent;
+    font-family:var(--ui); font-size:17px; letter-spacing:.36em; text-indent:.36em;
+    color:#eef2e8; position:relative; cursor:pointer;
+    text-shadow:0 1px 14px rgba(0,0,0,.95);
+    transition:color .28s ease, opacity .28s ease; }
+  #title .menu button::before { content:''; position:absolute; left:0; top:50%;
+    width:17px; height:1px; background:currentColor; opacity:0;
+    transform:translate(-9px,-50%); transition:opacity .28s ease, transform .28s ease; }
+  #title .menu button:hover, #title .menu button:focus-visible { color:#f2f6ee; background:transparent; }
+  #title .menu button:hover::before, #title .menu button:focus-visible::before {
+    opacity:.85; transform:translate(0,-50%); }
+  /* 키보드 포커스 — 기본 아웃라인은 네모라 이 메뉴에서 웹 폼처럼 보인다.
+     지우지는 않는다(키보드로도 어디 있는지 보여야 한다). 밑줄로 바꾼다. */
+  #title .menu button:focus-visible { outline:none; }
+  #title .menu button:focus-visible::after { content:''; position:absolute;
+    left:30px; right:0; bottom:5px; height:1px; background:currentColor; opacity:.6; }
+  #title .menu button.ghost:focus-visible::after { left:26px; }
+  #title .menu button.ghost { font-size:12.5px; color:rgba(214,222,208,.58); padding-left:26px; }
+
+  /* 구석의 판권 한 줄 — 있으면 "만들다 만 것"이 아니라 "출시된 것"처럼 읽힌다 */
+  #title .stamp { position:absolute; right:clamp(26px,5vw,66px); bottom:clamp(24px,4vh,42px);
+    font-family:var(--ui); font-size:10px; letter-spacing:.28em; text-align:right;
+    color:rgba(200,210,196,.2); line-height:2; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #title .art { animation:none; transform:scale(1.04); }
   }
-  #title h1 { animation:titleFlicker 7.5s infinite steps(1, end); }
-  @media (prefers-reduced-motion: reduce) { #title h1 { animation:none; } }
+  /* 세로로 긴 화면에서는 글자가 이미지를 다 덮는다 — 락업만 줄인다 */
+  @media (max-width:560px) {
+    #title .sub2 span { border-left:0; padding-left:0; }
+    #title .stamp { display:none; }
+  }
 
   /* 크레딧 — CC BY 제작자 표기는 의무라 읽히는 것이 우선이다 */
   #credits { justify-content:flex-start; padding:8vh 24px 4vh; overflow-y:auto; gap:14px; }
@@ -184,15 +268,16 @@
 <div id="dmg"></div>
 
 <div class="screen" id="title">
-  <div class="sub">QUARANTINE FACILITY</div>
-  <h1>No.3</h1>
-  <div class="keys">
-    WASD 이동 · SHIFT 달리기 · CTRL 앉기<br>
-    마우스좌 공격 · R 재장전 · 1/2 무기전환<br>
-    <b style="opacity:.85">F 손전등</b> · E 상호작용 · ESC 일시정지
-  </div>
-  <button id="btn-start">진입</button>
-  <button id="btn-credits" class="ghost">크레딧</button>
+  <div class="art"></div>
+  <div class="kick"><i></i>접근 통제 구역 · 방역 등급 4</div>
+  <h1>QUARANTINE</h1>
+  <div class="rule"></div>
+  <div class="sub2">FACILITY <em>No.3</em><span>제3격리병원</span></div>
+  <nav class="menu">
+    <button id="btn-start">진입</button>
+    <button id="btn-credits" class="ghost">크레딧</button>
+  </nav>
+  <div class="stamp">BUILD 0.9<br>2029 · 04 · 17</div>
 </div>
 
 <!--
@@ -229,10 +314,13 @@
 
 <div class="screen hide" id="pause">
   <div class="sub">일시정지</div>
-  <div class="keys">
-    ESC 로 다시 돌아간다<br>
-    화면을 클릭해야 마우스 시야가 잡힌다
+  <!-- 조작법은 타이틀이 아니라 여기 있다. 타이틀에 뿌리면 첫 화면이 설명서가 된다 -->
+  <div class="keys ctrl">
+    <b>WASD</b> 이동<i></i><b>SHIFT</b> 달리기<i></i><b>CTRL</b> 앉기<br>
+    <b>마우스 좌</b> 공격<i></i><b>R</b> 재장전<i></i><b>1 / 2</b> 무기 전환<br>
+    <b>F</b> 손전등<i></i><b>E</b> 상호작용<i></i><b>ESC</b> 일시정지
   </div>
+  <div class="keys note">화면을 클릭해야 마우스 시야가 잡힌다</div>
   <button id="btn-resume">계속</button>
 </div>
 
