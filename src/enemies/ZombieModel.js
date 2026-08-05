@@ -17,13 +17,16 @@ const URL = `${import.meta.env.BASE_URL}assets/models/zombie_shambler.glb`;
  */
 export const CLIP_VARIANTS = {
   idle:   ['idle_02', 'idle_03', 'idle_01', 'idle_04', 'idle_05'],
-  walk:   ['walk_01', 'walk_02', 'walk_03'],
-  run:    ['run'],
-  attack: ['attack_01', 'attack_02', 'attack_03', 'kicking'],
-  death:  ['death_01', 'death_02'],
-  hit:    ['hit_01'],
+  // walk_04 = 비틀거리며 걷기. 배회에 가장 어울린다
+  walk:   ['walk_01', 'walk_02', 'walk_03', 'walk_04'],
+  run:    ['run', 'run_02'],
+  attack: ['attack_01', 'attack_02', 'attack_03', 'attack_04', 'attack_05', 'kicking'],
+  death:  ['death_01', 'death_02', 'death_03'],
+  // 피격 반응이 하나뿐이면 14마리가 전부 같은 동작으로 움찔한다 — 즉시 복제인간으로 보인다
+  hit:    ['hit_01', 'hit_02', 'hit_03'],
   // standing_up / crawl 은 절대 넣지 마라 — 엎드린 자세를 골반 높이 이동으로 표현하는데
   // 변환할 때 루트 이동을 지웠기 때문에 공중에 뜬 채로 기어가는 것처럼 보인다.
+  // scream 클립이 실제로 생기기 전까지는 attack_02 로 폴백되고 있었다 (2026-08-05 에 채움)
   scream: ['scream', 'attack_02', 'attack_01'],
 
   // 기어다니는 개체용. 풀은 타입을 모르고 미리 만들어지므로 클립은 전부 준비해 두고,

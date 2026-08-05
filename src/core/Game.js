@@ -10,6 +10,7 @@ import { Impact } from '../fx/Impact.js';
 import { Player } from '../player/Player.js';
 import { Flashlight } from '../player/Flashlight.js';
 import { WeaponSystem } from '../weapons/WeaponSystem.js';
+import { preloadSwingCurves } from '../weapons/SwingCurves.js';
 import { ZombiePool } from '../enemies/ZombiePool.js';
 import { Director } from '../enemies/Director.js';
 import { StageLoader } from '../world/StageLoader.js';
@@ -141,6 +142,8 @@ export class Game {
     // 소품 GLB 는 스테이지를 짓기 전에 다 읽혀 있어야 한다 (조립이 동기라서).
     // 실패해도 절차적 소품으로 되돌아가므로 게임은 진행된다.
     await propModels.preload();
+    // 스윙 궤적 — 없으면 절차적 스윙으로 떨어지므로 실패해도 게임은 그대로 돌아간다
+    await preloadSwingCurves();
     // 시작 무기는 Game 생성 시점(모델 로드 전)에 만들어졌다 — 여기서 GLB 로 다시 만든다
     this.weapons.refreshViewModel();
     this.audio.playAmbience();

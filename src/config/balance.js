@@ -207,6 +207,25 @@ export const ANIM = {
   crawlerAttackSpeed: 1.9,
 };
 
+/**
+ * 무기 스윙 궤적 (weapons/SwingCurves.js).
+ * 사람 근접공격 모션(Mixamo)에서 오른손 궤적만 뽑아 뷰모델에 입힌다.
+ * 곡선은 진폭 1 로 정규화돼 있으므로 **실제 크기는 여기서 정한다.**
+ * 0 으로 두면 곡선을 끄고 기존 절차적 스윙으로 돌아간다.
+ */
+export const WEAPON_SWING = {
+  enabled: true,
+  // 근접. 원본 회전 진폭이 300도라 그대로 쓰면 무기가 화면에서 한 바퀴 돈다
+  posScale: 0.19,
+  rotScale: 0.30,
+  // 총기 반동. 훨씬 작게 — 총은 휘두르는 게 아니라 튀는 것이다
+  gunPosScale: 0.05,
+  gunRotScale: 0.09,
+  // 곡선을 얼마나 섞을지. 1 이면 곡선만, 0 이면 기존 절차적 스윙만.
+  // 절차적 쪽에 예비동작(뒤로 당김)이 잘 잡혀 있어서 조금 남겨 두는 편이 낫다
+  blend: 0.82,
+};
+
 export const ZOMBIE_STEP = {
   stride: 1.5,          // 이 거리를 움직일 때마다 한 걸음
   maxDistance: 16,      // 이 밖에서는 아예 내지 않는다

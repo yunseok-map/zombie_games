@@ -149,6 +149,44 @@ Korean and English warning text, torn corner, stained, flat lighting, 1024x1024
 
 > 소문자 + 언더스코어만. `walk (1).fbx` 로 들어가면 클립 이름이 `walk (1)` 이 되어 코드가 못 찾는다.
 
+> **팩(Pack)으로 받지 마라.** 변환기는 FBX 하나당 애니메이션 하나를 전제하고 파일명을
+> 클립 이름으로 쓴다. 팩은 한 파일에 여러 동작이 들어가고, 내부 take 이름이 전부
+> `mixamo.com` 으로 같아서 쪼개도 이름을 못 살린다. 팩 안의 동작은 전부 개별로도 받을 수 있다.
+
+### 6-3-B. 2026-08-05 추가분 (8클립)
+
+| 원본 (Mixamo) | 클립 이름 | 왜 넣었나 |
+|---|---|---|
+| Zombie Reaction Hit | `hit_02` | 피격 반응이 `hit_01` 하나뿐이라 14마리가 같은 동작으로 움찔했다 |
+| Zombie Reaction Hit (1) | `hit_03` | 〃 |
+| Zombie Scream | `scream` | **CLIP_VARIANTS 가 찾고 있었는데 파일이 없어 `attack_02` 로 폴백 중이었다** |
+| Zombie Dying | `death_03` | 사망 변형 |
+| Zombie Headbutt | `attack_04` | 공격 변형 |
+| Zombie Punching | `attack_05` | 공격 변형 |
+| Zombie Stumbling | `walk_04` | 비틀거리며 걷기 — 배회에 가장 어울린다 |
+| Zombie Running | `run_02` | 달리기가 하나뿐이었다 |
+
+**안 쓴 것** (`fbx_src/_unused/`): `Zombie Kicking`·`Zombie Stand Up` 은 이미 있는
+`kicking`·`standing_up` 과 겹친다. `Walking` 은 좀비 보행이 아니라 일반 보행이라 안 맞는다.
+(`standing_up` 은 CLIP_VARIANTS 주석대로 **어떤 상태에도 넣으면 안 된다** — 루트 이동이
+지워져서 공중에 뜬 채로 일어난다)
+
+### 6-3-C. 사람 모션 → 무기 스윙 궤적
+
+1인칭이라 뷰모델은 **무기 하나뿐**이다(팔도 몸도 없다). 그래서 사람 전신 애니메이션을
+그대로 재생할 수 없다. 대신 `tools/extract_swing.py` 가 **오른손 뼈가 머리 기준으로
+어떻게 움직였는지**만 28표본으로 뽑아 `swing_curves.json` 으로 굽는다.
+그 곡선으로 무기를 흔들면 사인 곡선으로 만든 절차적 스윙과 달리 **사람이 실제로 휘두를 때의
+가감속**이 남는다 — 예비동작에서 뜸을 들이고 타격에서 확 빠진다.
+
+```
+blender --background --python tools/extract_swing.py -- fbx_src/person public/assets/models/swing_curves.json
+```
+
+- 진폭을 1 로 정규화해서 내보낸다 → 실제 크기는 `WEAPON_SWING`(balance.js) 계수가 정한다.
+  리그 크기나 cm/m 단위 차이를 게임 쪽 숫자 하나로 흡수하려는 것이다.
+- 곡선 파일이 없으면 **기존 절차적 스윙으로 조용히 떨어진다.** 게임은 그대로 돌아간다.
+
 ### 6-4. 보관 위치
 
 ```
@@ -327,7 +365,8 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
 | sfx_{pistol_fire,flashlight_click,axe_swing,axe_hit_flesh,reload_pistol,player_hurt}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
 | amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 20초 루프 (API 최대 길이 22초) |
-| zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 19클립. 6k tri / 1024 WebP |
+| zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 **27클립**. 6k tri / 1024 WebP |
+| models/swing_curves.json | **Mixamo** (Adobe) 모션에서 추출 · 2026-08-05 | Free | 확인 필요 | 사람 근접공격 3종(Backhand / Downward / Shooting)에서 **오른손 궤적만** 뽑아 구운 곡선. 5.7KB. 메시·스켈레톤은 안 들어간다 — 손 위치·회전을 28표본으로 정규화한 숫자만 있다 (`tools/extract_swing.py`) |
 | weapon_axe.glb · weapon_molotov.glb | **Kenney** Survival Kit | CC0 | 가능 | 나머지 무기는 절차적 생성 (SF 광선총은 세계관에 안 맞아 제외) |
 | prop_{enamel,metal,fabric}_*.webp | ambientCG (PaintedMetal013 / Metal038 / Fabric045) | CC0 | 가능 | 소품 PBR |
 | ui/title_keyart.webp | **Higgsfield** (nano_banana_2) 생성 · 2026-08-05 | 유료 크레딧 | 가능 | 타이틀 배경 키아트. 1376×768 WebP q84, 59KB. 프롬프트에 `no real-world logos, no brand names, fictional signage only` 포함, 인물·글자 없음 (CLAUDE.md §2) |

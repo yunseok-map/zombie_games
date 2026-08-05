@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW } from '../config/balance.js';
+import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW, WEAPON_SWING } from '../config/balance.js';
+import { getCurve, sampleCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -313,6 +314,10 @@ export class WeaponSystem {
     this._swingT = 0;
     this._swingDur = Math.min(def.cooldown * 0.92, 0.62);
     this._swingDir = -this._swingDir;        // 좌우 번갈아 휘두른다
+    // 궤적도 번갈아 쓴다 — 같은 곡선만 반복하면 사람이 휘두르는 느낌이 도로 사라진다
+    this._swingCurve = getCurve(this._swingDir > 0
+      ? 'standing_melee_attack_downward'
+      : 'standing_melee_attack_backhand');
     bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
 
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -445,6 +450,30 @@ export class WeaponSystem {
     this._swing = arc;
     const dir = this._swingDir;
 
+    // ── 사람이 휘두른 궤적 ──
+    // 절차적 사인 곡선은 가감속이 일정해서 "기계가 돈다"로 보인다.
+    // 실제 모션에서 뽑은 곡선을 섞으면 예비동작에서 뜸을 들이고 타격에서 확 빠진다.
+    // 곡선 파일이 없으면 전부 0 이라 기존 절차적 스윙만 남는다 (폴백).
+    let cpx = 0, cpy = 0, cpz = 0, crx = 0, cry = 0, crz = 0;
+    if (WEAPON_SWING.enabled) {
+      const melee = this._swingT < this._swingDur && this._swingCurve;
+      const gun = this._recoil > 0.001 ? getCurve('shooting') : null;
+      if (melee) {
+        const s = sampleCurve(this._swingCurve, this._swingT / this._swingDur);
+        const ps = WEAPON_SWING.posScale * WEAPON_SWING.blend;
+        const rs = WEAPON_SWING.rotScale * WEAPON_SWING.blend;
+        cpx = s.p[0] * ps * dir; cpy = s.p[1] * ps; cpz = s.p[2] * ps;
+        crx = s.e[0] * rs;       cry = s.e[1] * rs * dir; crz = s.e[2] * rs * dir;
+      } else if (gun) {
+        // 반동은 곡선의 앞부분만 쓴다 — 총은 휘두르는 게 아니라 튀었다가 돌아온다
+        const s = sampleCurve(gun, (1 - this._recoil) * 0.5);
+        cpx = s.p[0] * WEAPON_SWING.gunPosScale; cpy = s.p[1] * WEAPON_SWING.gunPosScale;
+        cpz = s.p[2] * WEAPON_SWING.gunPosScale;
+        crx = s.e[0] * WEAPON_SWING.gunRotScale; cry = s.e[1] * WEAPON_SWING.gunRotScale;
+        crz = s.e[2] * WEAPON_SWING.gunRotScale;
+      }
+    }
+
     // ── 마우스 관성: 시선을 돌리면 무기가 반대로 밀렸다가 따라온다 ──
     const swayMul = this.player.swayMul ?? 1;
     if (input) {
@@ -469,18 +498,18 @@ export class WeaponSystem {
 
     const R = this.viewRoot;
     const k = Math.min(1, 14 * dt);
-    R.position.x += (0.26 + aimX + bobX + sx - R.position.x) * k;
-    R.position.y += (-0.24 + aimY + bobY + breath + sy - R.position.y) * k;
+    R.position.x += (0.26 + aimX + bobX + sx + cpx - R.position.x) * k;
+    R.position.y += (-0.24 + aimY + bobY + breath + sy + cpy - R.position.y) * k;
     R.position.z = -0.45 + aimZ + this._recoil * 0.10
-      + wind * 0.06 - arc * 0.16;                        // 예비동작에 당겼다가 앞으로 내지른다
+      + wind * 0.06 - arc * 0.16 + cpz;                  // 예비동작에 당겼다가 앞으로 내지른다
 
     // 쉬는 자세 — 축에 딱 맞춰 놓으면 "박스를 들고 있다"로 보인다
     const rest = this.current.type === 'gun' && this.aiming
       ? { x: 0, y: 0, z: 0 }
       : { x: 0.05, y: -0.16, z: 0.10 };
 
-    R.rotation.x = rest.x + this._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4;
-    R.rotation.y = rest.y + (wind * 0.30 - arc * 0.62) * dir + sx * 1.6;
-    R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir;
+    R.rotation.x = rest.x + this._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4 + crx;
+    R.rotation.y = rest.y + (wind * 0.30 - arc * 0.62) * dir + sx * 1.6 + cry;
+    R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir + crz;
   }
 }
