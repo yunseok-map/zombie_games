@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-08-05T06:57:44.657Z",
+        "reason": "피격 비네트는 장식이 아니라 피격 순간 0.4초 뜨는 게임 HUD 정보 표시"
+      },
+      {
+        "rule": "radial-halo",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-08-05T06:57:53.130Z",
+        "reason": "피격 방향 표시. 방향을 나타내려면 한쪽만 진해야 해서 solid 접지 불가"
+      }
+    ]
+  }
+}

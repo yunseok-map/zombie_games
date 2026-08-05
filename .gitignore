@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.impeccable/hook.cache.json
+.impeccable/config.local.json
 .DS_Store
 *.log
 .vite/
