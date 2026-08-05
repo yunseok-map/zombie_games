@@ -51,6 +51,13 @@ export class HUD {
     this.vig = document.createElement('div'); this.vig.id = 'vig';
     this.warn = document.createElement('div'); this.warn.id = 'warn';
     document.body.append(this.vig, this.warn);
+    // 숫자 표시 — 값이 바뀔 때만 DOM 을 건드린다
+    this._nums = {
+      hp: document.getElementById('hp-n'),
+      stam: document.getElementById('stam-n'),
+      batt: document.getElementById('batt-n'),
+    };
+    this._numCache = {};
     this.crosshair = document.getElementById('crosshair');
     this.hpBar = document.getElementById('hp');
     this.battBar = document.getElementById('batt');
@@ -67,6 +74,8 @@ export class HUD {
   setAmmo({ label, mag, reserve, melee }) {
     this.ammoLabel.textContent = label;
     this.ammoNum.innerHTML = melee ? '∞' : `${mag}<small> / ${reserve}</small>`;
+    // 탄창이 바닥나 가면 숫자가 붉어진다 — 재장전 타이밍을 눈으로 알 수 있어야 한다
+    document.getElementById('ammo')?.classList.toggle('low', !melee && mag <= 3);
   }
 
   showHint(text, duration = 2) {
@@ -116,10 +125,27 @@ export class HUD {
     this._dmgTimer = 0.4;
   }
 
+  _setNum(key, v) {
+    if (this._numCache[key] === v) return;
+    this._numCache[key] = v;
+    const el = this._nums[key];
+    if (el) el.textContent = String(v);
+  }
+
   update(dt, { player, flashlight }) {
     this.hp.style.transform = `scaleX(${player.hp / PLAYER.maxHp})`;
     this.stam.style.transform = `scaleX(${player.stamina / PLAYER.maxStamina})`;
     this.batt.style.transform = `scaleX(${flashlight.battery / FLASHLIGHT.maxBattery})`;
+
+    // 숫자 표시 — 막대만으로는 "얼마나 남았나"를 어림만 할 수 있다.
+    // 텍스트를 매 프레임 쓰면 레이아웃이 계속 다시 계산되므로 값이 바뀔 때만 쓴다.
+    this._setNum('hp', Math.max(0, Math.round(player.hp)));
+    this._setNum('stam', Math.max(0, Math.round(player.stamina)));
+    this._setNum('batt', Math.max(0, Math.round(flashlight.battery)));
+
+    // 위험 상태 맥동 — 숫자를 안 보고 있어도 눈에 걸린다
+    this.hpBar?.classList.toggle('low', player.hp / PLAYER.maxHp < 0.35);
+    this.battBar?.classList.toggle('low', flashlight.battery / FLASHLIGHT.maxBattery < 0.2);
 
     // 체력이 낮을수록 화면 가장자리가 붉게 맥동한다
     const hpRatio = player.hp / PLAYER.maxHp;
