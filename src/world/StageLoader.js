@@ -62,15 +62,30 @@ function fitBoxUV(geo, w, h, d, tile) {
  * 소품 부품 UV — 박스든 실린더든 크기에 맞춰 균일하게 늘린다.
  * 안 하면 3cm 짜리 부품에 텍스처 한 장이 통째로 들어가 노이즈처럼 보인다.
  */
+/**
+ * 소품 UV — 면이 바라보는 축을 빼고 나머지 두 축의 **실제 좌표**를 그대로 UV 로 쓴다
+ * (박스 프로젝션). 그래야 크기가 다른 소품끼리도 텍셀 밀도가 같아진다.
+ *
+ * 예전에는 가장 긴 변 하나로 U·V 를 함께 스케일했다. 그러면 문틀 기둥처럼
+ * 얇고 긴 물체에서 짧은 쪽 면이 4cm 마다 반복돼 물결무늬(모아레)가 생겼다.
+ * **회전·이동 전에 불러야 한다** — 로컬 좌표 기준이다.
+ */
 function fitGenericUV(geo, tile) {
-  geo.computeBoundingBox();
-  const b = geo.boundingBox;
-  const k = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) / tile;
-  if (k > 0.02) {
-    const uv = geo.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * k, uv.getY(i) * k);
-    uv.needsUpdate = true;
+  const pos = geo.attributes.position;
+  const nor = geo.attributes.normal;
+  if (!pos || !nor) return geo;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const ax = Math.abs(nor.getX(i)), ay = Math.abs(nor.getY(i)), az = Math.abs(nor.getZ(i));
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    let u, v;
+    if (ax >= ay && ax >= az) { u = z; v = y; }        // 옆면
+    else if (ay >= az) { u = x; v = z; }               // 윗·아랫면
+    else { u = x; v = y; }                             // 앞·뒷면
+    uv[i * 2] = u / tile;
+    uv[i * 2 + 1] = v / tile;
   }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   return geo;
 }
 
