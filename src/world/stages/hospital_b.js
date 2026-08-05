@@ -19,6 +19,7 @@ const ENTRY_Z = 0, EXIT_Z = 34;
 export const meta = {
   id: 'hospital_b',
   label: 'B1 영안실 · 기계실',
+  objective: '전원 레버 3개를 올려 불을 켜라',
   // 완전 암흑 — 구역 A(0.06)보다 훨씬 어둡고 포그도 짙다
   mood: { fogDensity: 0.075, fogColor: 0x030406, ambientIntensity: 0.022 },
   typeWeights: { shambler: 3, listener: 2, crawler: 1 },
@@ -152,12 +153,14 @@ export function build(ctx) {
     if (pulled < total) {
       // 소음이 좀비를 부른다 — 레버를 올릴 때마다 대가를 치른다 (SPEC §3)
       triggerWave(GENERATOR.waveOnLever);
+      bus.emit(EV.OBJECTIVE, { text: `전원 레버 ${pulled}/${total} — 남은 레버를 찾아라` });
       return `전원 ${pulled}/${total} — 소리가 났다`;
     }
     // 3개 완료: 불이 켜진다. 2초의 안도, 그리고 즉시 대규모 웨이브
     setMood({ ambientIntensity: GENERATOR.litAmbient, fogDensity: GENERATOR.litFog });
     setLights('steady', 1.6);
     bus.emit(EV.SFX, { name: 'flashlight', volume: 0.9 });
+    bus.emit(EV.OBJECTIVE, { text: '전원 복구 — 계단실로' });
     setTimeout(() => {
       bus.emit(EV.HINT, { text: '계단실로 — 전부 몰려온다', duration: 4 });
       triggerWave(GENERATOR.waveOnComplete);

@@ -23,6 +23,7 @@ const EXIT_Z = 41;
 export const meta = {
   id: 'hospital_roof',
   label: '옥상',
+  objective: '신호탄을 쏘아 구조를 요청하라',
   // 야외 — 포그를 옅게, 하늘색을 푸르게. 벽이 없어 손전등이 허공을 가른다.
   mood: { fogDensity: 0.026, fogColor: 0x0b1018, ambientIntensity: 0.075 },
   typeWeights: { shambler: 5, listener: 2, crawler: 3 },
@@ -136,10 +137,13 @@ export function build(ctx) {
     for (let t = R.waveEvery; t < R.holdSeconds; t += R.waveEvery) {
       after(t, () => triggerWave(R.waveSize));
     }
+    bus.emit(EV.OBJECTIVE, { text: `헬기가 올 때까지 ${R.holdSeconds}초 버텨라` });
     for (const left of R.warnAt) {
       if (left >= R.holdSeconds) continue;
-      after(R.holdSeconds - left, () =>
-        bus.emit(EV.HINT, { text: `버텨라 — ${left}초`, duration: 2.6 }));
+      after(R.holdSeconds - left, () => {
+        bus.emit(EV.OBJECTIVE, { text: `버텨라 — ${left}초 남음` });
+        bus.emit(EV.HINT, { text: `버텨라 — ${left}초`, duration: 2.6 });
+      });
     }
     after(R.holdSeconds - 6, () => triggerWave(R.finalWave));
 
@@ -147,6 +151,7 @@ export function build(ctx) {
     after(R.holdSeconds, () => {
       setMood({ ambientIntensity: 0.4, fogDensity: 0.018 });
       setLights('steady', 1.8);
+      bus.emit(EV.OBJECTIVE, { text: '헬기 도착 — 난간 쪽으로' });
       bus.emit(EV.HINT, { text: '헬기 도착 — 난간 쪽으로', duration: 6 });
       setExit({ x: 0, z: EXIT_Z + 1.2, radius: 2.4 });
     });

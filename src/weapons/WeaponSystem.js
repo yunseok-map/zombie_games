@@ -81,6 +81,35 @@ export class WeaponSystem {
     return true;
   }
 
+  /** 체크포인트용 — 들고 있던 무기와 탄약을 통째로 적어 둔다 (core/Game.js) */
+  snapshotState() {
+    return {
+      inventory: [...this.inventory],
+      ammo: JSON.parse(JSON.stringify(this.ammo)),
+    };
+  }
+
+  /**
+   * 체크포인트에서 되돌린다.
+   * @param minAmmo 예비탄이 이보다 적으면 여기까지 채운다 — 0 발로 되살아나면
+   *   사건 구간이 통째로 막혀서 다시 죽는 것 말고 할 수 있는 게 없다.
+   */
+  restoreState(snap, minAmmo = 0) {
+    if (!snap) return;
+    this.inventory = [...snap.inventory];
+    this.ammo = JSON.parse(JSON.stringify(snap.ammo));
+    for (const id of this.inventory) {
+      const def = WEAPONS[id];
+      if (def?.type !== 'gun') continue;
+      this._initAmmo(id);
+      const a = this.ammo[id];
+      if (a.mag + a.reserve < minAmmo) a.reserve = Math.max(0, minAmmo - a.mag);
+    }
+    this.switchTo(1);            // 근접으로 되돌린다 — 되살아난 직후 총부터 쥐고 있으면 낭비한다
+    this.refreshViewModel();
+    this._emitAmmo();
+  }
+
   addAmmo(id, amount) {
     this._initAmmo(id);
     if (this.ammo[id]) this.ammo[id].reserve += amount;

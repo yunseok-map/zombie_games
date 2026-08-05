@@ -22,6 +22,7 @@ const OR_D = 10;                   // 수술실 깊이
 export const meta = {
   id: 'hospital_d',
   label: '3F 수술부 · 중환자실',
+  objective: '수술실 무영등 2개에 전원을 넣어라',
   // 수술등이 아직 몇 개 살아 있어 A~C 중 가장 밝다. 대신 그림자가 길다.
   mood: { fogDensity: 0.05, fogColor: 0x070808, ambientIntensity: 0.045 },
   typeWeights: { shambler: 4, listener: 3, crawler: 2 },
@@ -169,10 +170,12 @@ export function build(ctx) {
     setMood({ ambientIntensity: 0.045 + lamps * 0.03 });
     if (lamps < S.lampCount) {
       triggerWave(S.waveOnLamp);
+      bus.emit(EV.OBJECTIVE, { text: `무영등 ${lamps}/${S.lampCount} — 나머지 수술실로` });
       return `무영등 ${lamps}/${S.lampCount} — 방이 환해졌다`;
     }
     setLights('steady', 1.4);
     triggerWave(S.waveOnComplete);
+    bus.emit(EV.OBJECTIVE, { text: '봉쇄가 풀렸다 — 옥상으로' });
     bus.emit(EV.HINT, { text: '봉쇄 해제 — 옥상으로', duration: 5 });
     return '봉쇄가 풀렸다';
   };

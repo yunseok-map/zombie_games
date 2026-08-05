@@ -15,6 +15,8 @@ export class HUD {
     this.ammoNum = document.querySelector('#ammo .n');
     this.hint = document.getElementById('hint');
     this.dmg = document.getElementById('dmg');
+    this.objective = document.getElementById('objective');
+    this.objectiveText = document.querySelector('#objective span');
 
     this._hintTimer = 0;
     this._dmgTimer = 0;
@@ -64,6 +66,7 @@ export class HUD {
 
     bus.on(EV.HINT, ({ text, duration = 2 }) => this.showHint(text, duration));
     bus.on(EV.PLAYER_DAMAGED, ({ dir }) => this.flashDamage(dir));
+    bus.on(EV.OBJECTIVE, ({ text }) => this.setObjective(text));
     bus.on(EV.AMMO_CHANGED, (a) => this.setAmmo(a));
     bus.on(EV.WEAPON_CHANGED, ({ weapon }) => { this.ammoLabel.textContent = weapon.label; });
   }
@@ -118,6 +121,22 @@ export class HUD {
       + `WASD  [${move}]\n`
       + `눌린키 ${held}\n`
       + `속도 ${s.player.speed.toFixed(2)} m/s   좀비 ${s.zombies}`;
+  }
+
+  /**
+   * 지금 해야 할 일. HINT 와 달리 안 사라진다.
+   * 어두운 5구역에서 "뭘 하라는 거지"가 되는 순간 플레이어는 그냥 끈다.
+   */
+  setObjective(text) {
+    if (!this.objective) return;
+    if (!text) { this.objective.classList.remove('on'); return; }
+    if (this.objectiveText.textContent === text) return;   // 같은 문구면 다시 깜빡이지 않는다
+    this.objectiveText.textContent = text;
+    this.objective.classList.add('on');
+    // 애니메이션을 다시 태우려면 클래스를 한 번 떼었다 붙여야 한다
+    this.objective.classList.remove('changed');
+    void this.objective.offsetWidth;
+    this.objective.classList.add('changed');
   }
 
   /**

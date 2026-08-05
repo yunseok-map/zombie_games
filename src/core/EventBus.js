@@ -39,6 +39,7 @@ export const EV = {
   AMMO_CHANGED: 'ammo:changed',
   FLASHLIGHT_TOGGLED: 'flashlight:toggled',
   HINT: 'hint',                   // { text, duration }
+  OBJECTIVE: 'objective',         // { text } — 계속 떠 있는 "지금 할 일". HINT 와 달리 안 사라진다
   STAGE_LOADED: 'stage:loaded',
   SFX: 'sfx',                     // { name, x, z, volume }
 };

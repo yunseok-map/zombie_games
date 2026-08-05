@@ -3,7 +3,7 @@ import { Input } from './Input.js';
 import { Collision } from './Collision.js';
 import { AudioManager } from './AudioManager.js';
 import { bus, EV } from './EventBus.js';
-import { FLASHLIGHT, PLAYER, PERF, SHAKE } from '../config/balance.js';
+import { FLASHLIGHT, PLAYER, PERF, SHAKE, CHECKPOINT } from '../config/balance.js';
 import { Atmosphere } from '../fx/Atmosphere.js';
 import { PostFX } from '../fx/PostFX.js';
 import { Impact } from '../fx/Impact.js';
@@ -147,22 +147,54 @@ export class Game {
     this.restart();
   }
 
-  restart() {
-    this.stageIndex = 0;
+  /**
+   * @param fromCheckpoint true 면 마지막으로 도달한 구역부터. 사망 화면의 "이 구역부터" 다.
+   */
+  restart(fromCheckpoint = false) {
+    const cp = (fromCheckpoint && CHECKPOINT.enabled && this._checkpoint) ? this._checkpoint : null;
+    this.stageIndex = cp ? cp.index : 0;
     this.weapons.viewRoot.visible = true;   // 시작 화면에서 숨겨 놓았다
     this.pool.despawnAll();
-    const start = this.stageLoader.load(STAGES[0]);
+    const stage = STAGES[this.stageIndex];
+    const start = this.stageLoader.load(stage);
     this.player.surfaceAt = this.stageLoader.surfaceAt;
     this.player.spawn(start.x, start.z, start.yaw);
-    this.flashlight.battery = 100;
+
+    if (cp) {
+      // 그 구역에 들어섰던 상태로 되돌린다. 다만 빈사로 들어왔다면 죽음의 고리에 갇히므로
+      // 최소선까지는 올려 준다 (CHECKPOINT.min*)
+      this.player.hp = Math.max(cp.hp, CHECKPOINT.minHp);
+      this.flashlight.battery = Math.max(cp.battery, CHECKPOINT.minBattery);
+      this.weapons.restoreState(cp.weapons, CHECKPOINT.minAmmo);
+      this.elapsed = cp.elapsed;
+    } else {
+      this.flashlight.battery = 100;
+      this.elapsed = 0;
+      this._checkpoint = null;
+    }
     this.flashlight.on = false;
-    this.elapsed = 0;
     this.state = 'PLAYING';
     this.input.enabled = true;
     this.input.requestLock();
     this.hud.show();
     this.weapons._emitAmmo();
-    bus.emit(EV.HINT, { text: 'F 를 눌러 손전등을 켜라', duration: 4 });
+    this._saveCheckpoint();
+    bus.emit(EV.OBJECTIVE, { text: stage.meta?.objective ?? stage.meta?.label ?? '' });
+    bus.emit(EV.HINT, {
+      text: cp ? `${stage.meta?.label ?? ''} — 다시 시작` : 'F 를 눌러 손전등을 켜라',
+      duration: 4,
+    });
+  }
+
+  /** 구역에 들어선 순간의 상태를 적어 둔다. 여기서 다시 시작하게 된다 */
+  _saveCheckpoint() {
+    this._checkpoint = {
+      index: this.stageIndex,
+      hp: this.player.hp,
+      battery: this.flashlight.battery,
+      weapons: this.weapons.snapshotState(),
+      elapsed: this.elapsed,
+    };
   }
 
   /** 다음 구역으로. 체력·배터리는 이어진다 — 구역을 넘는 게 회복 기회가 되면 긴장이 죽는다 */
@@ -177,6 +209,8 @@ export class Game {
     this.player.spawn(start.x, start.z, start.yaw);
     this.player.hp = hp;
     this.flashlight.battery = battery;
+    this._saveCheckpoint();
+    bus.emit(EV.OBJECTIVE, { text: stage.meta?.objective ?? stage.meta?.label ?? '' });
     bus.emit(EV.HINT, { text: stage.meta?.label ?? '', duration: 4 });
   }
 
@@ -211,6 +245,12 @@ export class Game {
       const label = STAGES[this.stageIndex]?.meta?.label ?? '';
       sub.textContent = `${label} · 생존 시간 ${this._formatTime(this.elapsed)}`;
     }
+    // 1구역에서 죽었으면 "이 구역부터"와 "처음부터"가 같은 말이다 — 하나만 남긴다
+    const atStart = !CHECKPOINT.enabled || (this._checkpoint?.index ?? 0) === 0;
+    const retry = document.getElementById('btn-retry');
+    const full = document.getElementById('btn-restart');
+    if (retry) retry.textContent = atStart ? '다시 시도' : '이 구역부터';
+    if (full) full.style.display = atStart ? 'none' : '';
     over?.classList.remove('hide');
   }
 

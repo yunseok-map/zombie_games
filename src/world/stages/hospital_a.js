@@ -21,6 +21,7 @@ const OUTER_X = CORR_HALF + ROOM_DEPTH;     // 8
 export const meta = {
   id: 'hospital_a',
   label: '1F 로비 · 응급실',
+  objective: '카드키를 찾아 계단실 문을 열어라',
   mood: { fogDensity: 0.052, fogColor: 0x05070a, ambientIntensity: 0.06 },
   typeWeights: { shambler: 1 },
 };

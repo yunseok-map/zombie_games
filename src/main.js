@@ -46,6 +46,13 @@ async function begin() {
   await game.start();     // 사용자 클릭 안에서 오디오를 초기화해야 한다
 }
 
+/** 사망 화면에서. start() 는 에셋 프리로드까지 다시 하므로 두 번째부터는 restart 만 부른다 */
+function beginFrom(fromCheckpoint) {
+  over.classList.add('hide');
+  pause.classList.add('hide');
+  game.restart(fromCheckpoint);
+}
+
 // 크레딧 — 외부 에셋이 CC Attribution 계열이라 제작자 표기가 의무다 (ASSETS.md §4-B)
 const credits = document.getElementById('credits');
 document.getElementById('btn-credits').addEventListener('click', () => {
@@ -58,7 +65,9 @@ document.getElementById('btn-credits-back').addEventListener('click', () => {
 });
 
 document.getElementById('btn-start').addEventListener('click', begin);
-document.getElementById('btn-retry').addEventListener('click', begin);
+// 사망 후 — 마지막으로 도달한 구역부터가 기본이다. 5구역을 매번 다시 걷게 하면 끝을 못 본다
+document.getElementById('btn-retry').addEventListener('click', () => beginFrom(true));
+document.getElementById('btn-restart').addEventListener('click', () => beginFrom(false));
 document.getElementById('btn-resume').addEventListener('click', () => game.resume());
 
 // 개발 중 디버그: 콘솔에서 game 접근

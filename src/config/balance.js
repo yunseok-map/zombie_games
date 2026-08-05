@@ -288,6 +288,21 @@ export const PERF = {
   adaptStep: 0.15,         // 한 번에 조정하는 배율
 };
 
+/**
+ * 체크포인트 (core/Game.js).
+ * 구역이 다섯이고 한 판이 20분 가까이 되는데 죽을 때마다 1구역부터면,
+ * **끝을 보는 사람이 거의 없다.** 심사자는 더더욱 그렇다.
+ * 공포는 "죽으면 손해가 크다"에서 오지 "20분을 다시 걷는다"에서 오지 않는다.
+ */
+export const CHECKPOINT = {
+  enabled: true,
+  // 구역에 들어설 때의 상태로 되돌린다. 다만 빈사로 들어왔다면 그대로 되돌릴 수 없다 —
+  // 그러면 죽고 다시 죽는 고리에 갇힌다. 아래 값까지는 올려 준다.
+  minHp: 55,
+  minBattery: 45,
+  minAmmo: 12,        // 권총 예비탄. 0 이면 사건 구간이 통째로 막힌다
+};
+
 export const FX = {
   fogColor: 0x05070a,
   fogDensity: 0.055,       // 실내 기본 (구역별로 StageLoader 가 덮어씀)

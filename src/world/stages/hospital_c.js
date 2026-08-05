@@ -22,6 +22,7 @@ const WARD_Z = [10, 20, 30, 40];   // 병실 중심 z — 좌우 대칭
 export const meta = {
   id: 'hospital_c',
   label: '2F 병동',
+  objective: '병실의 무전기 4대를 켜라',
   // B1 보다는 밝지만 여전히 어둡다. 점멸이 주인공이라 기본 조도를 낮게 둔다.
   mood: { fogDensity: 0.055, fogColor: 0x060709, ambientIntensity: 0.035 },
   typeWeights: { shambler: 4, listener: 2, crawler: 2 },
@@ -173,10 +174,13 @@ export function build(ctx) {
     radios++;
     if (radios < W.radioCount) {
       triggerWave(W.waveOnRadio);          // 소리가 났다. 대가는 즉시 치른다
+      // 몇 개 남았는지는 계속 보여야 한다. 힌트로만 띄우면 놓친 순간 헤맨다
+      bus.emit(EV.OBJECTIVE, { text: `무전기 ${radios}/${W.radioCount} 켜짐 — 남은 병실을 찾아라` });
       return `무전 ${radios}/${W.radioCount} — 응답 없음. 소리가 났다`;
     }
     setLights('pulse', 1.3);
     triggerWave(W.waveOnComplete);
+    bus.emit(EV.OBJECTIVE, { text: '계단실이 열렸다 — 위층으로' });
     bus.emit(EV.HINT, { text: '계단실 잠금 해제 — 위층으로', duration: 5 });
     return '마지막 무전 — 계단실이 열렸다';
   };
