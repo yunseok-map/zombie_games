@@ -68,6 +68,8 @@ export const WEAPONS = {
   },
   radio: {
     id: 'radio', label: '라디오', type: 'throw', slot: 3,
+    // 개수가 있어야 도구가 된다. 무한이면 이것 하나로 게임 전체를 우회할 수 있다
+    charges: 3,
     damage: 0, cooldown: 1.0, radius: 0, fuse: 0.6,
     lure: true, lureRadius: 30, lureDuration: 12,   // 좀비를 유인한다
     noise: 'interact', viewColor: 0x554e46, viewScale: [0.16, 0.1, 0.08],

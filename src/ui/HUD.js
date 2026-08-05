@@ -74,11 +74,13 @@ export class HUD {
   show() { this.root.classList.add('on'); }
   hide() { this.root.classList.remove('on'); }
 
-  setAmmo({ label, mag, reserve, melee }) {
+  setAmmo({ label, mag, reserve, melee, throwable }) {
     this.ammoLabel.textContent = label;
-    this.ammoNum.innerHTML = melee ? '∞' : `${mag}<small> / ${reserve}</small>`;
-    // 탄창이 바닥나 가면 숫자가 붉어진다 — 재장전 타이밍을 눈으로 알 수 있어야 한다
-    document.getElementById('ammo')?.classList.toggle('low', !melee && mag <= 3);
+    // 근접만 ∞. 투척물은 예비탄이 없으니 개수 하나만 — "12 / 0" 은 재장전이 있는 것처럼 읽힌다
+    this.ammoNum.innerHTML = melee ? '∞'
+      : throwable ? `${mag}` : `${mag}<small> / ${reserve}</small>`;
+    // 바닥나 가면 숫자가 붉어진다 — 재장전(또는 아껴 쓸) 타이밍을 눈으로 알 수 있어야 한다
+    document.getElementById('ammo')?.classList.toggle('low', !melee && mag <= (throwable ? 1 : 3));
   }
 
   showHint(text, duration = 2) {

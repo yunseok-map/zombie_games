@@ -223,6 +223,26 @@ export class StageLoader {
     });
   }
 
+  /**
+   * 바닥에 놓인 무기. 주우면 인벤토리에 들어간다.
+   * weapons.js 에 8종이 정의돼 있는데 시작 2종 말고는 얻을 방법이 없었다 —
+   * 정의만 있고 게임에 없으면 없는 것이다. 구역을 넘을 때마다 손에 쥔 것이 달라져야
+   * 앞으로 나아가는 맛이 난다.
+   */
+  _weaponPickup(x, z, id, label) {
+    const geo = new THREE.BoxGeometry(0.09, 0.09, 0.62);
+    const m = new THREE.Mesh(geo, this._itemMat());
+    m.position.set(x, 0.14, z);
+    m.rotation.set(0, this.scatter.rng() * 6.28, Math.PI / 2 * 0.06);
+    this.group.add(m);
+
+    this.interaction.add({
+      x, z, radius: 1.6, once: true, mesh: m,
+      prompt: () => `[E]  ${label} 줍기`,
+      onUse: ({ weapons }) => (weapons.pickUp(id) ? `${label} 획득` : null),
+    });
+  }
+
   /** 소품은 벽과 같은 맵을 쓰고 색만 다르게 — 재질이 늘어나도 텍스처는 안 늘어난다 */
   _propMat(color) {
     if (!this.propMats.has(color)) {
@@ -344,6 +364,9 @@ export class StageLoader {
        * 배터리를 찾으려면 어두운 방으로 들어가야 하고, 뒤지는 소리가 좀비를 부른다.
        * 결과는 고정 시드라 매 판 같다 (레벨이 흔들리면 안 된다).
        */
+      /** 바닥에 놓인 무기. id 는 config/weapons.js 의 키 */
+      addWeapon: (x, z, id, label) => this._weaponPickup(x, z, id, label),
+
       addSearchable: (x, z, label = '수납장') => {
         const roll = this.scatter.rng();
         const tot = LOOT.battery.weight + LOOT.bandage.weight + LOOT.ammo.weight + LOOT.empty.weight;

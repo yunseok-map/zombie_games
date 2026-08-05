@@ -34,7 +34,7 @@ export function surfaceAt(x, z) {
 
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
-          scatterDebris, addProp3D, addSign, addSearchable, addLever,
+          scatterDebris, addProp3D, addSign, addSearchable, addWeapon, addLever,
           triggerWave, setMood, setLights } = ctx;
 
   let _s = 90211;
@@ -138,6 +138,9 @@ export function build(ctx) {
   addProp3D('cart', machCx, 18, 0.5, { collide: [0.7, 0.5] });
   addSearchable(machCx, 17.5, '공구 카트');
   addSearchable(machCx + 2.0, 20.5, '부품 상자');
+  // 기계실 바닥의 쇠지렛대. 파이프보다 느리지만 한 방이 크고 기절이 길다 —
+  // 여기서부터 "한 마리씩 확실히 처리한다"는 선택지가 생긴다
+  addWeapon(machCx + 1.0, 22.6, 'crowbar', '쇠지렛대');
   addProp3D('extinguisher', ROOM_X - 0.22, 15, -Math.PI / 2, { collide: [0.3, 0.3] });
   scatterDebris(machCx, 17, ROOM_X - HALL_HALF - 1.5, 24, 0.34);
   addBlood(machCx, 21, 2.6, 'splatter');

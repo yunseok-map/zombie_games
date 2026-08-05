@@ -69,6 +69,10 @@ export class WeaponSystem {
     if (def?.type === 'gun' && !this.ammo[id]) {
       this.ammo[id] = { mag: def.magSize, reserve: def.magSize * 3 };
     }
+    // 투척물은 개수로 센다. reserve 는 안 쓴다 (재장전이 없다)
+    if (def?.type === 'throw' && !this.ammo[id]) {
+      this.ammo[id] = { mag: def.charges ?? 3, reserve: 0 };
+    }
   }
 
   get current() { return WEAPONS[this.inventory[this.index]]; }
@@ -226,7 +230,17 @@ export class WeaponSystem {
     const def = this.current;
     if (def.type === 'gun') this._fireGun(def);
     else if (def.type === 'melee') this._swingMelee(def);
-    else this._throw(def);
+    else {
+      // 투척은 개수가 있다. 무한이면 라디오 하나로 게임 전체를 우회할 수 있다 —
+      // 아껴 쓸지 지금 쓸지가 곧 이 무기의 재미다.
+      const a = this.ammo[def.id];
+      if (a && a.mag <= 0) {
+        bus.emit(EV.HINT, { text: `${def.label} 없음`, duration: 1.2 });
+        return;
+      }
+      if (a) { a.mag--; this._emitAmmo(); }
+      this._throw(def);
+    }
   }
 
   // ───────────────────────── 총기 ─────────────────────────
@@ -386,7 +400,9 @@ export class WeaponSystem {
       label: def.label,
       mag: a ? a.mag : null,
       reserve: a ? a.reserve : null,
-      melee: def.type !== 'gun',
+      // 근접만 ∞ 다. 투척물은 개수가 있으므로 숫자를 보여줘야 아껴 쓸지 판단할 수 있다
+      melee: def.type === 'melee',
+      throwable: def.type === 'throw',
     });
   }
 

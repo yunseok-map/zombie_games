@@ -32,7 +32,7 @@ export function surfaceAt() { return 'tile'; }
 
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
-          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable,
+          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable, addWeapon,
           addLever, addDoor, triggerWave, setMood, setLights } = ctx;
 
   let _s = 771013;
@@ -117,6 +117,9 @@ export function build(ctx) {
     addPropGLB('prop_sink', -ROOM_X + 0.5, cz + 3.4, Math.PI / 2, { collide: [0.6, 0.7] });
     addProp3D('cabinet', -ROOM_X + 0.6, cz - 3.6, Math.PI / 2, { collide: [0.7, 0.85] });
     addSearchable(-ROOM_X + 1.4, cz - 3.6, '기구 수납장');
+    // 소방도끼는 첫 수술실 앞 복도에만 하나 둔다. 근접의 최종 보상 —
+    // 55 피해라 배회체(60)를 두 방에 끝낸다. 대신 느리고 기절이 거의 없다
+    if (i === 0) addWeapon(HALL_HALF - 0.9, cz - 1.0, 'axe', '소방도끼');
 
     addBlood(orCx, cz + 1.2, 3.4, 'pool');
     addBlood(orCx - 1.4, cz - 1.8, 2.2, 'splatter');

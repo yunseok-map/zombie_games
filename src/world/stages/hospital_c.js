@@ -36,7 +36,7 @@ export function surfaceAt(x, z) {
 
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
-          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable,
+          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable, addWeapon,
           addLever, addDoor, triggerWave, setLights } = ctx;
 
   let _s = 40517;
@@ -162,6 +162,9 @@ export function build(ctx) {
   addPropGLB('prop_reception_desk', -0.9, 24.5, 0.15, { collide: [3.0, 1.0] });
   addPropGLB('prop_computer_cart', 1.4, 25.6, -0.5, { collide: [0.6, 0.8] });
   addSearchable(-0.9, 23.4, '간호사 스테이션');
+  // 간호사 스테이션의 라디오. 던지면 좀비가 그쪽으로 몰린다 —
+  // 이 구역까지는 싸우거나 도망치는 것뿐이었다. 여기서 **피해 가는 선택지**가 생긴다.
+  addWeapon(1.4, 23.0, 'radio', '라디오');
   addPropGLB('prop_firstaid', 1.2, 23.6, 0.4, { y: 0.0 });
   addSign(15, -HALL_HALF + 0.11, 1.9, 24.5, Math.PI / 2, 0.5, 0.2);
 
