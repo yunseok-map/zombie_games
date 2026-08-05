@@ -71,6 +71,17 @@ export function build(ctx) {
       const seg = dz - 0.85 - z;
       if (seg > 0.1) addWall(sx * HALL_HALF, z + seg / 2, WALL_T, seg);
       addProp3D('doorFrame', sx * HALL_HALF, dz, Math.PI / 2, { args: [1.7, 2.1, 0.3] });
+      // 문짝 — 틀만 있으면 구멍처럼 보인다. 방마다 다른 각도로 열어 두고
+      // 일부는 아예 뜯겨 바닥에 있다. 열린 각도가 다르면 복도가 반복으로 안 느껴진다.
+      const kind = (WARD_Z.indexOf(dz) + (sx > 0 ? 2 : 0)) % 4;
+      if (kind === 3) {
+        addProp3D('doorFallen', sx * (HALL_HALF - 0.8), dz + 0.25,
+          Math.PI / 2 + sx * 0.4, { args: [1.62, 2.05] });
+      } else {
+        const ajar = [1.9, 1.25, 0.65][kind];
+        addProp3D('doorPanel', sx * HALL_HALF, dz + 0.85, Math.PI / 2 + sx * ajar,
+          { args: [1.65, 2.05] });
+      }
       z = dz + 0.85;
     }
     const last = HALL_Z1 - z;

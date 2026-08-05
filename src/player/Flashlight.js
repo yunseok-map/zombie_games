@@ -24,7 +24,7 @@ export class Flashlight {
       1.1
     );
     this.light.castShadow = true;
-    this.light.shadow.mapSize.set(1024, 1024);
+    this.light.shadow.mapSize.set(FLASHLIGHT.shadowMapSize, FLASHLIGHT.shadowMapSize);
     this.light.shadow.camera.near = 0.3;
     this.light.shadow.camera.far = FLASHLIGHT.range;
     this.light.shadow.bias = -0.0016;

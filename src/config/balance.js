@@ -35,6 +35,8 @@ export const FLASHLIGHT = {
   angleDeg: 26,
   penumbra: 0.55,
   intensity: 26,       // three.js r155+ 는 물리 단위(칸델라)라 값이 커야 한다. 3.2 는 2m 앞도 못 비췄다
+  shadowMapSize: 2048, // 씬에서 그림자를 만드는 유일한 광원이라 여기에 예산을 몰아준다.
+                       // 1024 면 소품 그림자 가장자리가 계단처럼 끊겨 보인다
 
   color: 0xfff0d0,
   flickerBelow: 20,    // 이 % 미만이면 깜빡임

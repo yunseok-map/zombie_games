@@ -277,6 +277,8 @@ function checkStage(game, idx) {
 export function runQA(game) {
   const all = [];
   for (let i = 0; i < game.stages.length; i++) all.push(checkStage(game, i));
+  // 마지막 검사가 unload 로 끝나므로 그대로 두면 화면이 비어 버린다. 첫 구역으로 되돌린다.
+  game.stageLoader.load(game.stages[0]);
   return all;
 }
 

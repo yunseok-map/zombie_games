@@ -67,6 +67,9 @@ export function build(ctx) {
       const seg = dz - 0.9 - z;
       if (seg > 0.1) addWall(-HALL_HALF, z + seg / 2, WALL_T, seg);
       addProp3D('doorFrame', -HALL_HALF, dz, Math.PI / 2, { args: [1.8, 2.1, 0.3] });
+      // 수술실 문은 한쪽만 크게 열려 있다 — 안이 반쯤 보여서 들어가기 전에 망설이게 된다
+      addProp3D('doorPanel', -HALL_HALF, dz + 0.9, Math.PI / 2 - 1.55,
+        { args: [1.72, 2.05] });
       z = dz + 0.9;
     }
     const last = HALL_Z1 - z;
