@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZOMBIE, AI, KNOCK, CORPSE } from '../config/balance.js';
+import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 
@@ -353,6 +353,32 @@ export class Zombie {
 
     this._syncMesh(dt);
     this._updateAnim(dt);
+    this._footsteps(dt, dist);
+  }
+
+  /**
+   * 발소리. 손전등이 닿지 않는 곳에서 무언가 걸어오는 소리가 나는 것이
+   * 이 게임에서 가장 값싼 공포다. 3D 오디오라 방향과 거리가 그대로 들린다.
+   */
+  _footsteps(dt, dist) {
+    if (this.state === 'DEAD' || this._moveSpeed < 0.15) return;
+    // 멀리 있는 개체까지 다 내면 14마리분이 겹쳐서 뭉갠다 — 정보가 오히려 사라진다
+    if (dist > ZOMBIE_STEP.maxDistance) { this._stepAccum = 0; return; }
+
+    this._stepAccum = (this._stepAccum ?? 0) + this._moveSpeed * dt;
+    const stride = ZOMBIE_STEP.stride * (this.def.crawler ? 0.7 : 1);
+    if (this._stepAccum < stride) return;
+    this._stepAccum = 0;
+
+    const n = 1 + ((Math.random() * 4) | 0);
+    bus.emit(EV.SFX, {
+      name: `footstep_concrete_${n}`,
+      x: this.pos.x, z: this.pos.z,
+      volume: ZOMBIE_STEP.volume,
+      // 개체마다 조금씩 다르게 — 같은 속도로 밟으면 한 마리가 여러 번 밟는 것처럼 들린다
+      rate: (this.def.crawler ? ZOMBIE_STEP.crawlerRate : ZOMBIE_STEP.rate)
+        * (0.9 + Math.random() * 0.2),
+    });
   }
 
   _startChase() {
@@ -429,7 +455,7 @@ export class Zombie {
 
     if (this.attackTimer <= 0) {
       this.attackTimer = this.def.attackCooldown;
-      player.damage(this.def.damage);
+      player.damage(this.def.damage, this.pos);
       bus.emit(EV.SFX, { name: 'zombie_attack', x: this.pos.x, z: this.pos.z, volume: 1 });
     }
   }

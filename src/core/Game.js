@@ -3,7 +3,7 @@ import { Input } from './Input.js';
 import { Collision } from './Collision.js';
 import { AudioManager } from './AudioManager.js';
 import { bus, EV } from './EventBus.js';
-import { FLASHLIGHT, PLAYER } from '../config/balance.js';
+import { FLASHLIGHT, PLAYER, PERF, SHAKE } from '../config/balance.js';
 import { Atmosphere } from '../fx/Atmosphere.js';
 import { PostFX } from '../fx/PostFX.js';
 import { Impact } from '../fx/Impact.js';
@@ -40,7 +40,13 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({
       canvas, antialias: true, powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // 심사자 PC 를 고를 수 없다 — 해상도를 낮게 시작하고, 프레임을 보며 스스로 조정한다
+    this._dprCap = Math.min(window.devicePixelRatio || 1, PERF.pixelRatioMax);
+    this.renderer.setPixelRatio(this._dprCap);
+    this._frameAcc = 0; this._frameN = 0; this._adaptT = 0;
+    // 근접이 닿는 순간 세상이 잠깐 멈춘다 (SHAKE.hitStop)
+    this._hitStop = 0;
+    bus.on(EV.MELEE_HIT, () => { this._hitStop = SHAKE.hitStop; });
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(PLAYER.fov, 1, 0.1, 120);
@@ -226,9 +232,40 @@ export class Game {
     return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   }
 
+  /**
+   * 적응형 해상도 — 프레임이 예산을 넘으면 렌더 배율을 낮추고, 여유가 생기면 되돌린다.
+   * 관찰 창(adaptWindow) 없이 매 프레임 판단하면 해상도가 출렁여서 더 거슬린다.
+   */
+  _adaptResolution(dt) {
+    if (!PERF.adaptive) return;
+    this._frameAcc += dt * 1000; this._frameN++;
+    this._adaptT += dt;
+    if (this._adaptT < PERF.adaptWindow) return;
+
+    const avg = this._frameAcc / Math.max(1, this._frameN);
+    this._frameAcc = 0; this._frameN = 0; this._adaptT = 0;
+
+    const hard = Math.min(window.devicePixelRatio || 1, PERF.pixelRatioMax);
+    let next = this._dprCap;
+    if (avg > PERF.frameBudgetMs) next = Math.max(PERF.pixelRatioMin, next - PERF.adaptStep);
+    else if (avg < PERF.frameGoodMs) next = Math.min(hard, next + PERF.adaptStep);
+
+    if (Math.abs(next - this._dprCap) > 0.01) {
+      this._dprCap = next;
+      this.renderer.setPixelRatio(next);
+      // 후처리 버퍼도 같이 다시 잡아야 한다 — 안 하면 합성 결과가 늘어나 뿌옇게 보인다
+      this.resize();
+    }
+  }
+
   _loop() {
     requestAnimationFrame(this._loop);
-    const dt = Math.min(0.05, this.clock.getDelta());   // 프레임 급락 시 물리 폭주 방지
+    let dt = Math.min(0.05, this.clock.getDelta());   // 프레임 급락 시 물리 폭주 방지
+    this._adaptResolution(dt);
+
+    // 히트스톱 — 근접이 몸에 닿는 순간 세상이 잠깐 멈춘다. 근접 타격감의 절반이 이것이다.
+    // dt 를 0 으로 만들어 애니메이션까지 같이 멈춰야 "걸렸다"가 된다.
+    if (this._hitStop > 0) { this._hitStop -= dt; dt = 0; }
 
     if (this.state === 'PLAYING') {
       this.elapsed += dt;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, PLAYER, NOISE, INJURY } from '../config/balance.js';
+import { WORLD, PLAYER, NOISE, INJURY, SHAKE } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
 /**
@@ -29,7 +29,18 @@ export class Player {
     this._stepAccum = 0;
     this._invuln = 0;
     this._exhausted = false;   // 스태미나 0 찍으면 일정선까지 회복해야 다시 달림
+
+    // 화면 흔들림 — trauma 를 쌓고 제곱해서 쓴다. 약할 때는 티가 안 나고 셀 때 확 온다.
+    // 흔들림이 없으면 무엇을 때리든 화면이 가만히 있어서 전부 물렁하게 느껴진다.
+    this._trauma = 0;
+    this._shakeT = 0;
+    bus.on(EV.WEAPON_FIRED, ({ weapon }) => {
+      if (weapon?.type === 'gun') this.addShake(SHAKE.gunshot);
+    });
+    bus.on(EV.MELEE_HIT, () => this.addShake(SHAKE.melee));
   }
+
+  addShake(v) { this._trauma = Math.min(1, this._trauma + v); }
 
   spawn(x, z, yaw = 0) {
     this.pos.set(x, 0, z);
@@ -210,25 +221,60 @@ export class Player {
       this.camera.updateProjectionMatrix();
     }
 
+    // ── 화면 흔들림 ──
+    this._trauma = Math.max(0, this._trauma - SHAKE.decay * dt);
+    this._shakeT += dt;
+    let shX = 0, shY = 0, shPitch = 0, shRoll = 0;
+    if (this._trauma > 0.001) {
+      const tr = this._trauma * this._trauma;   // 제곱 — 약하면 티가 안 나고 세면 확 온다
+      const s = this._shakeT * SHAKE.freq;
+      // 주파수를 여러 개 겹친다. 단일 sin 은 규칙적이라 기계가 진동하는 것처럼 보인다
+      const n1 = Math.sin(s) + Math.sin(s * 2.31 + 1.7) * 0.5;
+      const n2 = Math.sin(s * 1.63 + 0.9) + Math.sin(s * 3.07 + 2.4) * 0.5;
+      const n3 = Math.sin(s * 1.27 + 2.8);
+      shX = n1 * SHAKE.maxPos * tr;
+      shY = n2 * SHAKE.maxPos * tr;
+      shPitch = n2 * SHAKE.maxAngle * tr;
+      shRoll = n3 * SHAKE.maxAngle * tr;
+    }
+
     // 카메라의 좌우 흔들림은 몸 기준이라 yaw 로 월드에 돌려서 더한다
     const sn2 = Math.sin(this.yaw), cs = Math.cos(this.yaw);
+    const lateral = sway + shX;
     this.camera.position.set(
-      this.pos.x + sway * cs,
-      this.pos.y + this.eyeHeight + bob,
-      this.pos.z - sway * sn2,
+      this.pos.x + lateral * cs,
+      this.pos.y + this.eyeHeight + bob + shY,
+      this.pos.z - lateral * sn2,
     );
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch;
-    this.camera.rotation.z = this._roll;   // 옆걸음 + 부상
+    this.camera.rotation.x = this.pitch + shPitch;
+    this.camera.rotation.z = this._roll + shRoll;   // 옆걸음 + 부상 + 흔들림
   }
 
-  damage(amount) {
+  /**
+   * @param from 때린 쪽 위치 {x,z}. 주면 **어느 쪽에서 맞았는지** 화면에 표시된다.
+   *   어둠 속에서 뒤에서 맞으면 방향을 모른 채 죽는다 — 그건 공포가 아니라 억울함이다.
+   */
+  damage(amount, from = null) {
     if (!this.alive || this._invuln > 0) return;
     this.hp = Math.max(0, this.hp - amount);
     this._invuln = PLAYER.invulnAfterHit;
+    this.addShake(SHAKE.hurt);
     bus.emit(EV.SFX, { name: 'player_hurt', volume: 0.8 });
-    bus.emit(EV.PLAYER_DAMAGED, { hp: this.hp, amount });
+    // 화면 기준 각도로 바꿔서 넘긴다 — HUD 는 월드 좌표를 모른다.
+    // 0 = 정면, +는 오른쪽. 몸이 돌면 표시도 같이 돌아야 한다
+    // 각도 빼기로 구하면 부호를 틀리기 쉽다. 이 파일 위쪽(_move)에 적힌 기저를 그대로 쓴다 —
+    //   전방 (-sin, -cos) · 우측 (cos, -sin)
+    let dir = null;
+    if (from) {
+      const dx = from.x - this.pos.x, dz = from.z - this.pos.z;
+      const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
+      const f = dx * -s + dz * -c;   // 앞쪽 성분
+      const r = dx * c + dz * -s;    // 오른쪽 성분
+      dir = Math.atan2(r, f);        // 0 = 정면, + = 오른쪽
+    }
+    bus.emit(EV.PLAYER_DAMAGED, { hp: this.hp, amount, dir });
     if (this.hp <= 0) {
       this.alive = false;
       bus.emit(EV.PLAYER_DIED, {});

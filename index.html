@@ -74,8 +74,16 @@
     padding:5px 14px; background:rgba(6,8,7,.45); }
   #hint.on { opacity:.82; }
 
-  #dmg { position:fixed; inset:0; pointer-events:none; opacity:0;
+  #dmg { position:fixed; inset:0; pointer-events:none; opacity:0; overflow:hidden;
     box-shadow:inset 0 0 170px 44px rgba(120,10,10,.85); transition:opacity .35s; }
+  /* 어디서 맞았는지 — 어둠 속에서 뒤에서 맞으면 방향을 모른 채 죽는다.
+     전방위 붉은 테두리는 약하게 남기고, 맞은 쪽만 진하게 물든다.
+     --dir 은 화면 기준 각도(0deg = 정면, +가 오른쪽)를 HUD 가 넣어 준다. */
+  #dmg.dir { box-shadow:inset 0 0 120px 30px rgba(120,10,10,.4); }
+  #dmg.dir::after { content:''; position:absolute; inset:-32%;
+    transform:rotate(var(--dir,0deg));
+    background:radial-gradient(ellipse 44% 25% at 50% 0%,
+      rgba(158,16,13,.95) 0%, rgba(140,12,10,.42) 44%, transparent 74%); }
 
   /* ---------- Screens ---------- */
   .screen { position:fixed; inset:0; display:flex; flex-direction:column;

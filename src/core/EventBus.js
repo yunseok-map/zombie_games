@@ -32,6 +32,7 @@ export const EV = {
   PLAYER_DAMAGED: 'player:damaged',
   PLAYER_DIED: 'player:died',
   ZOMBIE_HIT: 'zombie:hit',
+  MELEE_HIT: 'melee:hit',         // 근접이 **닿았을 때만**. 헛스윙에는 안 온다 (흔들림·히트스톱용)
   ZOMBIE_DIED: 'zombie:died',
   WEAPON_FIRED: 'weapon:fired',
   WEAPON_CHANGED: 'weapon:changed',

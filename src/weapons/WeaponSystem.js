@@ -291,6 +291,9 @@ export class WeaponSystem {
       hitAny = true;
     }
 
+    // 닿았을 때만 화면이 걸린다. 헛스윙에도 흔들리면 타격의 의미가 사라진다
+    if (hitAny) bus.emit(EV.MELEE_HIT, { x: this.player.pos.x, z: this.player.pos.z });
+
     // 타격음은 Zombie.hit() 이 부위·무기별로 낸다 (여기서 또 내면 겹친다)
     bus.emit(EV.NOISE, {
       x: this.player.pos.x, z: this.player.pos.z,

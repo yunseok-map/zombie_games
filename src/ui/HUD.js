@@ -63,7 +63,7 @@ export class HUD {
     this.battBar = document.getElementById('batt');
 
     bus.on(EV.HINT, ({ text, duration = 2 }) => this.showHint(text, duration));
-    bus.on(EV.PLAYER_DAMAGED, () => this.flashDamage());
+    bus.on(EV.PLAYER_DAMAGED, ({ dir }) => this.flashDamage(dir));
     bus.on(EV.AMMO_CHANGED, (a) => this.setAmmo(a));
     bus.on(EV.WEAPON_CHANGED, ({ weapon }) => { this.ammoLabel.textContent = weapon.label; });
   }
@@ -120,9 +120,17 @@ export class HUD {
       + `속도 ${s.player.speed.toFixed(2)} m/s   좀비 ${s.zombies}`;
   }
 
-  flashDamage() {
+  /**
+   * @param dir 화면 기준 피격 방향(rad). 0 = 정면, +가 오른쪽. null 이면 방향 없이 전방위.
+   *   어둠 속에서 뒤에서 맞으면 방향을 모른 채 죽는다 — 그건 공포가 아니라 억울함이다.
+   */
+  flashDamage(dir = null) {
     this.dmg.style.opacity = '1';
     this._dmgTimer = 0.4;
+    if (dir == null) { this.dmg.style.removeProperty('--dir'); this.dmg.classList.remove('dir'); return; }
+    // CSS 는 화면 위쪽이 0deg 라 라디안을 도로 바꿔서 그대로 넘긴다
+    this.dmg.style.setProperty('--dir', `${(dir * 180 / Math.PI).toFixed(0)}deg`);
+    this.dmg.classList.add('dir');
   }
 
   _setNum(key, v) {
