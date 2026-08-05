@@ -107,6 +107,12 @@ export function build(ctx) {
   }
   addLight(0, 3.2, PAD_Z, 'pulse', 0x8a3a2a);
   addSpawn(-7, PAD_Z); addSpawn(7, PAD_Z); addSpawn(0, PAD_Z + 6);
+  // 위 3곳은 패드 중심에서 6~7m 라 DIRECTOR.spawnMinDistance(12) 에 걸려 **한 번도 안 쓰인다.**
+  // 그래서 패드에 서면 쓸 수 있는 지점이 남쪽 2곳뿐이었고, 마지막 웨이브가 일렬로 들어왔다.
+  // 둘레 13~15m 에 링을 둘러 사방에서 올라오게 한다 — 이 구역의 공포는 "도망칠 곳이 없다"다.
+  addSpawn(-13, PAD_Z); addSpawn(13, PAD_Z);
+  addSpawn(-11.5, EXIT_Z); addSpawn(11.5, EXIT_Z);
+  addSpawn(2, PAD_Z - 13);
 
   // ───────── 탈출 지점 (아직 열리지 않는다) ─────────
   addProp3D('handrail', 0, EXIT_Z, 6, true);
