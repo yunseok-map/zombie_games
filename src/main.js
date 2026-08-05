@@ -18,7 +18,22 @@ const loading = document.getElementById('loading');
 // 소품까지 여기서 받는 이유: 시작 화면 배경에 실제 구역을 띄우기 때문이다.
 const startBtn = document.getElementById('btn-start');
 startBtn.disabled = true;
-Promise.all([preloadZombieModel(), preloadWeaponModels(), propModels.preload()]).finally(() => {
+// 진행 막대 — 글자만 있으면 멈춘 건지 받는 중인지 알 수 없다.
+// 각 단계가 끝날 때마다 채운다(파일 단위 진행률은 로더가 안 알려준다).
+const fill = document.getElementById('load-fill');
+const what = document.getElementById('load-what');
+const jobs = [
+  ['감염체 자료', preloadZombieModel()],
+  ['장비 자료', preloadWeaponModels()],
+  ['시설 자료', propModels.preload()],
+];
+let done = 0;
+const step = (label) => {
+  done++;
+  if (fill) fill.style.width = `${Math.round((done / jobs.length) * 100)}%`;
+  if (what) what.textContent = `${label} 확보 완료`;
+};
+Promise.all(jobs.map(([label, p]) => p.finally(() => step(label)))).finally(() => {
   loading.classList.add('hide');
   startBtn.disabled = false;
   game.startAttract();          // 타이틀 뒤에서 복도가 살아 움직인다

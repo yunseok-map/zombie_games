@@ -6,6 +6,7 @@ import { bus, EV } from './EventBus.js';
 import { FLASHLIGHT } from '../config/balance.js';
 import { Atmosphere } from '../fx/Atmosphere.js';
 import { PostFX } from '../fx/PostFX.js';
+import { Impact } from '../fx/Impact.js';
 import { Player } from '../player/Player.js';
 import { Flashlight } from '../player/Flashlight.js';
 import { WeaponSystem } from '../weapons/WeaponSystem.js';
@@ -54,6 +55,8 @@ export class Game {
       this.collision.segmentBlocked(this.player.pos.x, this.player.pos.z, x, z);
     this.atmosphere = new Atmosphere(this.scene, this.renderer);
     this.post = new PostFX(this.renderer, this.scene, this.camera);
+    // 피격 시 튀는 피. 씬에 상주하며 이벤트로 터진다 (드로우콜 1)
+    this.impact = new Impact(this.scene);
     this.hud = new HUD();
 
     this.player = new Player(this.camera, this.input, this.collision);
@@ -241,6 +244,7 @@ export class Game {
       });
       this.director.update(dt);
       this.atmosphere.update(dt);
+      this.impact.update(dt);
 
       // 상호작용 — 사거리 안 대상이 있으면 안내를 띄우고, E 로 사용한다
       this.interaction.update(dt);

@@ -268,6 +268,14 @@ export class Zombie {
       : stun >= 0.8 ? `hit_blunt_${1 + ((Math.random() * 2) | 0)}`
         : `hit_flesh_${1 + ((Math.random() * 2) | 0)}`;
     bus.emit(EV.SFX, { name: impact, x: this.pos.x, z: this.pos.z, volume: 0.95 });
+    // 맞은 자리에서 피가 튄다. 머리를 맞았으면 더 높은 곳에서, 더 많이.
+    bus.emit(EV.ZOMBIE_HIT, {
+      x: this.pos.x,
+      y: this.def.height * (headshot ? 0.86 : 0.62),
+      z: this.pos.z,
+      nx: kx, nz: kz,
+      power: headshot ? 1.8 : 1,
+    });
 
     if (this.hp <= 0) {
       this.state = 'DEAD';

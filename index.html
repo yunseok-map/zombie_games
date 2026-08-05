@@ -147,8 +147,18 @@
   .credit-body p { font-size:12px; line-height:1.95; color:rgba(200,204,198,.62);
     letter-spacing:.02em; }
   .credit-body .note { margin-top:26px; font-size:11px; color:rgba(200,204,198,.3); }
-  #loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-    background:#050605; z-index:20; font-size:11px; letter-spacing:.4em; opacity:.4; }
+  /* 로딩 — 글자만 있으면 멈춘 건지 받는 중인지 알 수 없다. 진행 막대와 지금 뭘
+     받는지를 같이 보여준다. */
+  #loading { position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px;
+    background:#050605; z-index:20; font-family:var(--ui); }
+  #loading.hide { display:none; }
+  #loading .l-title { font-size:13px; letter-spacing:.46em; text-indent:.46em; opacity:.42; }
+  #loading .l-bar { width:min(300px,54vw); height:2px; background:rgba(200,204,198,.12); }
+  #loading .l-bar > i { display:block; height:100%; width:0%; background:#7b8a73;
+    transition:width .3s ease-out; }
+  #loading .l-what { font-family:var(--body); font-size:11px; letter-spacing:.14em;
+    opacity:.3; }
   #loading.hide { display:none; }
 </style>
 </head>
@@ -224,7 +234,11 @@
   <button id="btn-resume">계속</button>
 </div>
 
-<div id="loading">LOADING</div>
+<div id="loading">
+  <div class="l-title">QUARANTINE No.3</div>
+  <div class="l-bar"><i id="load-fill"></i></div>
+  <div class="l-what" id="load-what">시설 자료 확보 중</div>
+</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>

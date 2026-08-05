@@ -31,6 +31,7 @@ export const EV = {
   NOISE: 'noise',                 // { x, z, radius, source }
   PLAYER_DAMAGED: 'player:damaged',
   PLAYER_DIED: 'player:died',
+  ZOMBIE_HIT: 'zombie:hit',
   ZOMBIE_DIED: 'zombie:died',
   WEAPON_FIRED: 'weapon:fired',
   WEAPON_CHANGED: 'weapon:changed',
