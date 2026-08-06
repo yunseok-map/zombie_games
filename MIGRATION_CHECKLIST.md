@@ -177,26 +177,21 @@ Compress-Archive -Path . -DestinationPath C:\Users\A\Desktop\games_zombie_full.z
       → Higgsfield · Gmail · Google Drive · Calendar 커넥터는 **계정에 붙어 있어** 그대로 쓸 수 있다
 
 ### 수동으로 옮겨야 한다
-로컬 설정은 계정이 아니라 **이 PC 에** 들어 있다. 아래를 통째로 복사한다
-(zip 으로 **약 10MB** — 실제로 묶어서 확인한 값이다).
+로컬 설정은 계정이 아니라 **이 PC 에** 들어 있다.
 
-- [ ] 지금 노트북에서 묶기
+- [ ] **`바탕화면\claude_config.zip` (9.9MB) 를 새 노트북으로 옮긴다** — 이미 만들어 뒀다
+      담긴 것: `skills`(9개) · `plugins`(lean) · `settings.json` · `settings.local.json`(훅) ·
+      `memory`(7개) · `READ_ME_먼저.txt` · **`install.ps1`**
+      *API 키 같은 비밀값은 확인하고 뺐다*
+- [ ] 새 노트북에 **Claude Code 를 먼저 설치하고 한 번 로그인**한다
+      *`~/.claude` 폴더가 생겨 있어야 설치 스크립트가 돈다*
+- [ ] zip 을 아무 데나 풀고 그 안에서
       ```powershell
-      $src = "$env:USERPROFILE\.claude"
-      $dst = "$env:USERPROFILE\Desktop\claude_config"
-      New-Item -ItemType Directory -Force $dst | Out-Null
-      Copy-Item "$src\skills"              $dst -Recurse -Force   # 스킬 9개 (impeccable 등)
-      Copy-Item "$src\plugins"             $dst -Recurse -Force   # lean 플러그인
-      Copy-Item "$src\settings.json"       $dst -Force            # 모델·상태줄·플러그인 활성화
-      Copy-Item "$src\settings.local.json" $dst -Force            # 권한 + 훅(디자인 검사기)
-      Copy-Item "$src\projects\C--Users-A\memory" "$dst\memory" -Recurse -Force  # 프로젝트 기억
-      Compress-Archive -Path "$dst\*" -DestinationPath "$env:USERPROFILE\Desktop\claude_config.zip" -Force
+      .\install.ps1
       ```
-- [ ] 새 노트북에서 풀기 — `skills` · `plugins` · `settings*.json` 은 `%USERPROFILE%\.claude\` 아래로
-- [ ] **`memory` 폴더 이름을 새 PC 경로에 맞춰 바꾼다**
-      `~/.claude/projects/C--Users-<사용자명>/memory/`
-      *폴더 이름이 작업 경로에서 나온다. 지금은 `C--Users-A` 인데 사용자명이 다르면 안 맞는다*
-- [ ] **Chrome 확장 `claude-in-chrome` 은 새로 설치해야 한다**
+      *기존 설정이 있으면 `_backup-<날짜>` 로 백업한 뒤 덮어쓴다.*
+      *`memory` 폴더 이름은 **그 PC 의 홈 경로에서 자동으로 만든다** — 사용자명이 달라도 맞는다*
+- [ ] **Chrome 확장 `claude-in-chrome` 은 새로 설치해야 한다** (이것만 자동이 안 된다)
       새 노트북 크롬에 확장을 깔고, `localhost` 에 대한 **사이트 권한을 허용**한다
       *안 하면 브라우저로 게임을 띄워 검사하는 작업이 안 된다*
 
