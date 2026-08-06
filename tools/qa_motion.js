@@ -25,6 +25,17 @@ const DT = 1 / 60;
 const TOL_BELOW = -0.04;
 const TOL_ABOVE = 0.28;
 
+/**
+ * 넉백으로 몸이 젖혀질 때(KNOCK.bend) 발이 내려가는 만큼은 빼고 본다.
+ *
+ * Zombie 는 피격 중 group 을 통째로 기울인다. 회전축이 발치라서, 축에서 옆으로
+ * 떨어진 뼈는 기운 각도만큼 바닥 아래로 내려간다 — 클립이나 리그 결함이 아니라
+ * **의도한 연출의 기하학적 결과**다. 고정 허용치로 재면 이걸 계속 결함이라고 외친다.
+ *   실측: 기울기 0.26rad 에서 4.1~4.8cm. sin(0.26) x 0.19m 과 일치한다.
+ * 그래서 상수를 늘리는 대신 **그 순간의 실제 기울기에서 허용치를 만든다.**
+ */
+const TILT_REACH = 0.22;   // 회전축에서 가장 낮은 뼈까지의 수평 거리(m). 실측 0.19 + 여유
+
 const _v = new THREE.Vector3();
 
 /**
@@ -79,6 +90,8 @@ function probe(game, typeKey, motion, setup, frames) {
       최저뼈Y: lo == null ? null : +lo.toFixed(3),
       groupY: +z.group.position.y.toFixed(3),
       이동속도: +(z._moveSpeed ?? 0).toFixed(2),
+      // 넉백으로 몸이 기운 정도. 이만큼은 발이 내려가는 게 정상이다 (TILT_REACH 참고)
+      기울기: +Math.hypot(Math.sin(z.group.rotation.x), Math.sin(z.group.rotation.z)).toFixed(4),
     };
     row.문제 = diagnose(row, motion, !!z.def?.modelYOffset);
     out.push(row);
@@ -97,11 +110,15 @@ function diagnose(row, motion, offsetTuned) {
     // 몸을 젖히는 동작(사망·비명)은 발뒤꿈치가 뜨는 것이 정상이다 — 좁게 잡으면
     // 클립이 의도한 자세를 계속 결함이라고 외친다
     const rearing = motion === '사망' || /^(scream|death)/.test(row.클립 ?? '');
-    const above = rearing ? TOL_ABOVE * 2.2
-      : offsetTuned ? TOL_ABOVE * 3.4
-        : TOL_ABOVE;
-    const below = offsetTuned ? TOL_BELOW * 4 : TOL_BELOW;
-    if (row.최저뼈Y < below) bad.push(`바닥뚫림 ${row.최저뼈Y}m`);
+    // 두 사유는 **겹칠 수 있다.** 예전에는 삼항으로 하나만 골라서, 오프셋을 맞춘
+    // 포복체가 비명 클립에 들어가는 순간 허용치가 0.952 → 0.616 으로 오히려 좁아졌다.
+    // 그래서 바닥에 잘 붙어 있는 자세(뼈 7.8cm)를 20회 중 2회꼴로 결함이라고 외쳤다.
+    // 둘 다 "더 떠도 정상"인 사유이므로 **느슨한 쪽**을 쓴다.
+    const above = TOL_ABOVE * Math.max(rearing ? 2.2 : 1, offsetTuned ? 3.4 : 1);
+    // 젖혀진 만큼 발이 내려가는 것은 정상이므로 그만큼 허용치를 내린다
+    const tiltSag = (row.기울기 ?? 0) * TILT_REACH;
+    const below = (offsetTuned ? TOL_BELOW * 4 : TOL_BELOW) - tiltSag;
+    if (row.최저뼈Y < below) bad.push(`바닥뚫림 ${row.최저뼈Y}m (기울기 보정 ${below.toFixed(3)})`);
     else if (row.최저뼈Y > above) bad.push(`공중 ${row.최저뼈Y}m`);
   }
   if (row.배속 != null) {

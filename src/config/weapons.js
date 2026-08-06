@@ -61,11 +61,9 @@ export const WEAPONS = {
   },
 
   // ─────────── 투척 ───────────
-  molotov: {
-    id: 'molotov', label: '화염병', type: 'throw', slot: 3,
-    damage: 18, cooldown: 1.2, radius: 3.2, fuse: 0.0, dot: 4.0,
-    noise: 'melee', viewColor: 0xd06a1f, viewScale: [0.1, 0.22, 0.1],
-  },
+  // 화염병은 컷했다. 정의·GLB·뷰 각도까지 있었지만 불꽃 연출과 화상(dot)이 구현되지
+  // 않아, 배치해 봐야 "9m 앞에서 보이지 않는 광역 피해"였다. 이름값을 못 하는 무기를
+  // 남기느니 뺀다. 되살리려면 WeaponSystem._throw() 에 투사체·불꽃·dot 부터 넣어라.
   radio: {
     id: 'radio', label: '라디오', type: 'throw', slot: 3,
     // 개수가 있어야 도구가 된다. 무한이면 이것 하나로 게임 전체를 우회할 수 있다

@@ -114,9 +114,18 @@ export class PostFX {
   }
 
   setSize(w, h) {
+    // **적응형 해상도가 여기까지 와야 한다.** EffectComposer 는 만들어질 때의
+    // pixelRatio 를 내부에 붙잡아 두고 setSize 에서 그 값을 곱한다. 이걸 갱신하지 않으면
+    // Game._adaptResolution 이 배율을 0.75 로 낮춰도 씬과 후처리는 계속 1.5 배로 그려진다 —
+    // 즉 약한 PC 를 위한 안전장치가 통째로 무효가 된다. (측정: 2379x1125 44.3ms vs 1600x900 18.3ms)
+    const r = this.renderer.getPixelRatio();
+    this.composer.setPixelRatio(r);
     this.composer.setSize(w, h);
-    this.bloom.setSize(w, h);
-    this.ao?.setSize(Math.round(w * POST.aoScale), Math.round(h * POST.aoScale));
+
+    // 블룸·AO 는 흐린 신호라 낮은 해상도로 구워도 티가 안 난다. 실제 렌더 해상도 기준으로 잡는다.
+    const ew = w * r, eh = h * r;
+    this.bloom.setSize(Math.round(ew * POST.bloomScale), Math.round(eh * POST.bloomScale));
+    this.ao?.setSize(Math.round(ew * POST.aoScale), Math.round(eh * POST.aoScale));
   }
 
   render(dt) {

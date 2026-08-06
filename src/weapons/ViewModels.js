@@ -3,14 +3,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
  * GLB 무기 — 절차적 모델보다 나은 것만 쓴다. 나머지는 아래 절차적 빌더가 담당한다.
- *   axe · molotov     : Kenney Survival Kit (CC0)
+ *   axe               : Kenney Survival Kit (CC0)
  *   pipe·pistol·crowbar : Sketchfab (CC BY 4.0 — 크레딧은 ASSETS.md §4-B)
  * Sketchfab 3종은 tools/import_props.py 가 실물 크기·중심 원점으로 맞춰 놨다.
  * 손에 드는 각도는 config/balance.js 의 WEAPON_VIEW 에서 조절한다.
  */
 const GLB_DIR = `${import.meta.env.BASE_URL}assets/models/weapons/`;
 const GLB_WEAPONS = {
-  axe: 'weapon_axe', molotov: 'weapon_molotov',
+  axe: 'weapon_axe',
   pipe: 'weapon_pipe', pistol: 'weapon_pistol', crowbar: 'weapon_crowbar',
 };
 const _glb = {};
@@ -134,16 +134,6 @@ export function nailgun() {
   ];
 }
 
-/** 화염병 */
-export function molotov() {
-  return [
-    P('glass', rod(0.036, 0.17, 0, 0, -0.11, 10)),
-    P('glass', rod(0.018, 0.07, 0, 0, -0.22, 8)),                  // 병목
-    P('grip', rod(0.014, 0.09, 0, 0, -0.28, 6)),                   // 심지
-    P('accent', rod(0.033, 0.05, 0, 0, -0.09, 10)),                // 라벨
-  ];
-}
-
 /** 라디오 — 소리로 유인한다 */
 export function radio() {
   return [
@@ -165,5 +155,5 @@ export function crowbar() {
 
 /** 무기 id → 빌더. 없으면 WeaponSystem 이 박스로 대체한다 */
 export const WEAPON_MODELS = {
-  pipe, axe, extinguisher, bonesaw, pistol, shotgun, nailgun, molotov, radio, crowbar,
+  pipe, axe, extinguisher, bonesaw, pistol, shotgun, nailgun, radio, crowbar,
 };

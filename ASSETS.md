@@ -386,7 +386,8 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 20초 루프 (API 최대 길이 22초) |
 | zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 **27클립**. 6k tri / 1024 WebP |
 | models/swing_curves.json | **Mixamo** (Adobe) 모션에서 추출 · 2026-08-05 | Free | 확인 필요 | 사람 근접공격 3종(Backhand / Downward / Shooting)에서 **오른손 궤적만** 뽑아 구운 곡선. 5.7KB. 메시·스켈레톤은 안 들어간다 — 손 위치·회전을 28표본으로 정규화한 숫자만 있다 (`tools/extract_swing.py`) |
-| weapon_axe.glb · weapon_molotov.glb | **Kenney** Survival Kit | CC0 | 가능 | 나머지 무기는 절차적 생성 (SF 광선총은 세계관에 안 맞아 제외) |
+| weapon_axe.glb | **Kenney** Survival Kit | CC0 | 가능 | 나머지 무기는 절차적 생성 (SF 광선총은 세계관에 안 맞아 제외). 원본이 참조하던 아틀라스 `Textures/colormap.png` 는 킷에 딸린 공용 팔레트라 저장소에 없다 — 매 로드마다 404 가 나서 **GLB 안의 텍스처 참조를 제거**했다. 색은 원래도 안 붙었고 `WEAPON_VIEW.colorMul`(0.12)이 그 민무늬 상태 기준이라 화면은 그대로다 |
+| ~~weapon_molotov.glb~~ | **Kenney** Survival Kit | CC0 | — | **미사용.** 화염병은 컷했다(불꽃·화상 미구현). 파일은 남겨 뒀지만 게임이 읽지 않는다 |
 | prop_{enamel,metal,fabric}_*.webp | ambientCG (PaintedMetal013 / Metal038 / Fabric045) | CC0 | 가능 | 소품 PBR |
 | ui/title_keyart.webp | **Higgsfield** (nano_banana_2) 생성 · 2026-08-05 | 유료 크레딧 | 가능 | 타이틀 배경 키아트. 1376×768 WebP q84, 59KB. 프롬프트에 `no real-world logos, no brand names, fictional signage only` 포함, 인물·글자 없음 (CLAUDE.md §2) |
 

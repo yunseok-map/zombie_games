@@ -41,8 +41,10 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({
       canvas, antialias: true, powerPreference: 'high-performance',
     });
-    // 심사자 PC 를 고를 수 없다 — 해상도를 낮게 시작하고, 프레임을 보며 스스로 조정한다
-    this._dprCap = Math.min(window.devicePixelRatio || 1, PERF.pixelRatioMax);
+    // 심사자 PC 를 고를 수 없다 — 해상도를 낮게 시작하고, 프레임을 보며 스스로 조정한다.
+    // 천장(pixelRatioMax)에서 시작하지 않는 이유: 약한 PC 가 첫 몇 초를 버벅이며 연다.
+    // 첫인상은 그걸로 끝나므로, 낮게 열고 여유가 확인되면 올린다.
+    this._dprCap = Math.min(PERF.pixelRatioStart, PERF.pixelRatioMax);
     this.renderer.setPixelRatio(this._dprCap);
     this._frameAcc = 0; this._frameN = 0; this._adaptT = 0;
     // 근접이 닿는 순간 세상이 잠깐 멈춘다 (SHAKE.hitStop)
@@ -281,17 +283,49 @@ export class Game {
    */
   _adaptResolution(dt) {
     if (!PERF.adaptive) return;
-    this._frameAcc += dt * 1000; this._frameN++;
     this._adaptT += dt;
+    // 스톨(셰이더 컴파일·GC)은 평균에서 뺀다 — 렌더가 무거워서 늦은 프레임이 아니다
+    const ms = dt * 1000;
+    if (ms <= PERF.stallMs) { this._frameAcc += ms; this._frameN++; }
     if (this._adaptT < PERF.adaptWindow) return;
 
-    const avg = this._frameAcc / Math.max(1, this._frameN);
+    // 창 전체가 스톨이었으면 판단할 근거가 없다. 다음 창을 기다린다
+    if (this._frameN < 5) { this._frameAcc = 0; this._frameN = 0; this._adaptT = 0; return; }
+
+    const avg = this._frameAcc / this._frameN;
     this._frameAcc = 0; this._frameN = 0; this._adaptT = 0;
 
-    const hard = Math.min(window.devicePixelRatio || 1, PERF.pixelRatioMax);
+    // 상한(PERF.fpsCap)이 걸려 있으면 프레임 간격은 상한에 딱 붙어 있게 된다.
+    // 그 값을 예산과 그대로 비교하면 "항상 초과"로 읽혀 해상도가 바닥까지 내려간다.
+    // 그래서 상한이 있을 때는 **상한을 못 지킬 때만** 낮추고, 되돌리지는 않는다 —
+    // 되돌리면 낮췄다 올렸다를 반복하며 버퍼를 다시 잡느라 그때마다 한 번씩 끊긴다.
+    const capMs = PERF.fpsCap ? 1000 / PERF.fpsCap : 0;
+    const budget = capMs ? capMs * 1.25 : PERF.frameBudgetMs;
+    const good = capMs ? -1 : PERF.frameGoodMs;
+
+    // 천장은 devicePixelRatio 로 자르지 않는다 — 넘겨서 그린 뒤 줄이는 것(수퍼샘플링)이
+    // 계단을 없애는 가장 좋은 방법이고, 그 여유가 있는 PC 에서는 그렇게 쓰는 편이 낫다.
     let next = this._dprCap;
-    if (avg > PERF.frameBudgetMs) next = Math.max(PERF.pixelRatioMin, next - PERF.adaptStep);
-    else if (avg < PERF.frameGoodMs) next = Math.min(hard, next + PERF.adaptStep);
+    if (avg > budget) {
+      // 많이 초과했으면 성큼, 조금이면 한 칸만 — 한 번에 크게 내리면 멀쩡한 배율을 지나친다
+      const step = avg > budget * PERF.adaptBadRatio ? PERF.adaptStep : PERF.adaptStepFine;
+      // 이 배율은 못 버텼다. 기억해 두고 다시는 여기까지 안 올라간다 → 오르내림이 멈춘다
+      this._dprFailed = Math.min(this._dprFailed ?? Infinity, this._dprCap);
+      next = Math.max(PERF.pixelRatioMin, next - step);
+      this._goodStreak = 0;
+    } else if (avg < good) {
+      // 올릴 때는 연속으로 여유가 확인될 때만, 그리고 한 칸씩
+      this._goodStreak = (this._goodStreak ?? 0) + 1;
+      if (this._goodStreak >= PERF.adaptUpAfter) {
+        // 못 버틴 배율 바로 아래까지만 올라간다
+        const ceiling = Math.min(PERF.pixelRatioMax,
+          (this._dprFailed ?? Infinity) - PERF.adaptStepUp);
+        next = Math.min(ceiling, next + PERF.adaptStepUp);
+        this._goodStreak = 0;
+      }
+    } else {
+      this._goodStreak = 0;
+    }
 
     if (Math.abs(next - this._dprCap) > 0.01) {
       this._dprCap = next;
@@ -303,6 +337,16 @@ export class Game {
 
   _loop() {
     requestAnimationFrame(this._loop);
+
+    // 프레임 상한 (PERF.fpsCap). 분위기를 위한 값이라 0 이면 주사율대로 간다.
+    // 여유(0.9배)를 두는 이유: 정확히 재면 vsync 를 한 번 놓쳐서 60 을 걸었는데
+    // 30 으로 떨어지는 일이 생긴다.
+    if (PERF.fpsCap) {
+      const now = performance.now();
+      if (now - (this._lastFrameAt ?? 0) < (1000 / PERF.fpsCap) * 0.9) return;
+      this._lastFrameAt = now;
+    }
+
     let dt = Math.min(0.05, this.clock.getDelta());   // 프레임 급락 시 물리 폭주 방지
     this._adaptResolution(dt);
 

@@ -107,8 +107,11 @@ export class Zombie {
     // 걷기/달리기는 실제 속도에 맞춰 재생속도를 조절한다 (발이 미끄러지지 않게)
     if (next && (key === 'walk' || key === 'run')) {
       const ref = key === 'run' ? this.def.speedChase : this.def.speedWander;
-      next.timeScale = THREE.MathUtils.clamp(this._moveSpeed / Math.max(ref, 0.1), 0.4, 2.2)
-        * this._jitter;
+      // **지터는 clamp 안에서 곱한다.** 밖에서 곱하면 하한을 걸어 놓고 그 뒤에 0.92 를
+      // 곱해 0.37 이 나온다 — 발이 끌리는 슬로모션이 된다 (tools/qa_motion.js 가 잡았다).
+      next.timeScale = THREE.MathUtils.clamp(
+        (this._moveSpeed / Math.max(ref, 0.1)) * this._jitter,
+        ANIM.moveMinSpeed, ANIM.moveMaxSpeed);
     } else if (next && key === 'crawl') {
       // 포복체의 공격은 기는 동작을 빠르게 돌린 것이다 (엎드린 공격 클립이 없다)
       next.timeScale = (this.state === 'ATTACK' ? ANIM.crawlerAttackSpeed : 1) * this._jitter;
@@ -123,8 +126,9 @@ export class Zombie {
       // 팔이 경련하는 것처럼 보인다 (tools/qa_motion.js 가 잡았다).
       // 상한에 걸리면 동작이 쿨다운보다 일찍 끝나지만, 그 편이 훨씬 자연스럽다.
       const fit = next.getClip().duration / this.def.attackCooldown;
-      next.timeScale = THREE.MathUtils.clamp(fit, ANIM.attackMinSpeed, ANIM.attackMaxSpeed)
-        * this._jitter;
+      // 여기도 지터를 clamp 안에서 곱한다 — 밖에서 곱하면 상한 2.0 을 걸어 놓고 2.16 이 나온다
+      next.timeScale = THREE.MathUtils.clamp(
+        fit * this._jitter, ANIM.attackMinSpeed, ANIM.attackMaxSpeed);
     } else if (next && key === 'death') {
       // 원본이 3초라 그대로 두면 너무 느리게 쓰러져 답답하다
       next.timeScale = CORPSE.deathSpeed * this._jitter;
