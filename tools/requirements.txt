@@ -1,0 +1,14 @@
+# QUARANTINE No.3 — 에셋 생성 스크립트용 파이썬 패키지
+#
+# 게임 자체는 파이썬이 필요 없다. 아래는 tools/ 의 에셋 생성기 전용이다.
+#   gen_blood.py      핏자국 데칼    → numpy, Pillow
+#   gen_signage.py    표지판 아틀라스 → Pillow (+ 한글 트루타입 폰트)
+#   gen_surfaces.py   벽/바닥 텍스처  → numpy, Pillow
+#   glb_inspect.py    GLB 조사       → (표준 라이브러리만)
+#   gen_sfx.py        ElevenLabs SFX → (표준 라이브러리만. .env.local 의 API 키 필요)
+#
+# Blender 안에서 도는 스크립트(fbx_to_glb.py · import_props.py · extract_swing.py)는
+# 여기 있는 패키지를 쓰지 않는다. Blender 가 자체 파이썬(bpy·mathutils)을 들고 있다.
+
+Pillow>=10.0
+numpy>=1.24

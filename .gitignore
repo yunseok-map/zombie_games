@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.blender-path
 .impeccable/hook.cache.json
 .impeccable/config.local.json
 .DS_Store

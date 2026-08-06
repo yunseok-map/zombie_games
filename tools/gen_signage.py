@@ -9,9 +9,26 @@
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-OUT = r"C:\Users\A\Desktop\games_zombie\public\assets\textures\signage\signage_atlas.webp"
-FONT = r"C:\Windows\Fonts\malgun.ttf"
-FONTB = r"C:\Windows\Fonts\malgunbd.ttf"
+# 경로는 이 파일 위치에서 구한다 — 절대경로를 박으면 다른 PC 에서 통째로 깨진다
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(ROOT, "public", "assets", "textures", "signage", "signage_atlas.webp")
+
+
+def _find_font(*names):
+    """한글이 나오는 트루타입을 찾는다. 윈도우/맥/리눅스 순으로 훑는다."""
+    dirs = [r"C:\Windows\Fonts", "/System/Library/Fonts", "/Library/Fonts",
+            "/usr/share/fonts/truetype", os.path.expanduser("~/.fonts")]
+    for d in dirs:
+        for n in names:
+            p = os.path.join(d, n)
+            if os.path.exists(p):
+                return p
+    return None
+
+
+FONT = _find_font("malgun.ttf", "AppleGothic.ttf", "NanumGothic.ttf", "NotoSansCJK-Regular.ttc")
+FONTB = _find_font("malgunbd.ttf", "AppleGothic.ttf", "NanumGothicBold.ttf",
+                   "NotoSansCJK-Bold.ttc") or FONT
 CELL, COLS, ROWS = 256, 4, 4
 
 
