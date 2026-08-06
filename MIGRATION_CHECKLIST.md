@@ -137,6 +137,79 @@
 
 ---
 
+## 5-B. 「폴더 통째로 구글 드라이브」로 옮겨도 되나
+
+**된다. 다만 `node_modules` 는 반드시 빼고 옮겨라.**
+
+```powershell
+# 지금 노트북에서
+cd C:\Users\A\Desktop\games_zombie
+Remove-Item node_modules -Recurse -Force      # 새 PC 에서 npm install 로 복구된다
+Compress-Archive -Path . -DestinationPath C:\Users\A\Desktop\games_zombie_full.zip
+```
+
+- [ ] `node_modules` 를 지웠는지 확인하고 압축했다
+
+> **왜 `node_modules` 를 빼야 하나**
+> 안에 **윈도우 x64 전용 바이너리**가 들어 있다 (`@esbuild/win32-x64/esbuild.exe`,
+> `@rollup/rollup-win32-x64-*.node`). 새 노트북이 ARM(스냅드래곤) 이거나 OS 가 다르면
+> 그대로는 안 돈다. 게다가 파일이 1,282개라 구글 드라이브 동기화가 유난히 느리다.
+> `npm install` 한 번이면 그 PC 에 맞는 것으로 다시 깔린다.
+
+### 어느 쪽이 나은가
+
+| | 용량 | 장점 | 단점 |
+|---|---|---|---|
+| **git clone + `fbx_src_core.zip`** | **약 140MB** | 가볍다 · 커밋 기록이 살아 있다 · 제출 요건과 같은 상태 | `.env.local` 은 따로 챙겨야 한다 |
+| 폴더 통째 (node_modules 제외) | 약 445MB | `.env.local`·`fbx_src` 까지 한 번에 간다 | 3배 무겁다 · 드라이브 업/다운로드가 오래 걸린다 |
+
+**git 쪽을 권한다.** 폴더 통째는 인터넷이 느리거나 git 이 번거로울 때 쓰면 된다.
+어느 쪽이든 새 노트북에서 `npm install`(= `setup.ps1`)은 똑같이 한 번 돌려야 한다.
+
+- [ ] 어느 쪽으로 갈지 정했다
+
+---
+
+## 5-C. Claude Code 설정 — 무엇이 자동이고 무엇이 수동인가
+
+### 자동으로 따라온다 (로그인만 하면 됨)
+- [ ] 새 노트북에서 Claude Code 설치 후 **같은 계정으로 로그인**
+      → Higgsfield · Gmail · Google Drive · Calendar 커넥터는 **계정에 붙어 있어** 그대로 쓸 수 있다
+
+### 수동으로 옮겨야 한다
+로컬 설정은 계정이 아니라 **이 PC 에** 들어 있다. 아래를 통째로 복사한다
+(zip 으로 **약 10MB** — 실제로 묶어서 확인한 값이다).
+
+- [ ] 지금 노트북에서 묶기
+      ```powershell
+      $src = "$env:USERPROFILE\.claude"
+      $dst = "$env:USERPROFILE\Desktop\claude_config"
+      New-Item -ItemType Directory -Force $dst | Out-Null
+      Copy-Item "$src\skills"              $dst -Recurse -Force   # 스킬 9개 (impeccable 등)
+      Copy-Item "$src\plugins"             $dst -Recurse -Force   # lean 플러그인
+      Copy-Item "$src\settings.json"       $dst -Force            # 모델·상태줄·플러그인 활성화
+      Copy-Item "$src\settings.local.json" $dst -Force            # 권한 + 훅(디자인 검사기)
+      Copy-Item "$src\projects\C--Users-A\memory" "$dst\memory" -Recurse -Force  # 프로젝트 기억
+      Compress-Archive -Path "$dst\*" -DestinationPath "$env:USERPROFILE\Desktop\claude_config.zip" -Force
+      ```
+- [ ] 새 노트북에서 풀기 — `skills` · `plugins` · `settings*.json` 은 `%USERPROFILE%\.claude\` 아래로
+- [ ] **`memory` 폴더 이름을 새 PC 경로에 맞춰 바꾼다**
+      `~/.claude/projects/C--Users-<사용자명>/memory/`
+      *폴더 이름이 작업 경로에서 나온다. 지금은 `C--Users-A` 인데 사용자명이 다르면 안 맞는다*
+- [ ] **Chrome 확장 `claude-in-chrome` 은 새로 설치해야 한다**
+      새 노트북 크롬에 확장을 깔고, `localhost` 에 대한 **사이트 권한을 허용**한다
+      *안 하면 브라우저로 게임을 띄워 검사하는 작업이 안 된다*
+
+### 옮길 필요 없는 것
+`sessions` · `cache` · `shell-snapshots` · `file-history` · `debug` · `telemetry` · `tasks`
+— 이 PC 의 작업 흔적이다 (`projects` 폴더가 138MB 인데 대부분 이것들이다).
+
+### 프로젝트 안에 있는 것은 이미 git 에 들어 있다
+`.impeccable/config.json` (디자인 검사기 규칙 — index.html 의 dark-glow·radial-halo 억제)은
+저장소에 커밋돼 있어 clone 하면 그대로 적용된다.
+
+---
+
 ## 6. 옮긴 뒤 지워도 되는 것 (지금 노트북)
 
 전부 푸시하고 새 노트북에서 4번까지 통과한 것을 확인한 **다음에** 지운다.
