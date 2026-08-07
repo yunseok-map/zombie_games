@@ -30,9 +30,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Pages 를 **처음 켜는 것**은 워크플로 토큰 권한 밖이다. 저장소 설정에서
+      # Settings > Pages > Source 를 "GitHub Actions" 로 한 번만 바꿔 주면 그 뒤로는 자동이다.
+      # (enablement: true 를 줘도 여기서 403 으로 떨어진다 — 실제로 그랬다)
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true    # Pages 가 꺼져 있으면 켠다 (설정 화면을 안 거쳐도 되게)
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
