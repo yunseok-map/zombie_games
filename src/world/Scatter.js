@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SCATTER } from '../config/balance.js';
+import { SCATTER, IMPACT } from '../config/balance.js';
 
 /**
  * Scatter — 핏자국 데칼과 의료폐기물 잔해.
@@ -49,6 +49,103 @@ function makeVialGeo() {
 function makePaperGeo() {
   return new THREE.BoxGeometry(0.21, 0.0009, 0.297);
 }
+
+/**
+ * BloodDecals — 전투 중에 바닥에 남는 핏자국.
+ *
+ * 예전에는 좀비를 다섯 발 맞혀도 **죽기 전까지 바닥이 처음과 똑같이 깨끗했다** —
+ * 핏자국이 사망 이벤트에서만 생겼기 때문이다. "여기서 싸웠다"가 지도처럼 읽히게
+ * 하려던 의도가 사망에만 걸려 있었다.
+ *
+ * 인스턴싱 하나 + 링버퍼라 **드로우콜은 개수와 무관하게 1개**다.
+ * 시드 재현(SCATTER.forceSeed)을 흔들면 안 되므로 Scatter.rng 를 쓰지 않고
+ * Math.random 을 따로 쓴다 — 이건 스테이지 배치가 아니라 런타임 흔적이다.
+ *
+ * @param opts 사망 자국(StageLoader)처럼 크고 안 옅어지는 용도로도 쓴다.
+ *   `{ count, fade, sizeMin, sizeMax, y }` — 생략하면 전부 IMPACT 의 값.
+ *   fade 를 0 으로 주면 옅어지지 않는다(링버퍼가 다 차면 그때 덮어쓴다).
+ */
+export class BloodDecals {
+  constructor(scene, material, geometry, opts = {}) {
+    const N = opts.count ?? IMPACT.decalCount;
+    this.fade = opts.fade ?? IMPACT.decalFade;
+    this.sizeMin = opts.sizeMin ?? IMPACT.decalSizeMin;
+    this.sizeMax = opts.sizeMax ?? IMPACT.decalSizeMax;
+    this.y = opts.y ?? IMPACT.decalY;
+    this.n = N;
+    this.next = 0;
+    this.age = new Float32Array(N).fill(Infinity);   // Infinity = 빈 슬롯
+    this.mesh = new THREE.InstancedMesh(geometry, material.clone(), N);
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 1;
+    this.mesh.count = 0;
+    // 인스턴스마다 알파를 따로 줄 수 없으므로(재질이 하나다) 색으로 옅게 만든다
+    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
+    this.mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    this._m = new THREE.Matrix4();
+    this._used = 0;
+    scene.add(this.mesh);
+  }
+
+  /** 바닥(x,z)에 자국 하나 */
+  stamp(x, z) {
+    const i = this.next;
+    this.next = (this.next + 1) % this.n;
+    if (this._used < this.n) this._used++;
+    this.mesh.count = this._used;
+    this.age[i] = 0;
+    const s = this.sizeMin + Math.random() * (this.sizeMax - this.sizeMin);
+    // 스크래치를 돌려쓴다 — 총 한 발이 입자 14개를 뿌리고 그중 22% 가 여기로 들어온다.
+    // 여기서 행렬을 새로 만들면 전투 내내 GC 가 잘게 돈다.
+    this._m.makeRotationX(-Math.PI / 2);
+    this._m.multiply(_rotZ.makeRotationZ(Math.random() * Math.PI * 2));
+    this._m.scale(_scale.set(s, s, 1));
+    this._m.setPosition(x, this.y, z);
+    this.mesh.setMatrixAt(i, this._m);
+    this.mesh.setColorAt(i, _decalColor.setScalar(1));
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+
+  update(dt) {
+    if (!this._used || !this.fade) return;   // fade 0 = 사망 자국. 계속 남는다
+    let dirty = false;
+    for (let i = 0; i < this._used; i++) {
+      const a = this.age[i];
+      if (a === Infinity || a >= this.fade) continue;
+      this.age[i] = a + dt;
+      const k = 1 - Math.min(1, this.age[i] / this.fade);
+      if (k <= 0) {
+        // **다 옅어진 자국은 접어서 치운다.** instanceColor 는 색만 곱하므로 0 으로
+        // 보내도 투명해지지 않고 **새까매진다** — 알파는 텍스처와 material.opacity
+        // 에서 오는데 둘 다 그대로이기 때문이다(재질은 transparent + map 알파).
+        // 그래서 "사라진다"가 아니라 검은 얼룩으로 눌러앉았고, mesh.count 도 안 줄어
+        // 그리기까지 계속됐다. 크기 0 으로 접으면 화면에서도 지오메트리에서도 빠진다.
+        _fold.makeScale(0, 0, 0);
+        this.mesh.setMatrixAt(i, _fold);
+        this.mesh.instanceMatrix.needsUpdate = true;
+        this.age[i] = Infinity;              // 빈 슬롯으로 되돌린다
+        continue;
+      }
+      this.mesh.setColorAt(i, _decalColor.setScalar(k));
+      dirty = true;
+    }
+    if (dirty && this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+
+  /** 구역이 바뀌면 흔적도 사라진다 */
+  clear() {
+    this._used = 0; this.next = 0;
+    this.mesh.count = 0;
+    this.age.fill(Infinity);
+  }
+}
+
+const _decalColor = new THREE.Color();
+const _rotZ = new THREE.Matrix4();
+const _scale = new THREE.Vector3();
+const _fold = new THREE.Matrix4();      // 다 옅어진 자국을 크기 0 으로 접을 때 쓴다
 
 export class Scatter {
   constructor() {

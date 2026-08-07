@@ -36,6 +36,7 @@ export const EV = {
   ZOMBIE_HIT: 'zombie:hit',
   MELEE_HIT: 'melee:hit',         // 근접이 **닿았을 때만**. 헛스윙에는 안 온다 (흔들림·히트스톱용)
   MELEE_CLANG: 'melee:clang',     // 근접이 **벽·소품**을 쳤을 때 { x, z }. 살을 칠 때보다 짧고 세게 튕긴다
+  WALL_HIT: 'wall:hit',           // 빗나간 총알이 벽·바닥·천장에 박혔다 { x, y, z, nx, ny, nz }
   GRAB_START: 'grab:start',       // 좀비가 달라붙었다 { x, z }
   GRAB_END: 'grab:end',           // { broke } — true 면 뿌리친 것, false 면 시간 초과
   ZOMBIE_DIED: 'zombie:died',

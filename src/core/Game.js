@@ -3,7 +3,7 @@ import { Input } from './Input.js';
 import { Collision } from './Collision.js';
 import { AudioManager } from './AudioManager.js';
 import { bus, EV } from './EventBus.js';
-import { FLASHLIGHT, PLAYER, PERF, SHAKE, CHECKPOINT } from '../config/balance.js';
+import { FLASHLIGHT, PLAYER, PERF, SHAKE, CHECKPOINT, DEATH } from '../config/balance.js';
 import { Atmosphere } from '../fx/Atmosphere.js';
 import { PostFX } from '../fx/PostFX.js';
 import { Impact } from '../fx/Impact.js';
@@ -16,6 +16,7 @@ import { Director } from '../enemies/Director.js';
 import { StageLoader } from '../world/StageLoader.js';
 import { propModels } from '../world/PropModels.js';
 import { Interaction } from '../world/Interaction.js';
+import { BloodDecals } from '../world/Scatter.js';
 import { HUD } from '../ui/HUD.js';
 import * as hospitalA from '../world/stages/hospital_a.js';
 import * as hospitalB from '../world/stages/hospital_b.js';
@@ -38,8 +39,11 @@ export class Game {
     this.state = 'IDLE';      // IDLE | PLAYING | PAUSED | DEAD | CLEAR
     this.elapsed = 0;
 
+    // antialias 는 PERF.canvasMsaa 를 따른다 — 후처리가 켜져 있으면 캔버스 MSAA 는
+    // 화면을 덮는 사각형 하나에만 걸려서 한 픽셀도 개선하지 못하면서 백버퍼 46MB 를
+    // 잡고 매 프레임 리졸브한다 (balance.js PERF.canvasMsaa 주석 참조).
     this.renderer = new THREE.WebGLRenderer({
-      canvas, antialias: true, powerPreference: 'high-performance',
+      canvas, antialias: PERF.canvasMsaa, powerPreference: 'high-performance',
     });
     // 심사자 PC 를 고를 수 없다 — 해상도를 낮게 시작하고, 프레임을 보며 스스로 조정한다.
     // 천장(pixelRatioMax)에서 시작하지 않는 이유: 약한 PC 가 첫 몇 초를 버벅이며 연다.
@@ -47,11 +51,25 @@ export class Game {
     this._dprCap = Math.min(PERF.pixelRatioStart, PERF.pixelRatioMax);
     this.renderer.setPixelRatio(this._dprCap);
     this._frameAcc = 0; this._frameN = 0; this._adaptT = 0;
+    // 루프가 시스템에 넘기는 인자 묶음. **매 프레임 새로 만들지 않는다.**
+    // 리터럴 세 개면 초당 180개가 신세대 힙에 쌓이고, 하필 전투 중처럼
+    // 좀비·입자·데칼이 같이 도는 순간에 마이너 GC 를 앞당긴다. 필드만 갈아 끼운다.
+    this._poolCtx = {};
+    this._hudCtx = {};
+    this._dbgCtx = {};
     // 근접이 닿는 순간 세상이 잠깐 걸린다 (SHAKE.hitStop)
     this._hitStop = 0;
     bus.on(EV.MELEE_HIT, () => { this._hitStop = SHAKE.hitStop; });
     // 벽·소품을 쳤을 때는 더 짧게. 살처럼 파고들지 않고 튕겨 나와야 한다
     bus.on(EV.MELEE_CLANG, () => { this._hitStop = SHAKE.hitStopWall; });
+    // 죽는 순간에도 화면이 걸린다. 예전에는 히트스톱이 근접에만 걸려 있어서
+    // **총으로 죽이면 화면이 아무 반응도 하지 않았다.**
+    // 여러 마리가 동시에 죽어도 누적되면 안 된다 — 반드시 덮어쓴다.
+    bus.on(EV.ZOMBIE_DIED, () => {
+      this._hitStop = Math.max(this._hitStop, DEATH.hitStop);
+    });
+    // 구역이 바뀌면 전투 흔적도 사라진다
+    bus.on(EV.STAGE_LOADED, () => this.bloodDecals?.clear());
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(PLAYER.fov, 1, 0.1, 120);
@@ -82,9 +100,17 @@ export class Game {
     this.stageLoader = new StageLoader(
       this.scene, this.collision, this.atmosphere, this.director, this.interaction
     );
+    // 전투 중에 바닥에 쌓이는 핏자국. 인스턴싱이라 드로우콜은 개수와 무관하게 1이다.
+    // Scatter 가 이미 만들어 둔 데칼 재질·지오메트리를 그대로 빌려 쓴다 (새 에셋 0).
+    const sc = this.stageLoader.scatter;
+    this.bloodDecals = new BloodDecals(this.scene, sc.decalMat.splatter, sc.decalGeo);
+    this.impact.decals = this.bloodDecals;
 
     bus.on(EV.SFX, () => {});   // AudioManager 가 구독 중 (파일 없으면 무시됨)
     bus.on(EV.PLAYER_DIED, () => this.onDeath());
+    // 맞으면 화면 흔들림 말고 **화면 자체**도 반응한다 — 채도가 빠지고 초점이 나간다.
+    // 지금까지는 HUD 의 빨간 테두리 하나뿐이라 "UI 가 알렸다"로만 읽혔다.
+    bus.on(EV.PLAYER_DAMAGED, () => this.post?.hurt());
 
     this.input.onLockChange = (locked) => {
       if (!locked && this.state === 'PLAYING') this.pause();
@@ -162,7 +188,7 @@ export class Game {
     cam.rotation.set(-0.015 + Math.sin(t * 0.08) * 0.02, Math.PI + Math.sin(t * 0.11) * 0.26, 0);
     cam.updateMatrixWorld(true);
     this.flashlight.update(dt);
-    this.atmosphere.update(dt);
+    this.atmosphere.update(dt, cam);   // 비상등 슬롯 배정이 구도를 봐야 한다
   }
 
   async start() {
@@ -393,13 +419,17 @@ export class Game {
       this.flashlight.update(dt);
       this.weapons.update(dt, this.input);
 
-      this.pool.update(dt, {
-        player: this.player,
-        collision: this.collision,
-        detectionMul: this.flashlight.detectionMultiplier,
-      });
+      const pc = this._poolCtx;
+      pc.player = this.player;
+      pc.collision = this.collision;
+      pc.detectionMul = this.flashlight.detectionMultiplier;
+      // 좀비 발소리도 밟는 바닥을 따른다 (player 에 넘기는 것과 같은 함수다)
+      pc.surfaceAt = this.stageLoader.surfaceAt;
+      this.pool.update(dt, pc);
       this.director.update(dt);
-      this.atmosphere.update(dt);
+      // 카메라를 넘긴다 — 비상등이 고정 슬롯이라, 지금 화면에 영향을 주는 것들만
+      // 슬롯에 실어야 한다 (fx/Atmosphere.js `_assignSlots`)
+      this.atmosphere.update(dt, this.camera);
       this.impact.update(dt);
 
       // 상호작용 — 사거리 안 대상이 있으면 안내를 띄우고, E 로 사용한다
@@ -422,15 +452,20 @@ export class Game {
         this.player.grabbedBy ? this.player.struggle : -1, this.player.grabLeft ?? 1);
 
       this.audio.setListener(this.player.pos.x, this.player.pos.z, this.player.yaw);
-      this.hud.update(dt, {
-        player: this.player, flashlight: this.flashlight,
-        zombies: this.pool.getActive(),   // 노출도 표시가 "누가 나를 눈치챘나"를 봐야 한다
-      });
+      const hc = this._hudCtx;
+      hc.player = this.player; hc.flashlight = this.flashlight;
+      // 노출도 표시가 "누가 나를 눈치챘나"를 봐야 한다. **풀을 통째로 넘긴다** —
+      // HUD 는 어차피 비활성 개체를 건너뛰므로, getActive() 로 매 프레임
+      // 배열을 새로 뜨는 것은 순수한 낭비였다.
+      hc.zombies = this.pool.all;
+      this.hud.update(dt, hc);
       if (this.input.justPressed('Backquote')) this.hud.toggleDebug();
-      this.hud.updateDebug({
-        input: this.input, player: this.player, dt,
-        renderer: this.renderer, zombies: this.pool.activeCount,
-      });
+      const dc = this._dbgCtx;
+      dc.input = this.input; dc.player = this.player; dc.dt = dt;
+      // 풀을 넘긴다 — activeCount 는 전체 순회라, 숨어 있는 디버그 패널을 위해
+      // 매 프레임 세고 나서 버리고 있었다. HUD 가 패널이 켜졌을 때만 센다.
+      dc.renderer = this.renderer; dc.pool = this.pool;
+      this.hud.updateDebug(dc);
 
       // 탈출 판정
       const ex = this.stageLoader.exit;

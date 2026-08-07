@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { FLASHLIGHT } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
+// 루프 안에서 재사용한다 (Zombie.js 의 `_tmp` 와 같은 패턴)
+const _dir = new THREE.Vector3();
+const _right = new THREE.Vector3();
+
 /**
  * Flashlight — 이 게임의 실질적 주인공.
  * 켜면 보이지만 좀비 감지 반경이 늘어난다 (SPEC.md §4).
@@ -150,11 +154,31 @@ export class Flashlight {
 
     this.light.intensity = this.on ? FLASHLIGHT.intensity * this._flicker : 0;
 
+    /**
+     * **꺼져 있으면 그림자 패스를 건너뛴다.**
+     * three 의 그림자 렌더러는 광원의 intensity 를 보지 않는다 — shadow 가 있고
+     * autoUpdate 가 살아 있으면 무조건 4096² 뎁스 패스를 돈다. 이 게임은 손전등을
+     * 끈 채로 시작하고(첫 힌트가 "F 를 눌러 손전등을 켜라") 배터리가 0 이 되면 또
+     * 꺼지므로, **아무것도 비추지 않는 4096² 패스**가 플레이 시간의 상당 부분 돌았다.
+     *
+     * `castShadow` 를 토글하면 안 된다 — NUM_SPOT_LIGHT_SHADOWS 가 프로그램 캐시
+     * 키라서 F 를 누를 때마다 씬 전 재질이 재컴파일되어 화면이 얼어붙는다.
+     * autoUpdate 는 셰이더 레이아웃을 안 건드리고 패스만 건너뛴다.
+     *
+     * 순서 주의: Game._loop 에서 flashlight.update 가 post.render 보다 **먼저** 돈다.
+     * 그래서 켜는 첫 프레임에도 그림자가 최신이다. 순서를 바꾸면 깨진다.
+     */
+    if (!FLASHLIGHT.shadowWhenOff) {
+      this.light.shadow.autoUpdate = this.on && this.battery > 0;
+    }
+
     // 카메라에 붙인다 (약간 아래·오른쪽 — 손에 든 느낌)
     const cam = this.camera;
     this.light.position.copy(cam.position);
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    // 매 프레임 Vector3 를 새로 만들면 그것만으로 GC 가 주기적으로 돈다 —
+    // GC 가 도는 프레임이 곧 화면에서 튀는 프레임이다. 모듈 상수를 재사용한다.
+    const dir = _dir.set(0, 0, -1).applyQuaternion(cam.quaternion);
+    const right = _right.set(1, 0, 0).applyQuaternion(cam.quaternion);
     this.light.position.addScaledVector(right, 0.22).y -= 0.14;
     this.target.position.copy(this.light.position).addScaledVector(dir, 10);
 

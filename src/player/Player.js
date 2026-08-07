@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, PLAYER, NOISE, INJURY, SHAKE, ATTACK, GRAB } from '../config/balance.js';
+import { WORLD, PLAYER, NOISE, INJURY, SHAKE, ATTACK, GRAB, AUDIO } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
 /**
@@ -292,8 +292,8 @@ export class Player {
       this._stepAccum = 0;
       // 밟고 있는 바닥 재질에 따라 소리가 바뀐다 (StageLoader 가 넣어준다)
       const surf = this.surfaceAt?.(this.pos.x, this.pos.z) ?? 'concrete';
-      const count = surf === 'debris' ? 3 : surf === 'wet' ? 2 : 4;
-      const n = 1 + ((Math.random() * count) | 0);
+      // 변형 개수는 좀비 발소리와 **같은 표**를 읽는다 (balance.js AUDIO)
+      const n = 1 + ((Math.random() * (AUDIO.footstepVariants[surf] ?? 4)) | 0);
       bus.emit(EV.SFX, {
         name: `footstep_${surf}_${n}`,
         volume: this.crouching ? 0.25 : this.sprinting ? 0.8 : 0.52,

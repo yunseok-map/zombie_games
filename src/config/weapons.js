@@ -3,7 +3,7 @@
  *
  * type: 'melee' | 'gun' | 'throw'
  * 공통: id, label, type, slot(1=근접 2=총기 3=투척), damage, cooldown, noise
- * melee 전용 : range, arcDeg, stun
+ * melee 전용 : range, arcDeg, stun, blade(날붙이면 true — 타격음이 달라진다)
  * gun   전용 : magSize, reloadTime, spread, pellets, reloadPerShell, silenced
  * throw 전용 : radius, fuse, lure(유인용이면 true)
  */
@@ -29,12 +29,12 @@ export const WEAPONS = {
 
   // ─────────── 근접: 날붙이 ───────────
   axe: {
-    id: 'axe', label: '소방도끼', type: 'melee', slot: 1,
+    id: 'axe', label: '소방도끼', type: 'melee', slot: 1, blade: true,
     damage: 55, cooldown: 0.85, range: 2.2, arcDeg: 55,
     stun: 0.6, noise: 'melee', viewColor: 0xb0402f, viewScale: [0.07, 0.07, 0.95],
   },
   bonesaw: {
-    id: 'bonesaw', label: '수술용 절단기', type: 'melee', slot: 1,
+    id: 'bonesaw', label: '수술용 절단기', type: 'melee', slot: 1, blade: true,
     damage: 22, cooldown: 0.3, range: 1.5, arcDeg: 45,
     stun: 0.25, noise: 'melee', viewColor: 0xc8ccd0, viewScale: [0.04, 0.12, 0.5],
   },

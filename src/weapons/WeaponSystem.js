@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW, WEAPON_SWING } from '../config/balance.js';
+import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW, WEAPON_SWING, WALL_IMPACT } from '../config/balance.js';
 import { getCurve, sampleCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
@@ -320,6 +320,10 @@ export class WeaponSystem {
     const baseDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const spread = def.spread * (this.aiming ? 0.45 : 1);
 
+    // 벽 탄흔은 **한 발에 한 번만** 찾는다. 추적 한 번이 150스텝 x 충돌박스 전체라,
+    // 산탄(7발)이 전부 빗나가면 같은 계산을 일곱 번 하게 된다. 눈으로도 같은 자리에
+    // 먼지가 일곱 겹으로 쌓여 오히려 나빠진다 — 한 번이 맞다.
+    this._tracedThisShot = false;
     for (let p = 0; p < (def.pellets ?? 1); p++) {
       const dir = baseDir.clone();
       dir.x += (Math.random() - 0.5) * spread * 2;
@@ -366,9 +370,55 @@ export class WeaponSystem {
     if (best) {
       // 엎드린 몸은 머리가 **앞끝**에 있다. 서 있으면 위쪽이다.
       const headshot = best.def.crawler
-        ? bestS > 0.74
+        ? bestS > WEAPON_SWING.meleeHeadS
         : (origin.y + dir.y * bestT) > best.pos.y + best.def.height * 0.78;
       best.hit(damage * (headshot ? 2.2 : 1), stun, headshot, origin);
+      return;
+    }
+    // 아무도 못 맞혔으면 **세상 어딘가에는 맞았다.** 지금까지는 총구 화염 0.065초
+    // 말고는 아무 일도 안 일어나서, 칠흑 속에서 조준이 맞았는지 알 단서가 없었다.
+    this._traceWorld(origin, dir);
+  }
+
+  /**
+   * 빗나간 총알이 벽·바닥·천장 어디에 박혔는지 찾는다.
+   *
+   * Collision 은 XZ 전용 AABB 라 3D 레이 교차가 없다. 그래서 일정 간격으로
+   * 전진시키며 막히는 첫 지점을 잡는다 — **간격이 벽 두께(0.2m)보다 작아야 한다.**
+   * 사거리를 끊는 이유는 비용이다: 권총 사거리 60m 를 그대로 훑으면 500회가 되는데,
+   * 그 너머 탄흔은 어차피 화면에 안 보인다.
+   */
+  _traceWorld(origin, dir) {
+    if (this._tracedThisShot) return;     // 산탄 한 발에 한 번 (위 `_fireGun` 주석)
+    this._tracedThisShot = true;
+    const step = WALL_IMPACT.step;
+    const n = Math.ceil(WALL_IMPACT.maxRange / step);
+    let px = origin.x, py = origin.y, pz = origin.z;
+    for (let i = 1; i <= n; i++) {
+      const x = origin.x + dir.x * step * i;
+      const y = origin.y + dir.y * step * i;
+      const z = origin.z + dir.z * step * i;
+      let nx = 0, ny = 0, nz = 0;
+      if (y <= 0) { ny = 1; }                              // 바닥
+      else if (y >= WALL_IMPACT.ceilingHeight) { ny = -1; }   // 천장
+      else if (this.collision.isBlocked(x, z, 0.02)) {
+        // 벽 법선은 진행 방향의 반대로 근사한다. 어느 면인지까지 알 필요는 없다 —
+        // 먼지가 튀어나오는 방향만 그럴듯하면 된다.
+        nx = -dir.x; nz = -dir.z;
+        const l = Math.hypot(nx, nz) || 1;
+        nx /= l; nz /= l;
+      } else { px = x; py = y; pz = z; continue; }
+
+      bus.emit(EV.WALL_HIT, { x: px, y: Math.max(py, 0.02), z: pz, nx, ny, nz });
+      // 소리는 기존 둔기 타격음을 빠르게 돌려 쓴다 — 재생속도를 올리면 짧고
+      // 딱딱한 '틱' 이 되어 콘크리트 파편음 대역에 들어온다. 3D 경로를 그대로
+      // 타므로 거리 감쇠·패닝·저역통과가 공짜로 붙는다.
+      bus.emit(EV.SFX, {
+        name: `hit_blunt_${1 + ((Math.random() * 2) | 0)}`,
+        x: px, z: pz,
+        volume: WALL_IMPACT.sfxVolume, rate: WALL_IMPACT.sfxRate,
+      });
+      return;
     }
   }
 
@@ -461,7 +511,10 @@ export class WeaponSystem {
       }
       // 팔에 힘이 빠진다 — 다칠수록 근접이 약해진다 (Player.meleeMul)
       const mul = this.player.meleeMul ?? 1;
-      z.hit(def.damage * mul * (headshot ? 2.2 : 1), def.stun * mul, headshot, this.player.pos);
+      // 날붙이는 살을 가르는 소리, 둔기는 뼈 소리. 예전에는 소방도끼와 쇠파이프가
+      // 완전히 같은 소리를 냈다 (weapons.js 의 `blade` 표시를 읽는다)
+      z.hit(def.damage * mul * (headshot ? 2.2 : 1), def.stun * mul, headshot,
+        this.player.pos, def.blade ? 'blade' : 'blunt');
       hitAny = true;
     }
 

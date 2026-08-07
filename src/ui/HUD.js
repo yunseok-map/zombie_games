@@ -247,7 +247,7 @@ export class HUD {
     this.dbg.style.display = this.dbg.style.display === 'none' ? 'block' : 'none';
   }
 
-  /** @param {{input:object, player:object, dt:number, renderer:object, zombies:number}} s */
+  /** @param {{input:object, player:object, dt:number, renderer:object, pool:object}} s */
   updateDebug(s) {
     if (this.dbg.style.display === 'none') return;
     this._fps += (1 / Math.max(s.dt, 1e-4) - this._fps) * 0.1;
@@ -259,7 +259,7 @@ export class HUD {
       + `포인터락 ${s.input.locked ? 'O' : 'X'}   입력활성 ${s.input.enabled ? 'O' : 'X'}\n`
       + `WASD  [${move}]\n`
       + `눌린키 ${held}\n`
-      + `속도 ${s.player.speed.toFixed(2)} m/s   좀비 ${s.zombies}`;
+      + `속도 ${s.player.speed.toFixed(2)} m/s   좀비 ${s.pool?.activeCount ?? 0}`;
   }
 
   /**

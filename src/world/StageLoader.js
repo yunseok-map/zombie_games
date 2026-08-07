@@ -2,12 +2,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SURFACE, LOOT, CORPSE, SCATTER, KEY_ITEM_GLOW } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
-import { Scatter } from './Scatter.js';
+import { Scatter, BloodDecals } from './Scatter.js';
 import { BUILDERS, signPlate } from './Props.js';
 import { propModels, pickFile } from './PropModels.js';
-
-// 전투 흔적 데칼 상한. 하나가 드로우콜 하나라 무한정 쌓으면 예산이 무너진다.
-const MAX_KILL_MARKS = 22;
 
 const SIGN_COLS = 4, SIGN_ROWS = 4;   // signage_atlas.webp 분할 (gen_signage.py 와 맞춰야 한다)
 
@@ -115,17 +112,14 @@ export class StageLoader {
 
     // 좀비가 죽은 자리에 핏자국을 남긴다. 시체는 30초 뒤 사라지지만 자국은 남아서
     // "여기서 싸웠다"가 지도처럼 읽힌다 — 되돌아왔을 때 길을 아는 단서가 된다.
-    // 데칼 하나가 드로우콜 하나라 개수를 막아 두고 오래된 것부터 지운다.
-    this._killMarks = [];
+    //
+    // 예전에는 자국 하나가 메시 하나 = **드로우콜 하나**였다. 상한이 22였으니
+    // 잘 싸운 판에서는 예산(300)의 7%를 핏자국이 먹었다. 인스턴싱으로 묶으면
+    // 개수와 무관하게 1개다 — 그래서 상한도 넉넉히 올릴 수 있다.
+    // 이건 구역 그룹이 아니라 씬에 붙는다(구역 전환 때 clear 로 지운다).
+    // (실제 생성은 scatter 를 만든 뒤 — 재질·지오메트리를 거기서 빌린다)
     bus.on(EV.ZOMBIE_DIED, ({ x, z }) => {
-      if (!this.group) return;
-      const m = this.scatter.addFloorBlood(this.group, x, z, CORPSE.bloodSize, 'pool');
-      if (!m) return;
-      this._killMarks.push(m);
-      if (this._killMarks.length > MAX_KILL_MARKS) {
-        const old = this._killMarks.shift();
-        old.removeFromParent();
-      }
+      if (this.group) this.killMarks?.stamp(x, z);
     });
 
     // 텍스처·재질은 전 구역이 공유한다 (메모리 예산 — CLAUDE.md §3)
@@ -174,6 +168,15 @@ export class StageLoader {
 
     this.propMats = new Map();
     this.scatter = new Scatter();
+    // 사망 자국 — 옅어지지 않고, 구역이 바뀔 때만 지워진다.
+    // scatter 가 이미 읽어 둔 데칼 재질·지오메트리를 그대로 빌린다 (새 에셋 0).
+    this.killMarks = new BloodDecals(this.scene, this.scatter.decalMat.pool,
+      this.scatter.decalGeo, {
+        count: SCATTER.killMarkMax, fade: 0,
+        sizeMin: CORPSE.bloodSize * SCATTER.killMarkSizeMin,
+        sizeMax: CORPSE.bloodSize * SCATTER.killMarkSizeMax,
+        y: SCATTER.killMarkY,
+      });
   }
 
   /** 아이템은 어두운 복도에서 찾을 수 있어야 한다 — 약하게 발광시킨다 (블룸이 받아준다) */
@@ -309,7 +312,7 @@ export class StageLoader {
     // 구역이 걸어 둔 타이머를 먼저 끊는다. 안 그러면 죽거나 다음 구역으로 넘어간 뒤에도
     // 옥상 카운트다운이 계속 돌면서 엉뚱한 곳에 웨이브를 부른다.
     if (this._onUnload) { this._onUnload(); this._onUnload = null; }
-    this._killMarks.length = 0;   // 그룹째 사라지므로 참조만 버린다
+    this.killMarks?.clear();      // 씬에 붙어 있으므로 구역과 같이 안 사라진다
     if (this.group) {
       this.scene.remove(this.group);
       this.group.traverse((o) => {
@@ -587,6 +590,13 @@ export class StageLoader {
     // 검사 도구가 목표 지점을 알 수 있어야 경로를 확인할 수 있다.
     this.exitPending = result.exitWhenReady ?? null;
     this._onUnload = result.onUnload ?? null;
+
+    // **구역이 다 지어진 지금 알린다.** 이 이벤트는 EventBus 에 정의돼 있고 Game 이
+    // 구독까지 해 두었는데(전투 핏자국 지우기) **발행하는 코드가 어디에도 없었다** —
+    // 구독만 있는 죽은 이벤트라 구역을 넘어가도 앞 구역의 핏자국이 그대로 따라왔다.
+    // load() 안에서 쏘는 이유: 호출자가 셋(startAttract·restart·_nextStage)이라
+    // 바깥에서 쏘면 한 곳을 빠뜨린다.
+    bus.emit(EV.STAGE_LOADED, { name: stage.meta?.name ?? '' });
 
     return result.playerStart ?? { x: 0, z: 0, yaw: 0 };
   }

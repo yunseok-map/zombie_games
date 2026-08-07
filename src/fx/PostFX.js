@@ -22,6 +22,14 @@ const GrainVignetteShader = {
     uGrain: { value: POST.grain },
     uVignette: { value: POST.vignette },
     uAberration: { value: POST.aberration },
+    uHurt: { value: 0 },
+    uHurtDesat: { value: POST.hurtDesat },
+    uHurtAber: { value: POST.hurtAberration },
+    uHurtVig: { value: POST.hurtVignette },
+    uHurtTint: { value: POST.hurtTint },
+    uHurtRim: { value: POST.hurtRim },
+    uHurtRimBase: { value: POST.hurtRimBase },
+    uHurtEdge0: { value: POST.hurtEdgeStart },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -36,6 +44,14 @@ const GrainVignetteShader = {
     uniform float uGrain;
     uniform float uVignette;
     uniform float uAberration;
+    uniform float uHurt;        // 0..1 — 맞은 직후 부풀었다가 감쇠한다
+    uniform float uHurtDesat;
+    uniform float uHurtAber;
+    uniform float uHurtVig;
+    uniform float uHurtTint;
+    uniform float uHurtRim;      // 가장자리로 갈수록 붉어지는 정도
+    uniform float uHurtRimBase;  // 화면 전체에 깔리는 최소한
+    uniform float uHurtEdge0;    // 이 r² 부터 붉어지기 시작한다 (안쪽은 그대로)
     varying vec2 vUv;
 
     float rand(vec2 c) {
@@ -47,17 +63,36 @@ const GrainVignetteShader = {
       float r2 = dot(d, d);
 
       // 색수차 — 화면 가장자리에서만 채널이 어긋난다 (싸구려 렌즈 느낌)
-      float a = uAberration * r2;
+      // 맞으면 이 어긋남이 순간적으로 커진다. 초점이 나간 것처럼 보인다.
+      float a = (uAberration + uHurtAber * uHurt) * r2;
       vec3 col;
       col.r = texture2D(tDiffuse, vUv - d * a).r;
       col.g = texture2D(tDiffuse, vUv).g;
       col.b = texture2D(tDiffuse, vUv + d * a).b;
 
-      // 비네트 — 손전등 밖의 어둠을 더 밀어붙인다
-      col *= 1.0 - uVignette * r2 * 2.4;
+      // 비네트 — 손전등 밖의 어둠을 더 밀어붙인다. 맞으면 시야가 좁아진다
+      col *= 1.0 - (uVignette + uHurtVig * uHurt) * r2 * 2.4;
 
       // 필름 그레인 — 어두운 영역에서 강해진다. 실제 센서 노이즈가 그렇다
       float lum = dot(col, vec3(0.299, 0.587, 0.114));
+
+      // 피격 — 채도가 빠지면서 붉은 기가 가장자리에서 밀려든다.
+      //
+      // **더하기여야 한다.** 처음에는 전부 곱셈으로 짰다(채도 하락·비네트·색수차).
+      // 그런데 이 게임에서 맞는 순간은 대부분 손전등 밖의 칠흑이고,
+      // **검정에 무엇을 곱해도 검정이다** — 화면에 아무 일도 안 일어났다.
+      // (증거: scratchpad/qa/s3_05_hurt_before.png 와 s3_06_hurt_after.png 가 구분이 안 된다)
+      // 그래서 화면 밝기와 무관한 항을 하나 더한다. 가운데는 약하게, 가장자리로
+      // 갈수록 세게 — 시야가 좁아지며 붉게 닫히는 느낌이 된다.
+      if (uHurt > 0.0) {
+        vec3 grey = vec3(lum);
+        col = mix(col, grey, uHurtDesat * uHurt);
+        // **가장자리에만 몰아준다.** r² 를 그대로 쓰면 화면 한가운데까지 붉어져서
+        // "빨간 판을 덮었다"가 된다(실측: 평균 빨강 3 → 118, 사실상 빨간 필터).
+        // 화면 가운데 40% 는 건드리지 않고 구석으로 갈수록 급히 올린다.
+        float edge = smoothstep(uHurtEdge0, 0.5, r2);
+        col.r += uHurtTint * uHurt * (uHurtRimBase + edge * uHurtRim);
+      }
       float n = rand(vUv * (1.0 + fract(uTime * 0.37))) - 0.5;
       col += n * uGrain * (1.0 - lum);
 
@@ -128,8 +163,20 @@ export class PostFX {
     this.ao?.setSize(Math.round(ew * POST.aoScale), Math.round(eh * POST.aoScale));
   }
 
+  /** 맞았다. 화면이 한 번 흐트러진다. (Game 이 PLAYER_DAMAGED 에서 부른다) */
+  hurt(amount = 1) {
+    const u = this.grain.uniforms.uHurt;
+    u.value = Math.min(1, u.value + POST.hurtPulse * amount);
+  }
+
   render(dt) {
     this.grain.uniforms.uTime.value += dt;
+
+    // 감쇠는 여기서 한다. 후처리가 꺼져 있으면 render 자체가 안 불리지만,
+    // 그때는 uHurt 를 읽는 셰이더도 안 돌아가므로 남아 있어도 보이지 않는다.
+    const u = this.grain.uniforms.uHurt;
+    if (u.value > 0) u.value = Math.max(0, u.value - POST.hurtDecay * dt);
+
     this.composer.render(dt);
   }
 }
