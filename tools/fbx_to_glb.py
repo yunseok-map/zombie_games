@@ -29,16 +29,34 @@ TEX_QUALITY = 82          # WebP 품질. WebP 는 PNG 보다 훨씬 작고 알�
 
 def shrink_textures():
     """텍스처를 MAX_TEX 이하로 줄인다. 내보내기 전에 호출한다."""
+    done, skipped = 0, 0
     for img in bpy.data.images:
-        if not img.has_data or img.size[0] == 0:
+        if img.size[0] == 0:
             continue
+        # ★ `has_data` 로 거르면 안 된다. 팩된(FBX 내장) 이미지는 **한 번 건드리기 전까지
+        #   False** 라서, 이걸로 필터하면 대부분이 조용히 건너뛰어진다.
+        #   실제로 방호복 GLB 에 4096 노멀맵·광택맵이 그대로 남아 3MB 를 더 먹었고,
+        #   로그에는 "축소 3장"만 찍혀서 8장 중 5장이 빠진 걸 못 알아봤다.
+        #   (같은 함정을 import_props.py 는 이미 겪고 고쳐 놨었다)
+        try:
+            img.pixels[0]          # 강제 로드. 한 픽셀만 읽어도 버퍼가 올라온다
+        except Exception:
+            pass
         w, h = img.size
         if max(w, h) <= MAX_TEX:
             continue
         s = MAX_TEX / max(w, h)
         nw, nh = max(1, int(w * s)), max(1, int(h * s))
         img.scale(nw, nh)
-        print(f"    텍스처 축소: {img.name} {w}x{h} -> {nw}x{nh}")
+        if img.size[0] == nw:
+            done += 1
+            print(f"    텍스처 축소: {img.name} {w}x{h} -> {nw}x{nh}")
+        else:
+            skipped += 1
+            print(f"    ! 축소 실패: {img.name} {w}x{h} (그대로 나간다)")
+    # **몇 장을 줄였는지 반드시 찍는다.** 조용히 건너뛰는 것이 이 함수의 유일한 실패 방식이다.
+    print(f"  텍스처: 총 {len(bpy.data.images)}장 중 {done}장 축소" +
+          (f", {skipped}장 실패" if skipped else ""))
 
 # 루트 이동(root motion)은 클립 종류와 무관하게 전부 지운다.
 # 이 게임에서 좀비의 위치는 항상 Zombie.js 가 정한다(_goTo/_chase/_attack).
