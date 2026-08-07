@@ -206,13 +206,14 @@ blender --background --python tools/fbx_to_glb.py -- fbx_src public/assets/model
 > 어느 파일에 어떤 몸이 들었는지는 Blender 없이도 확인된다:
 > `grep -a -o -m1 "ZombieGirl[A-Za-z_]*" fbx_src/*.fbx`
 
-### 6-3-E. 본체 GLB 는 **세 개**다 (2026-08-07)
+### 6-3-E. 본체 GLB 는 **네 개**다 (2026-08-07)
 
 | 출력 | 본체 FBX | 무엇 |
 |---|---|---|
-| `zombie_shambler.glb` (4.05MB) | `idle_03.fbx` | 기본 메시(ZombieGirl). 수술복·원본 텍스처 변형 |
-| `zombie_nurse.glb` (3.78MB) | `nurse_idle.fbx` | **전신 방호복 의료진.** 무리의 80% |
+| `zombie_shambler.glb` (4.45MB) | `idle_03.fbx` | 기본 메시(ZombieGirl). 수술복·원본 텍스처 변형 |
+| `zombie_nurse.glb` (4.27MB) | `nurse_idle.fbx` | **전신 방호복 의료진.** 무리의 80% |
 | `zombie_surgeon.glb` (0.69MB) | `idle_05.fbx` | **수술복 외과의.** 클립은 nurse 것을 빌려 쓴다 |
+| `zombie_cop.glb` (0.92MB) | `cop_body.fbx` (Sketchfab) | **경찰.** 클립은 nurse 것을 빌려 쓴다 |
 
 전부 **같은 클립 이름**을 갖도록 같은 애니메이션 FBX 로 굽는다. `ZombieModel` 이
 개체마다 본체를 골라 쓰는데, 클립 이름이 어긋나면 한쪽만 동작이 붙는다.
@@ -344,6 +345,34 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | Hospital Reception Environment | CaseyPozzobon | https://skfb.ly/oG98U | CC BY 4.0 | 접수 데스크 · 대기 의자 |
 | VR ready hospital props | Grish_Avetisyan | https://skfb.ly/oEGEr | CC BY 4.0 | 팩 — 쓸 만한 소품 개별 분리 |
 
+### 4-C. 캐릭터 · 애니메이션 (Sketchfab, 2026-08-07 추가)
+
+> 앞의 소품과 **성격이 같다** — 개발자가 Sketchfab 에서 직접 내려받은 서드파티 모델이고,
+> 제작자와의 제휴·후원 관계가 아니다. 아래 4개는 **전부 CC Attribution (CC BY 4.0)** 이며
+> 개발자가 각 모델 페이지에서 확인했다. 제작자 표기가 의무이므로 이 표가 곧 제출용 크레딧이다.
+
+| 원본 | 제작자 | 라이선스 | 게임에서 무엇이 됐나 |
+|---|---|---|---|
+| Zombie Walk (`zombie-walk-test`) | **OSCAR CREATIVO** | CC BY 4.0 | 걷기 클립 `walk_05` |
+| Zombie Crawl (`zombie-crawl`) | **Beer Game Maker** | CC BY 4.0 | 포복 클립 `crawl_02` |
+| Sexy Zombie Girl (`sexy_zombie_girl.glb`) | **doublesob** | CC BY 4.0 | 소품 `prop_standing_body.glb` — 병실 구석에 **서 있는 시신** |
+| Animated Zombie Cop Running Loop | **LasquetiSpice** | CC BY 4.0 | 본체 `zombie_cop.glb` — 무리의 8% |
+
+**원본 대비 수정 내역** (CC-BY 는 변경 사실을 밝히는 것이 권장된다)
+
+| 원본 | 손댄 것 |
+|---|---|
+| Zombie Walk | 메시·텍스처는 안 쓰고 **애니메이션만** 뽑아 기존 좀비 GLB 에 클립으로 합쳤다. 루트 이동 제거(`fbx_to_glb.py`) |
+| Zombie Crawl | 〃 |
+| Sexy Zombie Girl | 삼각형 **150,000 → 5,000** 데시메이트 · 텍스처 512 WebP 재인코딩 · 키 1.70m 로 정규화 · 원점을 바닥 중앙으로 (`import_props.py`) |
+| Animated Zombie Cop | 애니메이션은 **버렸다**(달리기 한 개뿐이라 상태머신을 못 채운다). 메시만 쓰고, 뼈 65개에 `mixamorig:` 접두어를 붙여 기존 27클립을 빌려 쓰게 했다. 삼각형 9,845 → 6,000 · 텍스처 1024 WebP |
+
+> **경찰 모델이 살아난 이유** — 원본은 `mixamorig:` 네임스페이스만 빠졌을 뿐 **Mixamo 리그
+> 그대로**였다(뼈 65개, 이름 하나도 안 틀림). three.js 는 클립을 노드 이름으로 붙이므로
+> 접두어만 붙이면 그대로 맞는다. 그래서 `fbx_to_glb.py` 에 `normalize_bone_names()` 를 넣었다 —
+> **버텍스 그룹도 같이 바꿔야 한다.** 안 바꾸면 스키닝이 끊겨 메시가 원점에 뭉친다.
+> 검증은 `skins[].joints` 이름 집합 비교 + 콘솔에 `no target node found` 경고가 0건인지로 했다.
+
 ### 무기
 
 | 파일(예정) | 원본 모델명 | 제작자 | 출처 링크 | 라이선스 | 용도 |
@@ -453,7 +482,11 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
 | sfx_{pistol_fire,flashlight_click,axe_swing,axe_hit_flesh,reload_pistol,player_hurt}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
 | amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 20초 루프 (API 최대 길이 22초) |
-| zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 **27클립**. 6k tri / 1024 WebP |
+| zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 **30클립**. 6k tri / 1024 WebP |
+| zombie_nurse.glb / zombie_surgeon.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 방호복·수술복 본체. surgeon 은 클립을 nurse 에서 빌린다 |
+| walk_05 · crawl_02 (클립) | **Sketchfab** — OSCAR CREATIVO / Beer Game Maker | CC BY 4.0 | 가능 (표기 의무) | 걷기·포복 변형. 메시는 안 쓰고 애니메이션만 (§4-C) |
+| zombie_cop.glb | **Sketchfab** — LasquetiSpice | CC BY 4.0 | 가능 (표기 의무) | 경찰 본체. 클립은 nurse 것을 빌린다 (§4-C) |
+| props/prop_standing_body.glb | **Sketchfab** — doublesob | CC BY 4.0 | 가능 (표기 의무) | 병실 구석에 서 있는 시신. 150k → 5k tri (§4-C) |
 | models/swing_curves.json | **Mixamo** (Adobe) 모션에서 추출 · 2026-08-05 | Free | 확인 필요 | 사람 근접공격 3종(Backhand / Downward / Shooting)에서 **오른손 궤적만** 뽑아 구운 곡선. 5.7KB. 메시·스켈레톤은 안 들어간다 — 손 위치·회전을 28표본으로 정규화한 숫자만 있다 (`tools/extract_swing.py`) |
 | weapon_axe.glb | **Kenney** Survival Kit | CC0 | 가능 | 나머지 무기는 절차적 생성 (SF 광선총은 세계관에 안 맞아 제외). 원본이 참조하던 아틀라스 `Textures/colormap.png` 는 킷에 딸린 공용 팔레트라 저장소에 없다 — 매 로드마다 404 가 나서 **GLB 안의 텍스처 참조를 제거**했다. 색은 원래도 안 붙었고 `WEAPON_VIEW.colorMul`(0.12)이 그 민무늬 상태 기준이라 화면은 그대로다 |
 | ~~weapon_molotov.glb~~ | **Kenney** Survival Kit | CC0 | — | **미사용.** 화염병은 컷했다(불꽃·화상 미구현). 파일은 남겨 뒀지만 게임이 읽지 않는다 |
