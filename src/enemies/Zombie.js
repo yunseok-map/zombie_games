@@ -11,9 +11,18 @@ import { requestZombieModel } from './ZombieModel.js';
  * 이걸 0 으로 두면 좀비가 뒷걸음질로 다가온다.
  */
 const MODEL_YAW = Math.PI;
-const FADE = 0.22;            // 클립 전환 시간(초). 짧으면 뚝뚝 끊기고 길면 흐물거린다
 
 const _tmp = new THREE.Vector3();
+// 뼈 반동용 임시값 — 매 프레임 만들면 그것만으로 GC 가 돈다 (좀비 14마리 x 뼈 5개)
+const _q = new THREE.Quaternion();
+const _e = new THREE.Euler();
+
+/**
+ * 상체 반동을 걸 뼈. Mixamo 리그라 4개 GLB 전부에 같은 이름으로 존재한다
+ * (shambler 63관절 · 나머지 65관절, 접두어 `mixamorig:` 까지 동일).
+ * 순서는 KNOCK.boneWeights 의 키와 짝을 이룬다.
+ */
+const PUNCH_BONES = ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head'];
 
 /**
  * Zombie — 개체 상태머신.
@@ -57,8 +66,9 @@ export class Zombie {
     this._reset();
   }
 
-  _attachModel({ root, mixer, actions, jitter, outfit, phase, sizeMul }) {
+  _attachModel({ root, mixer, actions, jitter, outfit, phase, sizeMul, roll }) {
     this.outfit = outfit;        // 'coat' 흰 가운 / 'scrub' 수술복 / null 원본 (검사용)
+    this._roll = roll;           // 피격·사망 클립을 그때그때 새로 뽑는다 (ZombieModel.roll)
     this.group.remove(this.body, this.head);
     this.body.geometry.dispose();
     this.head.geometry.dispose();
@@ -74,6 +84,15 @@ export class Zombie {
     this._sizeMul = sizeMul ?? 1;
     // 모델이 늦게 붙을 수 있으므로 여기서도 키를 적용한다 (spawn 이 이미 지나갔을 수 있다)
     this.group.scale.setScalar((this.def?.modelScale ?? (this.def?.height ?? 1.75) / 1.75) * this._sizeMul);
+
+    // 상체 반동용 뼈를 **여기서 한 번만** 찾는다.
+    // getObjectByName 은 트리를 통째로 훑으므로 매 프레임 부르면 안 된다.
+    // 못 찾으면 배열이 비고, 그 경우 예전처럼 group 회전으로 떨어진다 (캡슐 폴백 포함).
+    this._punchBones = PUNCH_BONES
+      .map((n) => root.getObjectByName(`mixamorig:${n}`))
+      .filter(Boolean);
+    this._punchW = this._punchBones.map((b) =>
+      KNOCK.boneWeights[b.name.replace('mixamorig:', '')] ?? 0);
   }
 
   /** 상태 → 클립 종류 */
@@ -96,6 +115,7 @@ export class Zombie {
 
   _updateAnim(dt) {
     if (!this.mixer) return;
+    this._sinceHit = (this._sinceHit ?? 99) + dt;   // 재피격 되감기 간격 (ANIM.hitRetriggerMin)
 
     // 실제 이동 속도 — 걷기/서기 판정과 재생속도에 쓴다
     const moved = Math.hypot(this.pos.x - this._prevX, this.pos.z - this._prevZ);
@@ -104,14 +124,27 @@ export class Zombie {
 
     const key = this._animKey();
     const next = this.actions?.[key] ?? this.actions?.idle;
-    if (next && next !== this.curAnim) {
-      next.reset().fadeIn(FADE).play();
+    // **재피격은 같은 클립이어도 되감는다.** 예전에는 `next !== curAnim` 일 때만
+    // 리셋해서, 플린치 도중에 또 맞으면 클립이 이전 위치에서 그냥 이어졌다.
+    // 권총 쿨다운(0.28s)이 플린치(0.42s)보다 짧아 **연사하면 2발째부터 몸이
+    // 반응을 멈췄다** — 예외가 아니라 기본 동작이었다.
+    const restart = this._hitRestart && key === 'hit';
+    if (next && (next !== this.curAnim || restart)) {
+      const fadeIn = key === 'hit' ? ANIM.hitFadeIn : ANIM.fade;
+      next.reset().fadeIn(fadeIn).play();
       // **걷기·달리기는 개체마다 다른 지점에서 시작한다.**
       // reset() 은 0 으로 되감는데, 그러면 같은 순간에 걷기 시작한 개체들이
       // 발을 맞춰 행진한다 — 걷기 클립이 둘뿐이라 이게 가장 크게 티가 난다.
       if (key === 'walk' || key === 'run') next.time = this._phase * next.getClip().duration;
-      if (this.curAnim) this.curAnim.fadeOut(FADE);
+      // 피격 클립은 앞 15~20% 가 정지 구간이다. 0 부터 재생하면 반응 창의 40% 를
+      // 아무것도 안 하는 데 쓰고 최대로 젖혀지기 전에 창이 닫힌다 (hit_03 은 최대점에
+      // 아예 도달하지 못했다). 움직이기 시작하는 지점부터 재생한다.
+      if (key === 'hit') next.time = ANIM.hitOnset[next.getClip().name] ?? ANIM.hitOnsetDefault;
+      if (this.curAnim && this.curAnim !== next) {
+        this.curAnim.fadeOut(this.curAnim === this.actions?.hit ? ANIM.hitFadeOut : ANIM.fade);
+      }
       this.curAnim = next;
+      this._hitRestart = false;
     }
     // 걷기/달리기는 실제 속도에 맞춰 재생속도를 조절한다 (발이 미끄러지지 않게)
     if (next && (key === 'walk' || key === 'run')) {
@@ -132,7 +165,14 @@ export class Zombie {
       // hit_01 은 2.6초짜리라 스턴(1.4초) 안에 절반만 나오고 잘린다.
       // 플린치 시간에 맞춰 압축해서 동작이 끝까지 보이게 한다.
       // 상한을 안 걸면 짧은 플린치(0.42초)에서 6배 속도가 나와 경련처럼 보인다.
-      next.timeScale = Math.min(2.6, next.getClip().duration / Math.max(this._flinchTotal, 0.2));
+      //
+      // **남은 길이(duration - onset)로 나눠야 한다.** onset 만큼 앞을 건너뛰었으므로
+      // duration 을 그대로 쓰면 클립이 플린치보다 먼저 끝나고, clampWhenFinished
+      // 때문에 좀비가 **젖혀진 자세로 얼어붙는다** (둔기처럼 스턴이 긴 무기에서 드러난다).
+      const clip = next.getClip();
+      const onset = ANIM.hitOnset[clip.name] ?? ANIM.hitOnsetDefault;
+      next.timeScale = Math.min(ANIM.hitMaxSpeed,
+        (clip.duration - onset) / Math.max(this._flinchTotal, 0.2));
     } else if (next && key === 'attack') {
       // **배속을 여기서 정하지 않는다.** 스윙 시작(`_startSwing`)이 클립을 되감으면서
       // 같이 정한다 — 데미지가 들어가는 시점을 그 배속에서 역산하기 때문에, 여기서
@@ -140,8 +180,10 @@ export class Zombie {
       // 물고 있는 동안만 예외로 느리게 돌린다(매달려 버둥거리는 느낌).
       if (this.state === 'GRAB') next.timeScale = 0.55 * this._jitter;
     } else if (next && key === 'death') {
-      // 원본이 3초라 그대로 두면 너무 느리게 쓰러져 답답하다
-      next.timeScale = CORPSE.deathSpeed * this._jitter;
+      // 원본이 3초라 그대로 두면 너무 느리게 쓰러져 답답하다.
+      // 배속은 사망 시점에 지터까지 포함해 역산해 둔다 (hit() 참조) — 여기서 또
+      // 곱하면 상한 밖으로 나간다.
+      next.timeScale = this._deathSpeed ?? (CORPSE.deathSpeed * this._jitter);
     } else if (next) {
       next.timeScale = this._jitter;
     }
@@ -149,16 +191,28 @@ export class Zombie {
     if (this.flinch > 0) {
       this.flinch -= dt;
       // 충격으로 몸이 젖혀진다 — 애니메이션만으로는 타격감이 약하다.
-      // 맞는 순간 최대로 젖혀지고 서서히 돌아온다.
-      // sin(t*PI) 로 하면 중간에 최대가 되어 타격 순간에 반응이 없다.
+      //
+      // **감쇠 진동이다.** 예전 식(sin(t*PI/2))은 첫 프레임이 이미 최댓값이고 그 뒤로는
+      // 줄기만 했다 — 팝으로 튀어나왔다 스르르 사라지는 곡선이라 "기울었다"로 보였다.
+      // 실제 타격은 (a) 아주 짧은 상승 (b) 최대 (c) 반대쪽으로 오버슈트 (d) 수렴 이고,
+      // 역동감은 (c) 에서 나온다.
       const t = Math.max(0, this.flinch / Math.max(this._flinchTotal, 0.01));
-      const bend = Math.sin(t * Math.PI * 0.5) * KNOCK.bend;
-      // 맞은 방향으로 젖힌다. 옆에서 맞으면 옆으로 비틀린다.
-      this.group.rotation.x = -bend * (this._flinchZ ?? 1);
-      this.group.rotation.z = bend * (this._flinchX ?? 0) * 0.8;
-    } else if (this.state !== 'DEAD' && (this.group.rotation.x || this.group.rotation.z)) {
-      this.group.rotation.x = 0;
-      this.group.rotation.z = 0;
+      const u = 1 - t;                                   // 경과 비율 0 → 1
+      this._bend = (1 - Math.exp(-u / KNOCK.punchIn))    // 짧은 상승
+        * Math.exp(-KNOCK.punchDamp * u)                 // 감쇠
+        * Math.cos(KNOCK.punchFreq * u)                  // 되튐
+        * (this._flinchPower ?? 1);
+    } else if (this._bend) {
+      this._bend = 0;
+    }
+    // 몸통이 밀리는 최소량만 group 에 남긴다. **여기가 발이 바닥을 파고들 수 있는
+    // 유일한 통로**라 groupBend 를 작게 유지한다 (알려진 함정: sin(각도) x 0.19m).
+    // 뼈가 없으면(캡슐 폴백) 예전처럼 group 이 반동을 통째로 맡는다.
+    if (this.state !== 'DEAD') {
+      const gb = this._bend
+        * (this._punchBones?.length ? KNOCK.groupBend : KNOCK.boneBend);
+      this.group.rotation.x = -gb * (this._flinchZ ?? 1);
+      this.group.rotation.z = gb * (this._flinchX ?? 0) * 0.8;
     }
 
     // 보이는 위치만 뒤로 밀린다 (좌표는 그대로 — 벽을 뚫거나 경로가 꼬이면 안 된다)
@@ -194,6 +248,35 @@ export class Zombie {
     } else {
       this.mixer.update(dt);
     }
+    this._punch();
+  }
+
+  /**
+   * 상체 반동을 mixer 결과 **위에** 덧씌운다.
+   *
+   * 반드시 `mixer.update()` **뒤**여야 한다 — mixer 가 매 프레임 뼈 쿼터니언을
+   * 통째로 덮어쓰므로, 그 뒤에 곱하면 누적되지 않고 플린치가 끝나면 저절로
+   * 원래대로 돌아온다. 되돌리는 코드가 필요 없는 것이 이 방식의 요점이다.
+   *
+   * 히트스톱 분기 **밖**에 둔다: mixer.update(0) 도 뼈를 다시 쓰기 때문에,
+   * 안에 두면 히트스톱 동안만 반동이 사라진다 — 하필 가장 잘 보이는 순간이다.
+   */
+  _punch() {
+    const bones = this._punchBones;
+    if (!bones?.length) return;
+    // 시체에는 절대 걸지 않는다. `_groundOffset()` 이 "지금 자세에서 가장 낮은 뼈"를
+    // 읽어 바닥에 붙이는데, 거기에 반동이 얹히면 시체가 뜨거나 묻힌다.
+    if (this.state === 'DEAD' || !this._bend) return;
+
+    const amp = this._bend * KNOCK.boneBend;
+    const pitch = -amp * (this._flinchZ ?? 1);   // 맞은 방향으로 젖힌다
+    const roll = amp * (this._flinchX ?? 0);     // 옆에서 맞으면 비틀린다
+    for (let i = 0; i < bones.length; i++) {
+      const w = this._punchW[i];
+      if (!w) continue;
+      _e.set(pitch * w, 0, roll * w);
+      bones[i].quaternion.multiply(_q.setFromEuler(_e));
+    }
   }
 
   _reset() {
@@ -207,6 +290,8 @@ export class Zombie {
     this.wanderTimer = 0;
     this.deathTimer = 0;
     this.flinch = 0;
+    this._bend = 0; this._flinchPower = 1;
+    this._sinceHit = 99; this._hitRestart = false;
     this._knockT = 0; this._knockTotal = 0;
     this._knockX = 0; this._knockZ = 0;
     this._flinchX = 0; this._flinchZ = 1;
@@ -312,6 +397,28 @@ export class Zombie {
     this._flinchTotal = Math.max(0.42, this.stun);
     this.flinch = this._flinchTotal;
 
+    /**
+     * 데미지가 반응 **크기**에 들어간다 (시간이 아니다 — 시간을 늘리면 AI 가 멈춘 것처럼
+     * 보인다). 예전에는 권총 1발과 도끼 한 방이 픽셀 단위로 똑같이 움찔했다.
+     * 플린치가 진행 중이면 더한다 — 같은 프레임에 여러 발이 박히면 자연히 합산된다.
+     * **밀림(KNOCK.distance)에는 절대 곱하지 않는다.** 밀림을 키우면 무게가 사라지고
+     * 그것만 눈에 띈다 (0.34 → 0.18 로 줄인 기록이 balance.js 에 있다).
+     */
+    const add = damage / KNOCK.powerRef;
+    this._flinchPower = Math.min(KNOCK.powerMax,
+      Math.max(KNOCK.powerMin, (this.flinch > 0 ? (this._flinchPower ?? 0) : 0) + add));
+
+    // 같은 프레임에 여러 발이 들어와도 되감기는 한 번만 — 연달아 reset 하면
+    // 클립이 첫 프레임에 고정돼 **완전히 멈춘 것처럼 보인다.**
+    if ((this._sinceHit ?? 99) >= ANIM.hitRetriggerMin) {
+      this._hitRestart = true;
+      // 맞을 때마다 반응 클립을 새로 뽑는다. 고정해 두면 한 마리가 평생 같은
+      // 동작으로만 움찔한다 — 파일에는 3종이 들어 있는데 로드 시점에 얼어붙었다.
+      // 지금 그 클립을 재생 중이면 건드리지 않는다(재생 중 교체는 자세가 튄다).
+      if (this.curAnim !== this.actions?.hit) this._roll?.('hit');
+    }
+    this._sinceHit = 0;
+
     // 넉백·젖힘 방향. 위치는 건드리지 않고 **보이는 것만** 민다 —
     // 실제 좌표를 밀면 벽을 뚫거나 경로가 꼬인다.
     let kx = 0, kz = 1;
@@ -337,21 +444,34 @@ export class Zombie {
         : `hit_flesh_${1 + ((Math.random() * 2) | 0)}`;
     bus.emit(EV.SFX, { name: impact, x: this.pos.x, z: this.pos.z, volume: 0.95 });
     // 맞은 자리에서 피가 튄다. 머리를 맞았으면 더 높은 곳에서, 더 많이.
+    // headshot 을 불리언으로 같이 보낸다 — HUD 마커와 화면흔들림이 읽는다.
+    // power 값(1.8)으로 구분하게 하면 HUD 에 매직넘버가 생긴다.
     bus.emit(EV.ZOMBIE_HIT, {
       x: this.pos.x,
       y: this.def.height * (headshot ? 0.86 : 0.62),
       z: this.pos.z,
       nx: kx, nz: kz,
       power: headshot ? 1.8 : 1,
+      headshot,
     });
 
     if (this.hp <= 0) {
       this.state = 'DEAD';
       this.deathTimer = CORPSE.linger;
+      // 쓰러지는 자세도 매번 새로 뽑는다 — 고정하면 한 마리가 늘 같은 자세로 죽는다
+      this._roll?.('death');
+      // 클립 길이가 3.00~4.97초로 제각각이라 상수 배속을 쓰면 쓰러지는 시간이
+      // 1.8초와 3.0초로 갈린다. **걸리는 시간**을 맞추고 배속을 역산한다.
+      // **지터는 clamp 안에서 곱한다** — 밖에서 곱하면 상한을 걸어 놓고 그 위를
+      // 넘긴다. 이 프로젝트가 걷기·공격에서 이미 두 번 밟은 함정이고,
+      // tools/qa_motion.js 의 배속 검사가 존재하는 이유가 바로 이것이다.
+      const dClip = this.actions?.death?.getClip?.().duration ?? 1.5;
+      this._deathSpeed = THREE.MathUtils.clamp(
+        (dClip / CORPSE.deathTargetSec) * this._jitter,
+        CORPSE.deathSpeedMin, CORPSE.deathSpeedMax);
       // 바닥 고정 시점을 **클립 길이에서 구한다.** 고정값(예전 1.6초)을 쓰면 3초짜리
       // 사망 클립이 아직 움직이는 중에 위치가 잠겨서 뼈가 바닥을 뚫고 내려갔다.
-      const dClip = this.actions?.death?.getClip?.().duration ?? 1.5;
-      this._settleAt = dClip / (CORPSE.deathSpeed * this._jitter) + CORPSE.settleMargin;
+      this._settleAt = dClip / this._deathSpeed + CORPSE.settleMargin;
       bus.emit(EV.SFX, { name: 'zombie_death', x: this.pos.x, z: this.pos.z, volume: 0.8 });
       bus.emit(EV.ZOMBIE_DIED, { x: this.pos.x, z: this.pos.z, type: this.typeKey });
     } else if (this.state !== 'CHASE') {

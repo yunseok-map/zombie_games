@@ -46,10 +46,23 @@ export class Player {
     // 흔들림이 없으면 무엇을 때리든 화면이 가만히 있어서 전부 물렁하게 느껴진다.
     this._trauma = 0;
     this._shakeT = 0;
+    // 총을 쏘면 조준점이 **실제로 위로 튄다.** 흔들림만 있으면 반동이 연출이지
+    // 대가가 아니다 — 조준을 다시 잡아야 비로소 연사에 값이 생긴다.
+    this._gunKick = 0; this._gunKickYaw = 0;
     bus.on(EV.WEAPON_FIRED, ({ weapon }) => {
-      if (weapon?.type === 'gun') this.addShake(SHAKE.gunshot);
+      if (weapon?.type !== 'gun') return;
+      this.addShake(SHAKE.gunshot);
+      this._gunKick += SHAKE.gunKickPitch;
+      // 좌우는 매번 다른 쪽으로. 같은 쪽이면 기계가 튀는 것처럼 보인다
+      this._gunKickYaw += (Math.random() - 0.5) * 2 * SHAKE.gunKickYaw;
     });
     bus.on(EV.MELEE_HIT, () => this.addShake(SHAKE.melee));
+    bus.on(EV.MELEE_CLANG, () => this.addShake(SHAKE.meleeWall));
+    // 헤드샷이 **닿았을 때만** 추가로 흔들린다. 빗나간 총알에는 안 온다 —
+    // 이 한 줄이 "머리를 맞혔다"를 몸으로 알려주는 유일한 통로다.
+    bus.on(EV.ZOMBIE_HIT, ({ headshot }) => {
+      if (headshot) this.addShake(SHAKE.headshot);
+    });
   }
 
   addShake(v) { this._trauma = Math.min(1, this._trauma + v); }
@@ -81,6 +94,7 @@ export class Player {
     this._grabCd = 0;
     // 연출 상태도 되돌린다 — 달리다 죽으면 넓어진 시야각·기운 몸이 다음 판 시작에 남는다
     this._kick = 0;
+    this._gunKick = 0; this._gunKickYaw = 0;
     this._strafe = 0;
     this._roll = 0;
     this.camera.fov = PLAYER.fov;
@@ -346,6 +360,16 @@ export class Player {
     if (this._kick > 0.0001) this._kick = Math.max(0, this._kick - ATTACK.camKickDecay * dt);
     const kk = this._kick * this._kick;
 
+    // ── 총기 반동 ──
+    // **조준점이 실제로 움직인다.** 되돌아오는 것이 핵심이다 — 안 돌아오면
+    // 연사할수록 천장을 보게 된다. 지수 감쇠라 프레임률과 무관하다.
+    if (this._gunKick > 1e-5 || this._gunKickYaw) {
+      const rec = Math.exp(-SHAKE.gunKickRecover * dt);
+      this._gunKick *= rec;
+      this._gunKickYaw *= rec;
+      if (this._gunKick < 1e-5) { this._gunKick = 0; this._gunKickYaw = 0; }
+    }
+
     // 카메라의 좌우 흔들림은 몸 기준이라 yaw 로 월드에 돌려서 더한다
     const sn2 = Math.sin(this.yaw), cs = Math.cos(this.yaw);
     const lateral = sway + shX;
@@ -355,8 +379,8 @@ export class Player {
       this.pos.z - lateral * sn2 + this._kickZ * ATTACK.camKick * kk,
     );
     this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch + shPitch + ATTACK.camKickPitch * kk;
+    this.camera.rotation.y = this.yaw + this._gunKickYaw;
+    this.camera.rotation.x = this.pitch + shPitch + ATTACK.camKickPitch * kk + this._gunKick;
     this.camera.rotation.z = this._roll + shRoll;   // 옆걸음 + 부상 + 흔들림
   }
 

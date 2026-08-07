@@ -47,9 +47,11 @@ export class Game {
     this._dprCap = Math.min(PERF.pixelRatioStart, PERF.pixelRatioMax);
     this.renderer.setPixelRatio(this._dprCap);
     this._frameAcc = 0; this._frameN = 0; this._adaptT = 0;
-    // 근접이 닿는 순간 세상이 잠깐 멈춘다 (SHAKE.hitStop)
+    // 근접이 닿는 순간 세상이 잠깐 걸린다 (SHAKE.hitStop)
     this._hitStop = 0;
     bus.on(EV.MELEE_HIT, () => { this._hitStop = SHAKE.hitStop; });
+    // 벽·소품을 쳤을 때는 더 짧게. 살처럼 파고들지 않고 튕겨 나와야 한다
+    bus.on(EV.MELEE_CLANG, () => { this._hitStop = SHAKE.hitStopWall; });
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(PLAYER.fov, 1, 0.1, 120);
@@ -376,9 +378,13 @@ export class Game {
     let dt = Math.min(0.05, this.clock.getDelta());   // 프레임 급락 시 물리 폭주 방지
     this._adaptResolution(dt);
 
-    // 히트스톱 — 근접이 몸에 닿는 순간 세상이 잠깐 멈춘다. 근접 타격감의 절반이 이것이다.
-    // dt 를 0 으로 만들어 애니메이션까지 같이 멈춰야 "걸렸다"가 된다.
-    if (this._hitStop > 0) { this._hitStop -= dt; dt = 0; }
+    // 히트스톱 — 근접이 몸에 닿는 순간 세상이 잠깐 걸린다. 근접 타격감의 절반이 이것이다.
+    //
+    // **완전 정지(dt=0)가 아니라 초저속이다.** 완전히 멈추면 "묵직하게 걸렸다"가
+    // 아니라 "한 프레임 씹혔다"로 읽힌다. 좀비 애니메이션과 핏방울이 아주 느리게
+    // 흐르고 화면흔들림도 살아 있어야 부딪힌 것이 눈에 보인다.
+    // SHAKE.hitStopScale 을 0 으로 두면 예전 동작(완전 정지)으로 돌아간다.
+    if (this._hitStop > 0) { this._hitStop -= dt; dt *= SHAKE.hitStopScale; }
 
     if (this.state === 'PLAYING') {
       this.elapsed += dt;

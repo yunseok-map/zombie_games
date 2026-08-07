@@ -108,6 +108,8 @@ export class WeaponSystem {
     this._recoil = 0;
     this._swing = 0;
     this._swingT = 99; this._swingDur = 0.5; this._swingDir = 1;
+    // 접촉 시점 판정 예약 · 부딪힌 뒤의 반발
+    this._meleePending = null; this._meleeAt = 0; this._impact = 0;
     this._bob = 0;
     this._swayX = 0; this._swayY = 0;   // 마우스를 돌리면 무기가 뒤따라온다
     this._idle = 0;
@@ -160,6 +162,8 @@ export class WeaponSystem {
       const a = this.ammo[id];
       if (a.mag + a.reserve < minAmmo) a.reserve = Math.max(0, minAmmo - a.mag);
     }
+    this.cancelSwing();          // 죽기 직전에 예약된 타격이 되살아난 뒤에 들어가면 안 된다
+    this._impact = 0;
     this.switchTo(1);            // 근접으로 되돌린다 — 되살아난 직후 총부터 쥐고 있으면 낭비한다
     this.refreshViewModel();
     this._emitAmmo();
@@ -175,7 +179,11 @@ export class WeaponSystem {
     const idx = this.inventory.findIndex((id) => WEAPONS[id].slot === slot);
     if (idx < 0 || idx === this.index) return;
     this.index = idx;
+    // 재장전 중에 무기를 바꾸면 진행 링이 화면에 남는다 — 여기서도 끝을 알려야 한다
+    if (this.reloading > 0) bus.emit(EV.RELOAD_END, { cancelled: true });
     this.reloading = 0;
+    this.cancelSwing();          // 예약된 근접 판정이 새 무기로 들어가면 안 된다
+    this._impact = 0;
     this.cooldown = 0.25;
     this._buildViewModel();
     bus.emit(EV.WEAPON_CHANGED, { weapon: this.current });
@@ -365,18 +373,45 @@ export class WeaponSystem {
   }
 
   // ───────────────────────── 근접 ─────────────────────────
+  /**
+   * 스윙을 **시작만** 한다. 판정은 무기가 가장 뻗는 순간에 `_resolveMelee` 가 한다.
+   *
+   * 예전에는 이 함수가 클릭한 그 프레임에 판정까지 끝냈다. 그런데 뷰모델이 가장
+   * 뻗는 시점은 스윙의 54% 지점(쇠파이프 기준 0.258초 뒤)이라, **화면에서는 아직
+   * 쉬는 자세인데 좀비가 이미 피를 뿜고 젖혀졌다.** 히트스톱까지 그 시점에 걸려서
+   * "클릭 → 정지 → 그제서야 휘두름" 순서가 됐다.
+   * 좀비 쪽은 `ATTACK.contact` 로 이미 해결한 문제인데 플레이어 쪽만 남아 있었다.
+   *
+   * 쿨다운은 여기서 그대로 걸리므로 **연타 리듬은 1프레임도 안 바뀐다.**
+   */
   _swingMelee(def) {
     this.cooldown = def.cooldown;
     // 시간 기반 스윙. 예비동작 → 타격 → 마무리 순서가 있어야 "휘둘렀다"로 읽힌다
     this._swingT = 0;
     this._swingDur = Math.min(def.cooldown * 0.92, 0.62);
     this._swingDir = -this._swingDir;        // 좌우 번갈아 휘두른다
+    this._impact = 0;                        // 지난 스윙의 반발이 남아 있으면 궤적이 끊긴다
     // 궤적도 번갈아 쓴다 — 같은 곡선만 반복하면 사람이 휘두르는 느낌이 도로 사라진다
     this._swingCurve = getCurve(this._swingDir > 0
       ? 'standing_melee_attack_downward'
       : 'standing_melee_attack_backhand');
     bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
 
+    // 판정을 접촉 시점으로 예약한다. 상한을 두는 이유는 쿨다운이 긴 무기에서
+    // 클릭이 씹힌 느낌이 나지 않게 하기 위해서다.
+    this._meleePending = def;
+    this._meleeAt = Math.min(
+      this._swingDur * WEAPON_SWING.contact, WEAPON_SWING.contactMaxDelay);
+  }
+
+  /** 예약된 근접 판정이 있으면 취소한다 — 무기 교체·부활 시 유령 타격을 막는다 */
+  cancelSwing() { this._meleePending = null; }
+
+  /**
+   * 실제 판정. **접촉 시점의 시선·위치**를 쓴다 — 휘두르는 도중 몸을 돌리면
+   * 빗나간다. 좀비 공격과 같은 규칙이 되는 것이라 이쪽이 맞다.
+   */
+  _resolveMelee(def) {
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     /**
      * **바닥을 내려다보면 근접 공격이 통째로 빗나가던 버그** (2026-08-07 수정)
@@ -407,16 +442,49 @@ export class WeaponSystem {
       const dist = Math.hypot(dx, dz);
       if (dist > def.range + z.def.radius) continue;
       // 발밑에 딱 붙은 개체는 방향이 무의미하다 — 나누면 0으로 나뉘어 판정이 튄다
-      const dot = dist < 1e-3 ? 1 : (dx / dist) * fx + (dz / dist) * fz;
+      const close = dist < 1e-3;
+      const dot = close ? 1 : (dx / dist) * fx + (dz / dist) * fz;
       if (dot < halfArc) continue;
+      // **벽 너머는 못 때린다.** 총은 이미 이 규칙을 지키는데(_hitscan) 근접만
+      // 빠져 있어서, 문 하나 사이에 두고 붙은 좀비를 쇠파이프로 때릴 수 있었다.
+      if (this.collision.segmentBlocked(
+        this.player.pos.x, this.player.pos.z, z.pos.x, z.pos.z)) continue;
+
+      // 근접에도 머리 판정이 있다. 예전에는 세 번째 인자가 **항상 false 하드코딩**이라
+      // 도끼로 머리를 찍어도 정강이를 친 것과 데미지·소리·피가 전부 같았다.
+      // 발밑에 붙은 개체는 레이가 튀므로 판정하지 않는다.
+      let headshot = false;
+      if (!close) {
+        const cap = capsuleOf(z);
+        const h = rayVsSegment(this.camera.position, fwd, cap);
+        headshot = h.distSq <= (cap.r + 0.12) ** 2 && h.s > WEAPON_SWING.meleeHeadS;
+      }
       // 팔에 힘이 빠진다 — 다칠수록 근접이 약해진다 (Player.meleeMul)
       const mul = this.player.meleeMul ?? 1;
-      z.hit(def.damage * mul, def.stun * mul, false, this.player.pos);
+      z.hit(def.damage * mul * (headshot ? 2.2 : 1), def.stun * mul, headshot, this.player.pos);
       hitAny = true;
     }
 
     // 닿았을 때만 화면이 걸린다. 헛스윙에도 흔들리면 타격의 의미가 사라진다
-    if (hitAny) bus.emit(EV.MELEE_HIT, { x: this.player.pos.x, z: this.player.pos.z });
+    if (hitAny) {
+      this._impact = 1;                      // 무기가 그 자리에서 걸렸다가 튕겨 돌아온다
+      bus.emit(EV.MELEE_HIT, { x: this.player.pos.x, z: this.player.pos.z });
+    } else {
+      // 아무도 못 맞혔으면 **벽을 쳤는지** 본다. 지금까지는 벽이라는 개념이
+      // 근접에 아예 없어서 무기가 벽을 관통해 그냥 지나갔다.
+      // Collision 은 2D AABB 라 높이를 모른다 — 벽으로 등록된 박스만 잡힌다.
+      //
+      // **끝점 하나만 보면 안 된다.** 벽 두께가 0.2m 라 0.85 x 사거리(1.45m) 지점은
+      // 벽을 통째로 지나쳐 버린다 — 실측에서 벽 앞 0.75m 에 서서 휘둘렀는데
+      // 한 번도 안 잡혔다. 무기가 지나가는 경로를 **훑어야** 한다.
+      const px = this.player.pos.x + fx * def.range * WEAPON_SWING.wallProbe;
+      const pz = this.player.pos.z + fz * def.range * WEAPON_SWING.wallProbe;
+      if (this.collision.segmentBlocked(
+        this.player.pos.x, this.player.pos.z, px, pz, WEAPON_SWING.wallProbeStep)) {
+        this._impact = 1;
+        bus.emit(EV.MELEE_CLANG, { x: px, z: pz });
+      }
+    }
 
     // 타격음은 Zombie.hit() 이 부위·무기별로 낸다 (여기서 또 내면 겹친다)
     bus.emit(EV.NOISE, {
@@ -454,6 +522,9 @@ export class WeaponSystem {
     const a = this.ammo[def.id];
     if (!a || a.mag >= def.magSize || a.reserve <= 0) return;
     this.reloading = def.reloadTime;
+    // 재장전 중의 취약함이 이 게임의 공포 장치인데(CLAUDE.md §5-4) 그 시간을
+    // 화면이 한 번도 표현하지 않았다 — 끝난 뒤 숫자가 바뀌는 것이 전부였다.
+    bus.emit(EV.RELOAD_START, { seconds: def.reloadTime });
     bus.emit(EV.SFX, { name: 'reload', volume: 0.7 });
   }
 
@@ -465,11 +536,16 @@ export class WeaponSystem {
       // 산탄총 — 한 발씩. 남았으면 계속 장전
       if (a.reserve > 0 && a.mag < def.magSize) {
         a.mag++; a.reserve--;
-        if (a.reserve > 0 && a.mag < def.magSize) this.reloading = def.reloadTime;
-      }
+        if (a.reserve > 0 && a.mag < def.magSize) {
+          this.reloading = def.reloadTime;
+          // 한 발씩 넣는 무기는 여기서 다시 시작한다 — 안 알리면 링이 첫 발에서 멈춘다
+          bus.emit(EV.RELOAD_START, { seconds: def.reloadTime });
+        } else bus.emit(EV.RELOAD_END, {});
+      } else bus.emit(EV.RELOAD_END, {});
     } else {
       const need = Math.min(def.magSize - a.mag, a.reserve);
       a.mag += need; a.reserve -= need;
+      bus.emit(EV.RELOAD_END, {});
     }
     this._emitAmmo();
   }
@@ -512,10 +588,24 @@ export class WeaponSystem {
     const sp = this.player.speed;
     this._bob += dt * (sp > 0.5 ? 8.5 : 0);
 
+    // 접촉 반발 — 닿은 자리에서 멎었다가 손 쪽으로 튕겨 돌아온다.
+    // 이게 없으면 살을 치든 허공을 치든 궤적이 100% 같아서, 화면이 흔들려도
+    // "부딪혔다"가 아니라 "휘두르는 중에 화면이 흔들렸다"로 읽힌다.
+    if (this._impact > 0) {
+      this._impact = Math.max(0, this._impact - dt * WEAPON_SWING.impactDecay);
+    }
+
     // ── 스윙: 예비동작(0~24%) → 타격(24~54%) → 마무리(54~100%) ──
     let wind = 0, arc = 0;
     if (this._swingT < this._swingDur) {
-      this._swingT += dt;
+      // 닿는 순간 진행이 느려진다 — 무기가 그 자리에서 걸린다
+      this._swingT += dt * (1 - WEAPON_SWING.impactSlow * this._impact);
+      // 무기가 가장 뻗는 순간에 판정이 들어간다 (예약은 _swingMelee 가 건다)
+      if (this._meleePending && this._swingT >= this._meleeAt) {
+        const d = this._meleePending;
+        this._meleePending = null;
+        this._resolveMelee(d);
+      }
       const p = Math.min(1, this._swingT / this._swingDur);
       const w = p < 0.24 ? p / 0.24 : 1;
       const strike = p < 0.24 ? 0 : Math.min(1, (p - 0.24) / 0.30);
@@ -577,15 +667,19 @@ export class WeaponSystem {
     R.position.x += (0.26 + aimX + bobX + sx + cpx - R.position.x) * k;
     R.position.y += (-0.24 + aimY + bobY + breath + sy + cpy - R.position.y) * k;
     R.position.z = -0.45 + aimZ + this._recoil * 0.10
-      + wind * 0.06 - arc * 0.16 + cpz;                  // 예비동작에 당겼다가 앞으로 내지른다
+      + wind * 0.06 - arc * 0.16 + cpz                   // 예비동작에 당겼다가 앞으로 내지른다
+      + this._impact * WEAPON_SWING.impactPush;          // 부딪히면 손 쪽으로 되튄다
 
     // 쉬는 자세 — 축에 딱 맞춰 놓으면 "박스를 들고 있다"로 보인다
     const rest = this.current.type === 'gun' && this.aiming
       ? { x: 0, y: 0, z: 0 }
       : { x: 0.05, y: -0.16, z: 0.10 };
 
-    R.rotation.x = rest.x + this._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4 + crx;
+    // 반발은 스윙 진행 방향의 **반대**로 튕긴다 — 그래야 막힌 것으로 보인다
+    R.rotation.x = rest.x + this._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4 + crx
+      - this._impact * WEAPON_SWING.impactPitch;
     R.rotation.y = rest.y + (wind * 0.30 - arc * 0.62) * dir + sx * 1.6 + cry;
-    R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir + crz;
+    R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir + crz
+      + this._impact * WEAPON_SWING.impactRoll * dir;
   }
 }

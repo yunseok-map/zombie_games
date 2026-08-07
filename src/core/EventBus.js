@@ -31,14 +31,21 @@ export const EV = {
   NOISE: 'noise',                 // { x, z, radius, source }
   PLAYER_DAMAGED: 'player:damaged',
   PLAYER_DIED: 'player:died',
+  // { x, y, z, nx, nz, power, headshot } — headshot 은 HUD 마커·화면흔들림이 읽는다.
+  // power 로 구분하면 HUD 에 매직넘버(1.8)가 생긴다. 불리언을 그대로 보낸다.
   ZOMBIE_HIT: 'zombie:hit',
   MELEE_HIT: 'melee:hit',         // 근접이 **닿았을 때만**. 헛스윙에는 안 온다 (흔들림·히트스톱용)
+  MELEE_CLANG: 'melee:clang',     // 근접이 **벽·소품**을 쳤을 때 { x, z }. 살을 칠 때보다 짧고 세게 튕긴다
   GRAB_START: 'grab:start',       // 좀비가 달라붙었다 { x, z }
   GRAB_END: 'grab:end',           // { broke } — true 면 뿌리친 것, false 면 시간 초과
   ZOMBIE_DIED: 'zombie:died',
   WEAPON_FIRED: 'weapon:fired',
   WEAPON_CHANGED: 'weapon:changed',
   AMMO_CHANGED: 'ammo:changed',
+  // 재장전 중의 취약함이 이 게임의 공포 장치인데(CLAUDE.md §5-4) 그 2초를 화면이
+  // 한 번도 표현하지 않았다. 링이 시계처럼 채워진다.
+  RELOAD_START: 'reload:start',   // { seconds }
+  RELOAD_END: 'reload:end',       // { cancelled }
   FLASHLIGHT_TOGGLED: 'flashlight:toggled',
   HINT: 'hint',                   // { text, duration }
   OBJECTIVE: 'objective',         // { text } — 계속 떠 있는 "지금 할 일". HINT 와 달리 안 사라진다

@@ -44,7 +44,11 @@ const MODEL_FILES = {
  * 14마리가 동시에 나오는데 전부 같은 걸음이면 즉시 복제인간으로 보인다.
  */
 export const CLIP_VARIANTS = {
-  idle:   ['idle_02', 'idle_03', 'idle_01', 'idle_04', 'idle_05'],
+  // `nurse_idle` 은 방호복 GLB 안에 들어 있는데 두 세션 동안 아무도 안 썼다.
+  // 무리의 92% 가 nurse 클립을 쓰므로(cop·surgeon 이 빌려 간다) idle 변형이
+  // 사실상 2종뿐이었다 — 후보에 한 줄 넣는 것으로 회수한다.
+  // pick() 이 **있는 클립만** 고르므로 base 메시에 없어도 안전하다.
+  idle:   ['idle_02', 'idle_03', 'idle_01', 'idle_04', 'idle_05', 'nurse_idle'],
   // **walk_01 과 walk_04 를 뺐다. 둘 다 걷기 클립이 아니다.** (2026-08-07 실측)
   //   walk_01 — 29.87초에 보폭이 사실상 없다(0.06m/s). 맞추려면 18배속이 필요하다.
   //   walk_04 — 클립 중간(t=0.49)에 **가장 낮은 뼈가 바닥에서 0.89m** 뜬다. 몸이 통째로 난다.
@@ -217,9 +221,18 @@ function makeInstance() {
 
   // 개체마다 변형을 뽑아 고정한다
   const actions = {};
-  for (const key of Object.keys(CLIP_VARIANTS)) {
+  /**
+   * 한 종류의 클립을 새로 뽑아 actions 에 꽂는다.
+   *
+   * 걷기·달리기는 **고정**이 맞다(개체의 걸음걸이는 그 개체의 성질이다). 하지만
+   * 피격과 사망은 그렇지 않다 — 고정해 두면 **한 마리가 게임 내내 같은 동작으로
+   * 움찔하고 같은 자세로 죽는다.** 게다가 풀은 부팅 때 만든 20마리를 계속
+   * 재활용하므로, 파일에 3종씩 들어 있는 변형이 로드 시점에 얼어붙는다.
+   * mixer.clipAction 은 클립당 액션을 캐시하므로 다시 불러도 새로 만들지 않는다.
+   */
+  const roll = (key) => {
     const name = pick(CLIP_VARIANTS[key], clips);
-    if (!name) continue;
+    if (!name) return null;
     const clip = clips.find((c) => c.name === name);
     const action = mixer.clipAction(clip);
     if (key === 'death' || key === 'scream' || key === 'hit') {
@@ -227,7 +240,9 @@ function makeInstance() {
       action.clampWhenFinished = true;   // 쓰러진 자세 / 한 번만 재생
     }
     actions[key] = action;
-  }
+    return action;
+  };
+  for (const key of Object.keys(CLIP_VARIANTS)) roll(key);
 
   // 개체마다 재생속도를 조금씩 다르게 — 전부 같으면 군무처럼 보인다
   const jitter = 0.85 + Math.random() * 0.3;
@@ -245,5 +260,5 @@ function makeInstance() {
   const lean = (Math.random() - 0.5) * 0.11;
   const sizeMul = 0.96 + Math.random() * 0.08;
   root.rotation.z = lean;
-  return { root, mixer, actions, jitter, outfit, phase, sizeMul };
+  return { root, mixer, actions, jitter, outfit, phase, sizeMul, roll };
 }
