@@ -378,6 +378,24 @@ export class WeaponSystem {
     bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
 
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    /**
+     * **바닥을 내려다보면 근접 공격이 통째로 빗나가던 버그** (2026-08-07 수정)
+     *
+     * 판정은 바닥에 눕힌 부채꼴(위에서 본 각도)인데, 비교 대상인 `fwd` 는
+     * 카메라의 **3D** 전방이라 수평 길이가 `cos(고개각)` 만큼 짧다.
+     * 그래서 고개를 숙일수록 내적이 통째로 줄고, 정면으로 딱 겨눠도
+     * `halfArc` 문턱을 못 넘는다. 각도가 좁은 무기일수록 먼저 죽는다:
+     *
+     *   쇠파이프(70°) → 35° 아래 · 소방도끼(55°) → **27.5° 아래면 무조건 빗나감**
+     *
+     * 기는 좀비는 눈높이 1.55m 에서 1.2m 앞이면 이미 46° 아래다.
+     * 즉 **기는 좀비는 근접으로 아예 죽일 수 없었다.** 총은 캡슐 레이라 멀쩡했으므로
+     * "가끔 좀비가 안 죽는다"로 보였다.
+     *
+     * 고개각은 부채꼴 판정에 들어가면 안 된다 — 수평 성분만 뽑아 다시 정규화한다.
+     */
+    const fwdLen = Math.hypot(fwd.x, fwd.z) || 1;
+    const fx = fwd.x / fwdLen, fz = fwd.z / fwdLen;
     const halfArc = Math.cos(THREE.MathUtils.degToRad(def.arcDeg) / 2);
     const zombies = this.getZombies();
     let hitAny = false;
@@ -388,7 +406,8 @@ export class WeaponSystem {
       const dz = z.pos.z - this.player.pos.z;
       const dist = Math.hypot(dx, dz);
       if (dist > def.range + z.def.radius) continue;
-      const dot = (dx / dist) * fwd.x + (dz / dist) * fwd.z;
+      // 발밑에 딱 붙은 개체는 방향이 무의미하다 — 나누면 0으로 나뉘어 판정이 튄다
+      const dot = dist < 1e-3 ? 1 : (dx / dist) * fx + (dz / dist) * fz;
       if (dot < halfArc) continue;
       // 팔에 힘이 빠진다 — 다칠수록 근접이 약해진다 (Player.meleeMul)
       const mul = this.player.meleeMul ?? 1;

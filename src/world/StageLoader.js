@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SURFACE, LOOT, CORPSE, SCATTER } from '../config/balance.js';
+import { SURFACE, LOOT, CORPSE, SCATTER, KEY_ITEM_GLOW } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { Scatter } from './Scatter.js';
 import { BUILDERS, signPlate } from './Props.js';
@@ -185,6 +185,34 @@ export class StageLoader {
       });
     }
     return this._itemMaterial;
+  }
+
+  /**
+   * 열쇠 아이템 후광 재질 (KEY_ITEM_GLOW).
+   * 텍스처는 64px 캔버스에 그린 방사형 그라디언트 한 장뿐이다 — 파일이 안 늘어난다.
+   * 재질을 하나만 만들어 돌려 쓰므로 구역을 다시 로드해도 새지 않는다.
+   */
+  _glowMat() {
+    if (!this._glowMaterial) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 64;
+      const c2 = cv.getContext('2d');
+      const grad = c2.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0.00, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.22, 'rgba(255,255,255,0.5)');
+      grad.addColorStop(1.00, 'rgba(255,255,255,0)');
+      c2.fillStyle = grad;
+      c2.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this._glowMaterial = new THREE.SpriteMaterial({
+        map: tex, color: KEY_ITEM_GLOW.color,
+        blending: THREE.AdditiveBlending,
+        transparent: true, depthWrite: false,
+        opacity: KEY_ITEM_GLOW.opacity,
+      });
+    }
+    return this._glowMaterial;
   }
 
   /**
@@ -470,6 +498,16 @@ export class StageLoader {
         const m = new THREE.Mesh(g, this._itemMat());
         m.position.set(x, y, z);
         m.rotation.set(0.1, Math.random() * Math.PI, 0.06);
+        // 후광은 카드의 **자식**이다 — 주우면 카드와 함께 사라진다(따로 지울 필요가 없다)
+        const glow = new THREE.Sprite(this._glowMat());
+        glow.scale.setScalar(KEY_ITEM_GLOW.size);
+        glow.position.set(0, KEY_ITEM_GLOW.y, 0);
+        glow.onBeforeRender = () => {
+          const t = performance.now() / 1000;
+          glow.material.opacity = KEY_ITEM_GLOW.opacity
+            + Math.sin(t * KEY_ITEM_GLOW.pulseHz * Math.PI * 2) * KEY_ITEM_GLOW.pulse;
+        };
+        m.add(glow);
         this.group.add(m);
         this.interaction.add({
           x, z, radius: 1.9, once: true, mesh: m,
