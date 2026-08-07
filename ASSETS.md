@@ -254,6 +254,25 @@ python tools/glb_strip_animations.py public/assets/models/zombie_surgeon.glb
 blender --background --python tools/fbx_to_glb.py -- <애니만_추린_폴더> public/assets/models/zombie_nurse.glb nurse_idle.fbx
 ```
 
+**"애니만 추린 폴더" 를 다시 만드는 법** — `fbx_src` 를 통째로 복사하되 `idle_03/04/05` 만 뺀다
+(`nurse_idle.fbx` 는 본체라 반드시 넣는다). 하위 폴더(`person` · `_unused` · `_cop`)는
+글롭에 안 걸리므로 신경 안 써도 된다.
+
+```powershell
+$dst = "$env:TEMP\nurse_src"; New-Item -ItemType Directory -Force $dst
+$skip = @('idle_03.fbx','idle_04.fbx','idle_05.fbx')
+Get-ChildItem fbx_src -Filter *.fbx -File | Where-Object { $skip -notcontains $_.Name } |
+  ForEach-Object { Copy-Item $_.FullName $dst }
+```
+
+**경찰 본체 재굽기** (원본은 `fbx_src/_cop/`. 텍스처는 FBX 옆과 `textures/` 양쪽에 둬야
+Blender FBX 임포터가 찾는다):
+
+```
+blender --background --python tools/fbx_to_glb.py -- fbx_src/_cop public/assets/models/zombie_cop.glb cop_body.fbx
+python tools/glb_strip_animations.py public/assets/models/zombie_cop.glb
+```
+
 > **삼각형 상한(6000)에 걸리는 모델은 예전 스크립트로 굽지 마라.** 데시메이트를
 > 모디파이어로 남겨 두면 익스포터가 애니메이션 프레임마다 5만 삼각형을 다시 깎아서
 > **66분을 넘겨도 안 끝난다.** 지금은 익스포트 직전에 확정 적용하므로 1분 30초다.
