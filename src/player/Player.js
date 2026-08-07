@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, PLAYER, NOISE, INJURY, SHAKE } from '../config/balance.js';
+import { WORLD, PLAYER, NOISE, INJURY, SHAKE, ATTACK, GRAB } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
 /**
@@ -29,6 +29,18 @@ export class Player {
     this._stepAccum = 0;
     this._invuln = 0;
     this._exhausted = false;   // 스태미나 0 찍으면 일정선까지 회복해야 다시 달림
+
+    // ── 물림 ──
+    // 붙잡은 좀비. null 이면 안 물린 상태다. 놓아주는 판단은 **전부 여기서** 한다 —
+    // 뿌리치기·시간 초과·좀비의 죽음을 한 곳에서 봐야 어긋날 여지가 없다.
+    this.grabbedBy = null;
+    this.struggle = 0;         // 0~1. HUD 가 읽는다
+    this._grabT = 0;
+    this._grabCd = 0;          // 뿌리친 뒤 쿨다운 — 연속으로 물리면 억울하다
+
+    // 맞은 쪽 반대로 카메라가 밀린다. 흔들림(_trauma)과 달리 **방향이 있다.**
+    this._kick = 0;
+    this._kickX = 0; this._kickZ = 0;
 
     // 화면 흔들림 — trauma 를 쌓고 제곱해서 쓴다. 약할 때는 티가 안 나고 셀 때 확 온다.
     // 흔들림이 없으면 무엇을 때리든 화면이 가만히 있어서 전부 물렁하게 느껴진다.
@@ -62,7 +74,13 @@ export class Player {
     this.alive = true;
     this.items.clear();        // 재시작하면 구역도 다시 만들어지므로 아이템도 초기화한다
     this._invuln = 0;
+    // 물린 채로 죽으면 다음 판이 물린 상태로 시작한다 — 움직이지도 못한다
+    this.grabbedBy = null;
+    this.struggle = 0;
+    this._grabT = 0;
+    this._grabCd = 0;
     // 연출 상태도 되돌린다 — 달리다 죽으면 넓어진 시야각·기운 몸이 다음 판 시작에 남는다
+    this._kick = 0;
     this._strafe = 0;
     this._roll = 0;
     this.camera.fov = PLAYER.fov;
@@ -84,12 +102,88 @@ export class Player {
 
   update(dt) {
     if (!this.alive) return;
+    if (this._grabCd > 0) this._grabCd -= dt;
     this._look();
-    this._move(dt);
+    if (this.grabbedBy) this._grabbed(dt);
+    else this._move(dt);
     this._stamina(dt);
     this._footsteps(dt);
     if (this._invuln > 0) this._invuln -= dt;
     this._syncCamera(dt);
+  }
+
+  /** 지금 물릴 수 있는가 — Zombie 가 타격이 **닿은 순간에만** 묻는다 */
+  canBeGrabbed() {
+    return this.alive && !this.grabbedBy && this._grabCd <= 0
+      && this.hp / PLAYER.maxHp > GRAB.minHpRatio;
+  }
+
+  beginGrab(z) {
+    this.grabbedBy = z;
+    this.struggle = 0;
+    this._grabT = 0;
+    this.vel.set(0, 0, 0);
+    this.addShake(SHAKE.hurt);
+    bus.emit(EV.SFX, { name: 'zombie_attack', x: z.pos.x, z: z.pos.z, volume: 1 });
+  }
+
+  /**
+   * 물려 있는 동안.
+   * - 못 움직인다. 시야는 좀비 쪽으로 끌리되 완전히 뺏지는 않는다(다 뺏으면 멀미난다).
+   * - Space 연타로 게이지를 채운다. **가만히 있으면 절대 안 풀린다** (감쇠가 더 크다).
+   * - 시간이 다 가면 강제로 풀리고 큰 피해를 받는다 — 무한히 갇히면 게임이 아니다.
+   */
+  _grabbed(dt) {
+    const z = this.grabbedBy;
+    // 좀비가 죽었거나 반납됐거나 **총에 맞아 물기를 놓쳤으면** 즉시 풀린다.
+    // 이 검사가 없으면 물고 있던 좀비를 쏴 죽였을 때 영원히 갇힌다.
+    if (!z.active || z.state !== 'GRAB') { this._endGrab(true); return; }
+
+    this._grabT += dt;
+    this.vel.set(0, 0, 0);
+
+    // 시야가 끌린다 — 얼굴을 보게 만드는 것이 이 장치의 전부다
+    const want = Math.atan2(-(z.pos.x - this.pos.x), -(z.pos.z - this.pos.z));
+    let d = want - this.yaw;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    // 완전히 정면으로 고정하지 않는다. lookFree 만큼은 남겨 둔다
+    const pull = Math.max(0, Math.abs(d) - GRAB.lookFree) * Math.sign(d);
+    this.yaw += pull * Math.min(1, GRAB.lookLerp * dt);
+
+    // 지속 피해 — **무적시간을 무시한다.** 물린 채로 안 깎이면 위협이 아니다
+    this.hp = Math.max(0, this.hp - GRAB.dps * dt);
+    if (this.hp <= 0) { this._endGrab(false); this._die(); return; }
+
+    // 뿌리치기
+    if (this.input.justPressed('Space')) {
+      this.struggle += GRAB.mashGain;
+      this.addShake(SHAKE.melee * 0.5);
+    }
+    this.struggle = Math.max(0, this.struggle - GRAB.mashDecay * dt);
+
+    if (this.struggle >= 1) {
+      z.onGrabBroken?.();
+      this._endGrab(true);
+      bus.emit(EV.SFX, { name: 'zombie_alert', x: z.pos.x, z: z.pos.z, volume: 0.8 });
+      return;
+    }
+    if (this._grabT >= GRAB.maxSeconds) {
+      // 시간 초과 — 큰 피해를 주고 놓아준다. 억울하지만 무한 루프보다는 낫다
+      this.hp = Math.max(0, this.hp - GRAB.breakDamage);
+      this.addShake(SHAKE.hurt);
+      this._endGrab(false);
+      if (this.hp <= 0) this._die();
+    }
+  }
+
+  _endGrab(broke) {
+    const z = this.grabbedBy;
+    this.grabbedBy = null;
+    this.struggle = 0;
+    this._grabCd = GRAB.cooldown;
+    bus.emit(EV.GRAB_END, { broke });
+    if (z && broke) this.addShake(SHAKE.melee);
   }
 
   _look() {
@@ -247,17 +341,22 @@ export class Player {
       shRoll = n3 * SHAKE.maxAngle * tr;
     }
 
+    // ── 방향 있는 충격 ──
+    // 맞은 쪽 반대로 몸이 밀리고 고개가 젖혀진다. 제곱해서 쓰면 초반만 확 오고 금방 잦아든다.
+    if (this._kick > 0.0001) this._kick = Math.max(0, this._kick - ATTACK.camKickDecay * dt);
+    const kk = this._kick * this._kick;
+
     // 카메라의 좌우 흔들림은 몸 기준이라 yaw 로 월드에 돌려서 더한다
     const sn2 = Math.sin(this.yaw), cs = Math.cos(this.yaw);
     const lateral = sway + shX;
     this.camera.position.set(
-      this.pos.x + lateral * cs,
+      this.pos.x + lateral * cs + this._kickX * ATTACK.camKick * kk,
       this.pos.y + this.eyeHeight + bob + shY,
-      this.pos.z - lateral * sn2,
+      this.pos.z - lateral * sn2 + this._kickZ * ATTACK.camKick * kk,
     );
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch + shPitch;
+    this.camera.rotation.x = this.pitch + shPitch + ATTACK.camKickPitch * kk;
     this.camera.rotation.z = this._roll + shRoll;   // 옆걸음 + 부상 + 흔들림
   }
 
@@ -270,6 +369,7 @@ export class Player {
     this.hp = Math.max(0, this.hp - amount);
     this._invuln = PLAYER.invulnAfterHit;
     this.addShake(SHAKE.hurt);
+    if (from) this.addKick(from);
     bus.emit(EV.SFX, { name: 'player_hurt', volume: 0.8 });
     // 화면 기준 각도로 바꿔서 넘긴다 — HUD 는 월드 좌표를 모른다.
     // 0 = 정면, +는 오른쪽. 몸이 돌면 표시도 같이 돌아야 한다
@@ -284,10 +384,28 @@ export class Player {
       dir = Math.atan2(r, f);        // 0 = 정면, + = 오른쪽
     }
     bus.emit(EV.PLAYER_DAMAGED, { hp: this.hp, amount, dir });
-    if (this.hp <= 0) {
-      this.alive = false;
-      bus.emit(EV.PLAYER_DIED, {});
-    }
+    if (this.hp <= 0) this._die();
+  }
+
+  /** 죽음 처리는 한 곳에만 둔다 — 물림 시간 초과로도 죽을 수 있다 */
+  _die() {
+    if (!this.alive) return;
+    this.alive = false;
+    this.grabbedBy = null;      // 죽은 채로 물려 있으면 다음 판까지 따라간다
+    this.struggle = 0;
+    bus.emit(EV.PLAYER_DIED, {});
+  }
+
+  /**
+   * 맞은 쪽 **반대로** 몸이 밀린다. `_trauma`(흔들림)와 달리 **방향이 있다** —
+   * 흔들리기만 하면 어디서 맞았는지 몸으로 안 온다. 붉은 물듦은 머리로 읽는 표시고
+   * 이건 몸으로 읽는 표시다.
+   */
+  addKick(from) {
+    const dx = this.pos.x - from.x, dz = this.pos.z - from.z;
+    const d = Math.hypot(dx, dz) || 1;
+    this._kickX = dx / d; this._kickZ = dz / d;
+    this._kick = 1;
   }
 
   heal(amount) {

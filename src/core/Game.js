@@ -113,8 +113,32 @@ export class Game {
    * 훨씬 강하다. 좀비는 띄우지 않는다(첫인상은 정적이어야 한다).
    * 소리는 못 낸다 — 브라우저가 사용자 클릭 전 재생을 막는다.
    */
+  /**
+   * 셰이더를 미리 굽는다.
+   *
+   * three.js 는 재질이 **처음 화면에 들어오는 프레임**에 셰이더를 컴파일한다.
+   * 그래서 시야를 확 돌려 새 물체가 들어오는 순간 그 프레임만 수십 ms 튄다 —
+   * "확확 돌릴 때 렉 걸리듯 멈춘다"가 이 증상이다. 프레임 평균은 멀쩡한데
+   * 체감만 나빠서 성능 문제로 오해하기 쉽다.
+   *
+   * 구역을 연 직후 한 번에 다 구워 두면 플레이 중에는 안 튄다.
+   * **풀에 든 좀비는 숨어 있어서 traverseVisible 에 안 잡힌다** — 잠깐 보이게 해서
+   * 같이 굽는다. 안 그러면 첫 좀비가 나타나는 순간 똑같이 튄다.
+   */
+  _precompile() {
+    const hidden = [];
+    for (const z of (this.pool?.all ?? [])) {
+      if (z.group && !z.group.visible) { hidden.push(z.group); z.group.visible = true; }
+    }
+    try {
+      this.renderer.compile(this.scene, this.camera);
+    } catch { /* 실패해도 게임은 돌아간다 — 첫 프레임에 굽힐 뿐이다 */ }
+    for (const g of hidden) g.visible = false;
+  }
+
   startAttract() {
     this.stageLoader.load(STAGES[0]);
+    this._precompile();
     this.pool.despawnAll();
     this.flashlight.on = true;
     this.flashlight.battery = FLASHLIGHT.maxBattery;
@@ -164,6 +188,7 @@ export class Game {
     const start = this.stageLoader.load(stage);
     this.player.surfaceAt = this.stageLoader.surfaceAt;
     this.player.spawn(start.x, start.z, start.yaw);
+    this._precompile();
 
     if (cp) {
       // 그 구역에 들어섰던 상태로 되돌린다. 다만 빈사로 들어왔다면 죽음의 고리에 갇히므로
@@ -212,6 +237,7 @@ export class Game {
     const start = this.stageLoader.load(stage);
     this.player.surfaceAt = this.stageLoader.surfaceAt;
     this.player.spawn(start.x, start.z, start.yaw);
+    this._precompile();
     this.player.hp = hp;
     this.flashlight.battery = battery;
     this._saveCheckpoint();
@@ -384,6 +410,9 @@ export class Game {
         this.hud.setPrompt(null);   // 먼저 지운다 — 안 그러면 획득 메시지가 안내에 가려진다
         this.interaction.use(target, { player: this.player, flashlight: this.flashlight, weapons: this.weapons });
       }
+
+      // 물려 있으면 뿌리치기 게이지를 띄운다 (-1 = 안 물림)
+      this.hud.setStruggle(this.player.grabbedBy ? this.player.struggle : -1);
 
       this.audio.setListener(this.player.pos.x, this.player.pos.z, this.player.yaw);
       this.hud.update(dt, {

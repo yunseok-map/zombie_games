@@ -51,11 +51,35 @@ export class HUD {
       #bars .bar{transition:box-shadow .3s}
       #bars .bar.crit{box-shadow:0 0 10px rgba(210,50,36,.85)}
       #crosshair{transition:transform .12s ease-out,opacity .2s}
+
+      /* 물림 — 화면 가장자리가 붉게 조여들고, 아래에 뿌리치기 게이지가 뜬다.
+         숫자가 아니라 **차오르는 것**이어야 연타할 마음이 든다. */
+      #grab{position:fixed;inset:0;pointer-events:none;z-index:7;opacity:0;
+        transition:opacity .12s;
+        background:radial-gradient(ellipse at center,transparent 24%,rgba(120,10,8,.92) 96%)}
+      #grab.on{opacity:1;animation:grabshake .16s steps(2) infinite}
+      @keyframes grabshake{0%{transform:translate(0,0)}50%{transform:translate(2px,-2px)}}
+      #grabui{position:fixed;left:50%;bottom:21%;transform:translateX(-50%);z-index:8;
+        width:min(320px,42vw);opacity:0;transition:opacity .12s;pointer-events:none;text-align:center}
+      #grabui.on{opacity:1}
+      #grabui .lb{font:700 13px/1 ui-monospace,monospace;letter-spacing:.3em;color:#f0d8d4;
+        text-shadow:0 0 14px rgba(220,60,40,.9);margin-bottom:9px}
+      #grabui .lb b{color:#ffd34a}
+      #grabui .track{height:9px;background:rgba(0,0,0,.62);border:1px solid #6b2420;
+        box-shadow:0 0 14px rgba(200,40,30,.5)}
+      #grabui .fill{height:100%;width:0%;background:linear-gradient(90deg,#c8503c,#ffd34a);
+        transition:width .05s linear}
     `;
     document.head.appendChild(css);
     this.vig = document.createElement('div'); this.vig.id = 'vig';
     this.warn = document.createElement('div'); this.warn.id = 'warn';
-    document.body.append(this.vig, this.warn);
+    this.grabVig = document.createElement('div'); this.grabVig.id = 'grab';
+    this.grabUI = document.createElement('div'); this.grabUI.id = 'grabui';
+    this.grabUI.innerHTML = '<div class="lb"><b>SPACE</b> 연타해서 뿌리쳐라</div>'
+      + '<div class="track"><div class="fill"></div></div>';
+    this.grabFill = this.grabUI.querySelector('.fill');
+    document.body.append(this.vig, this.warn, this.grabVig, this.grabUI);
+    this._grabOn = false;
     // 숫자 표시 — 값이 바뀔 때만 DOM 을 건드린다
     this._nums = {
       hp: document.getElementById('hp-n'),
@@ -98,6 +122,20 @@ export class HUD {
    * 상호작용 안내 — 대상 앞에 서 있는 동안 계속 떠 있는다.
    * 매 프레임 불려도 값이 안 바뀌면 DOM 을 건드리지 않는다.
    */
+  /**
+   * 물림 표시. `v` 가 음수면 안 물린 상태다.
+   * DOM 은 **상태가 바뀔 때만** 건드린다 — 매 프레임 클래스를 넣었다 빼면 그것만으로 끊긴다.
+   */
+  setStruggle(v) {
+    const on = v >= 0;
+    if (on !== this._grabOn) {
+      this._grabOn = on;
+      this.grabVig.classList.toggle('on', on);
+      this.grabUI.classList.toggle('on', on);
+    }
+    if (on) this.grabFill.style.width = `${Math.min(100, v * 100)}%`;
+  }
+
   setPrompt(text) {
     if (text === this._prompt) return;
     this._prompt = text;

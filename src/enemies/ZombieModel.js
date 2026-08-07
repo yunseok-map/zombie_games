@@ -40,8 +40,16 @@ const MODEL_FILES = {
  */
 export const CLIP_VARIANTS = {
   idle:   ['idle_02', 'idle_03', 'idle_01', 'idle_04', 'idle_05'],
-  // walk_04 = 비틀거리며 걷기. 배회에 가장 어울린다
-  walk:   ['walk_01', 'walk_02', 'walk_03', 'walk_04'],
+  // **walk_01 과 walk_04 를 뺐다. 둘 다 걷기 클립이 아니다.** (2026-08-07 실측)
+  //   walk_01 — 29.87초에 보폭이 사실상 없다(0.06m/s). 맞추려면 18배속이 필요하다.
+  //   walk_04 — 클립 중간(t=0.49)에 **가장 낮은 뼈가 바닥에서 0.89m** 뜬다. 몸이 통째로 난다.
+  // 이 둘이 절반을 차지하고 있었다. 미끄러짐이 결함을 가리고 있었다 —
+  // 배속 상한에 막혀 클립이 앞부분만 재생되던 탓에 공중부양 구간까지 가지도 못했다.
+  // (재는 법: tools/measure_contact.js 의 measureStride, 그리고 클립별 최저뼈 Y 훑기)
+  //
+  // 지금 남은 건 둘뿐이라 **걷기 변형이 부족하다.** Mixamo 에서 "Zombie Walk" 계열을
+  // 더 받아 walk_05, walk_06 으로 넣으면 그대로 늘어난다(ANIM.clipSpeed 에 원래 속도만 추가).
+  walk:   ['walk_02', 'walk_03'],
   run:    ['run', 'run_02'],
   attack: ['attack_01', 'attack_02', 'attack_03', 'attack_04', 'attack_05', 'kicking'],
   death:  ['death_01', 'death_02', 'death_03'],

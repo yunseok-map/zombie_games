@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP, STEALTH, ANIM } from '../config/balance.js';
+import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP, STEALTH, ANIM, ATTACK, GRAB } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 
@@ -81,10 +81,11 @@ export class Zombie {
     // **공격 판정을 ATTACK 보다 먼저 본다.** 선 자세 공격 클립을 쓰면 modelYOffset(-0.62)
     // 때문에 몸이 바닥 아래로 묻힌다 (tools/qa_motion.js 가 잡았다).
     if (this.def.crawler) {
-      if (this.state === 'ATTACK') return 'crawl';     // 빠르게 돌려 달려드는 것처럼 (ANIM)
+      if (this.state === 'ATTACK' || this.state === 'GRAB') return 'crawl';
       return this._moveSpeed > 0.15 ? 'crawl' : 'crawlIdle';
     }
-    if (this.state === 'ATTACK') return 'attack';
+    // 물고 있는 동안도 공격 클립을 쓴다 — 느리게 돌려 매달려 버둥거리는 것처럼 보인다
+    if (this.state === 'ATTACK' || this.state === 'GRAB') return 'attack';
     if (this.state === 'CHASE') return 'run';
     return this._moveSpeed > 0.25 ? 'walk' : 'idle';
   }
@@ -106,7 +107,11 @@ export class Zombie {
     }
     // 걷기/달리기는 실제 속도에 맞춰 재생속도를 조절한다 (발이 미끄러지지 않게)
     if (next && (key === 'walk' || key === 'run')) {
-      const ref = key === 'run' ? this.def.speedChase : this.def.speedWander;
+      // **기준은 설계속도가 아니라 클립의 원래 속도다.** 예전에는 speedWander 로 나눴는데,
+      // 그건 설계속도와 클립의 원래 속도가 같다는 전제가 필요하다. 실제로는 0.30~2.08 로
+      // 제각각이라 모든 걷기가 상한에 걸린 채 **그대로 미끄러졌다.**
+      // (실측: tools/measure_contact.js 의 measureStride)
+      const ref = ANIM.clipSpeed[next.getClip().name] ?? ANIM.clipSpeedDefault;
       // **지터는 clamp 안에서 곱한다.** 밖에서 곱하면 하한을 걸어 놓고 그 뒤에 0.92 를
       // 곱해 0.37 이 나온다 — 발이 끌리는 슬로모션이 된다 (tools/qa_motion.js 가 잡았다).
       next.timeScale = THREE.MathUtils.clamp(
@@ -121,14 +126,11 @@ export class Zombie {
       // 상한을 안 걸면 짧은 플린치(0.42초)에서 6배 속도가 나와 경련처럼 보인다.
       next.timeScale = Math.min(2.6, next.getClip().duration / Math.max(this._flinchTotal, 0.2));
     } else if (next && key === 'attack') {
-      // 한 번 휘두르는 시간이 공격 쿨다운과 맞게 — 루프로 계속 휘두르면 우스워진다.
-      // **다만 상한을 걸어야 한다.** 4.5초짜리 클립을 1.1초 쿨다운에 맞추면 4.5배속이 되어
-      // 팔이 경련하는 것처럼 보인다 (tools/qa_motion.js 가 잡았다).
-      // 상한에 걸리면 동작이 쿨다운보다 일찍 끝나지만, 그 편이 훨씬 자연스럽다.
-      const fit = next.getClip().duration / this.def.attackCooldown;
-      // 여기도 지터를 clamp 안에서 곱한다 — 밖에서 곱하면 상한 2.0 을 걸어 놓고 2.16 이 나온다
-      next.timeScale = THREE.MathUtils.clamp(
-        fit * this._jitter, ANIM.attackMinSpeed, ANIM.attackMaxSpeed);
+      // **배속을 여기서 정하지 않는다.** 스윙 시작(`_startSwing`)이 클립을 되감으면서
+      // 같이 정한다 — 데미지가 들어가는 시점을 그 배속에서 역산하기 때문에, 여기서
+      // 매 프레임 덮어쓰면 두 값이 다시 어긋난다.
+      // 물고 있는 동안만 예외로 느리게 돌린다(매달려 버둥거리는 느낌).
+      if (this.state === 'GRAB') next.timeScale = 0.55 * this._jitter;
     } else if (next && key === 'death') {
       // 원본이 3초라 그대로 두면 너무 느리게 쓰러져 답답하다
       next.timeScale = CORPSE.deathSpeed * this._jitter;
@@ -160,13 +162,35 @@ export class Zombie {
       this.group.position.z += this._knockZ * amt;
     }
 
-    this.mixer.update(dt);
+    // ── 런지 ──
+    // 변환할 때 루트 이동을 전부 지워서(fbx_to_glb.py) 좀비는 **제자리에서만 휘두른다.**
+    // 그래서 아무리 세게 때려도 몸이 안 나온다. 접촉 시점까지 앞으로 파고들었다가
+    // 조금 되돌아오게 하면 체중이 실린다. 여기도 **보이는 위치만** 건드린다.
+    if (this.state === 'ATTACK' && this._swingContact > 0) {
+      const t = this._swingT / this._swingContact;
+      let f = 0;
+      if (t > 0 && t <= 1) f = t * t;                        // 파고드는 구간
+      else if (t > 1) f = Math.max(0, 1 - (t - 1) * (1 / ATTACK.lungeBack));  // 되돌아오는 구간
+      if (f > 0) {
+        const amt = ATTACK.lunge * f;
+        this.group.position.x += -Math.sin(this.facing) * amt;
+        this.group.position.z += -Math.cos(this.facing) * amt;
+      }
+    }
+
+    // 히트스톱 — 닿는 순간 이쪽 동작도 멈춘다. 한쪽만 멈추면 부딪힌 게 아니라
+    // 맞은 쪽만 경련한 것처럼 보인다.
+    if (this._hitstop > 0) {
+      this._hitstop -= dt;
+      this.mixer.update(0);
+    } else {
+      this.mixer.update(dt);
+    }
   }
 
   _reset() {
     this.hp = 0;
     this.stun = 0;
-    this.attackTimer = 0;
     this.loseTimer = 0;
     this.searchTimer = 0;
     this.stuckTimer = 0;
@@ -180,6 +204,9 @@ export class Zombie {
     this._flinchX = 0; this._flinchZ = 1;
     this._settled = false; this._corpseY = 0;
     this.groanTimer = Math.random() * 6;
+    // 스윙 시계 — 클립과 데미지가 같이 쓴다
+    this._swingT = 0; this._swingLen = 1; this._swingContact = 0; this._swingHit = false;
+    this._hitstop = 0;
   }
 
   spawn(typeKey, x, z) {
@@ -392,6 +419,7 @@ export class Zombie {
                      break;
       case 'CHASE':  this._chase(dt, player, dist, canSee, collision, zombies); break;
       case 'ATTACK': this._attack(dt, player, dist, collision); break;
+      case 'GRAB':   this._grab(dt, player); break;
     }
 
     this._syncMesh(dt);
@@ -472,7 +500,7 @@ export class Zombie {
     // 맞는 쪽에 뒤로 뺄 기회가 생긴다. 없으면 "닿는 순간 깎였다"로만 느껴진다.
     if (dist <= this.def.attackRange) {
       this.state = 'ATTACK';
-      this.attackTimer = this.def.attackWindup ?? 0;
+      this._startSwing(this.def.attackWindup ?? 0);
       return;
     }
 
@@ -483,8 +511,42 @@ export class Zombie {
     this._goTo(dt, this.target.x, this.target.z, collision, zombies, this.def.speedChase);
   }
 
+  /**
+   * 스윙 하나를 시작한다. **클립과 데미지가 같은 시계를 쓰게 만드는 곳이다.**
+   *
+   * 예전에는 클립이 제멋대로 루프하고 데미지는 별도 타이머로 들어갔다. 스윙마다
+   * 되감지 않으니 두 번째 공격부터 위상이 어긋나서, 팔이 회수 중인데 체력이
+   * 깎이거나 팔이 관통해도 아무 일이 없었다.
+   *
+   * @param delay 첫 스윙의 예비동작(attackWindup). 두 번째부터는 0 이다.
+   */
+  _startSwing(delay = 0) {
+    this._swingT = -delay;                       // 음수 구간이 예비동작이다
+    this._swingHit = false;
+    this._swingLen = this.def.attackCooldown;
+
+    // 포복체는 엎드린 공격 클립이 없어 crawl 을 빠르게 돌린다(ANIM). 그 클립은
+    // 이동에도 쓰이므로 스윙마다 되감으면 기는 동작이 뚝뚝 끊긴다 — 건드리지 않는다.
+    const a = this.def.crawler ? null : this.actions?.attack;
+    if (!a) { this._swingContact = this._swingLen * ATTACK.contactDefault; return; }
+
+    const clip = a.getClip();
+    // 한 번 휘두르는 시간을 쿨다운에 맞춘다. **상한을 걸어야 한다** — 4.5초짜리
+    // 클립을 1.1초 쿨다운에 맞추면 4.5배속이 되어 팔이 경련한다.
+    // 지터는 clamp 안에서 곱한다 (밖에서 곱하면 상한 2.0 을 걸어 놓고 2.16 이 나온다).
+    const scale = THREE.MathUtils.clamp(
+      (clip.duration / this._swingLen) * this._jitter,
+      ANIM.attackMinSpeed, ANIM.attackMaxSpeed);
+    a.timeScale = scale;
+    a.reset().play();                            // **스윙마다 처음부터** — 위상이 안 어긋난다
+
+    // 클립 안의 접촉 지점(0~1)을 실제 초로 바꾼다. 배속을 나눠야 한다.
+    const f = ATTACK.contact[clip.name] ?? ATTACK.contactDefault;
+    // 상한에 걸려 동작이 쿨다운보다 일찍 끝나면 접촉도 그만큼 앞당겨진다 — 그게 맞다.
+    this._swingContact = Math.min((clip.duration * f) / scale, this._swingLen);
+  }
+
   _attack(dt, player, dist, collision) {
-    this.attackTimer -= dt;
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
     this.facing = Math.atan2(-dx, -dz);
 
@@ -496,11 +558,63 @@ export class Zombie {
       return;
     }
 
-    if (this.attackTimer <= 0) {
-      this.attackTimer = this.def.attackCooldown;
-      player.damage(this.def.damage, this.pos);
-      bus.emit(EV.SFX, { name: 'zombie_attack', x: this.pos.x, z: this.pos.z, volume: 1 });
+    this._swingT += dt;
+
+    // 팔이 가장 뻗은 그 프레임에 들어간다
+    if (!this._swingHit && this._swingT >= this._swingContact) {
+      this._swingHit = true;
+      this._land(player);
     }
+
+    if (this._swingT >= this._swingLen) this._startSwing();
+  }
+
+  /** 타격이 닿은 순간 — 여기서만 데미지·소리·물림이 일어난다 */
+  _land(player) {
+    bus.emit(EV.SFX, { name: 'zombie_attack', x: this.pos.x, z: this.pos.z, volume: 1 });
+    this._hitstop = ATTACK.hitstop;      // 때린 쪽도 멈춘다. 한쪽만 멈추면 부딪힌 게 아니다
+
+    // 물릴 것인가. **닿았을 때만** 판정한다 — 헛스윙에 물리면 억울하다.
+    if (GRAB.enabled && player.canBeGrabbed?.() && Math.random() < GRAB.chance) {
+      this.state = 'GRAB';
+      player.beginGrab(this);
+      bus.emit(EV.GRAB_START, { x: this.pos.x, z: this.pos.z });
+      return;
+    }
+    player.damage(this.def.damage, this.pos);
+  }
+
+  /**
+   * 물고 있는 동안. 놓아주는 판단은 **Player 쪽이 한다** —
+   * 뿌리치기 입력과 시간 초과를 한 곳에서 보는 편이 어긋날 여지가 없다.
+   */
+  _grab(dt, player) {
+    const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
+    const d = Math.hypot(dx, dz) || 1;
+    this.facing = Math.atan2(-dx, -dz);
+
+    // 붙잡은 거리까지 끌어당긴다. 플레이어를 끄는 게 아니라 좀비가 파고든다 —
+    // 플레이어 좌표를 건드리면 벽에 밀어넣을 수 있다.
+    const want = GRAB.holdDistance;
+    if (d > want) {
+      const k = Math.min(1, (d - want) * dt * 6);
+      this.pos.x += (dx / d) * (d - want) * k;
+      this.pos.z += (dz / d) * (d - want) * k;
+    }
+
+    // 풀렸으면 돌아간다. (뿌리쳐진 경우의 경직은 onGrabBroken 이 따로 건다)
+    if (player.grabbedBy !== this) this.state = 'CHASE';
+  }
+
+  /** Player 가 뿌리쳤을 때 부른다 */
+  onGrabBroken() {
+    this.stun = Math.max(this.stun, GRAB.releaseStun);
+    this.state = 'CHASE';
+    // 밀려나는 건 보이는 위치만 (좌표를 밀면 벽을 뚫는다 — KNOCK 과 같은 규약)
+    this._knockT = this._knockTotal = KNOCK.duration;
+    const s = Math.sin(this.facing), c = Math.cos(this.facing);
+    this._knockX = s * GRAB.releasePush;
+    this._knockZ = c * GRAB.releasePush;
   }
 
   _goTo(dt, tx, tz, collision, zombies, speed) {

@@ -17,7 +17,7 @@
  */
 
 import * as THREE from 'three';
-import { ZOMBIE, CORPSE } from '../src/config/balance.js';
+import { ZOMBIE, CORPSE, ANIM } from '../src/config/balance.js';
 
 const DT = 1 / 60;
 
@@ -122,8 +122,14 @@ function diagnose(row, motion, offsetTuned) {
     else if (row.최저뼈Y > above) bad.push(`공중 ${row.최저뼈Y}m`);
   }
   if (row.배속 != null) {
-    if (row.배속 < 0.4) bad.push(`늘어짐 x${row.배속}`);
-    if (row.배속 > 2.5) bad.push(`경련 x${row.배속}`);
+    // **상한을 여기에 적어 두면 안 된다.** 이 검사의 목적은 "미학적으로 빠르다"가 아니라
+    // **clamp 가 우회되고 있는가** 다 (지터를 clamp 밖에서 곱해 상한 2.0 에 2.16 이
+    // 나오던 결함이 이 검사의 존재 이유다). 그러니 설정값을 그대로 읽어야 한다.
+    // 예전에는 2.5 를 박아 놔서, balance.js 의 상한을 올린 순간 멀쩡한 값을 결함이라 외쳤다.
+    const lo = (ANIM.moveMinSpeed ?? 0.4) - 1e-6;
+    const hi = (ANIM.moveMaxSpeed ?? 2.4) + 1e-6;
+    if (row.배속 < lo) bad.push(`늘어짐 x${row.배속} (하한 ${lo.toFixed(2)})`);
+    if (row.배속 > hi) bad.push(`배속상한초과 x${row.배속} (상한 ${hi.toFixed(2)})`);
   }
   return bad.length ? bad.join(' · ') : null;
 }
