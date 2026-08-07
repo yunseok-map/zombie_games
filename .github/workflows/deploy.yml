@@ -1,0 +1,48 @@
+# GitHub Pages 배포 — master 에 푸시하면 자동으로 새 빌드가 올라간다.
+#
+# dist/ 는 저장소에 커밋하지 않는다(.gitignore). 여기서 매번 새로 굽는다.
+# 그래야 "커밋된 dist 가 소스보다 낡아서 심사자만 옛날 게임을 보는" 사고가 안 난다.
+name: 배포 (GitHub Pages)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:      # 손으로도 돌릴 수 있게
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포는 하나씩만. 연속 푸시 때 뒤엣것이 앞엣것을 덮도록 둔다
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true    # Pages 가 꺼져 있으면 켠다 (설정 화면을 안 거쳐도 되게)
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
