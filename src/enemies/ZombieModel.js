@@ -225,5 +225,19 @@ function makeInstance() {
 
   // 개체마다 재생속도를 조금씩 다르게 — 전부 같으면 군무처럼 보인다
   const jitter = 0.85 + Math.random() * 0.3;
-  return { root, mixer, actions, jitter, outfit };
+  /**
+   * 걷기 변형이 둘뿐이라 **클립만으로는 무리가 복제인간으로 보인다.**
+   * 클립을 늘리지 않고도 개체를 갈라놓는 세 가지를 개체마다 고정해 둔다.
+   *
+   *   phase   — 걷기 주기의 시작 지점. 없으면 같은 순간에 걷기 시작한 개체들이
+   *             **발을 맞춰 행진한다.** 이게 가장 크게 티가 난다.
+   *   lean    — 몸이 한쪽으로 기운 정도. 절뚝이는 실루엣이 개체마다 다르게 읽힌다.
+   *   sizeMul — 키. 사람은 원래 제각각이고, 4% 차이도 무리에서는 확실히 보인다.
+   *             (피격 판정은 def.height/radius 를 쓰므로 이 값에 안 흔들린다)
+   */
+  const phase = Math.random();
+  const lean = (Math.random() - 0.5) * 0.11;
+  const sizeMul = 0.96 + Math.random() * 0.08;
+  root.rotation.z = lean;
+  return { root, mixer, actions, jitter, outfit, phase, sizeMul };
 }

@@ -57,7 +57,7 @@ export class Zombie {
     this._reset();
   }
 
-  _attachModel({ root, mixer, actions, jitter, outfit }) {
+  _attachModel({ root, mixer, actions, jitter, outfit, phase, sizeMul }) {
     this.outfit = outfit;        // 'coat' 흰 가운 / 'scrub' 수술복 / null 원본 (검사용)
     this.group.remove(this.body, this.head);
     this.body.geometry.dispose();
@@ -70,6 +70,10 @@ export class Zombie {
     this.mixer = mixer;
     this.actions = actions;
     this._jitter = jitter ?? 1;
+    this._phase = phase ?? Math.random();
+    this._sizeMul = sizeMul ?? 1;
+    // 모델이 늦게 붙을 수 있으므로 여기서도 키를 적용한다 (spawn 이 이미 지나갔을 수 있다)
+    this.group.scale.setScalar((this.def?.modelScale ?? (this.def?.height ?? 1.75) / 1.75) * this._sizeMul);
   }
 
   /** 상태 → 클립 종류 */
@@ -102,6 +106,10 @@ export class Zombie {
     const next = this.actions?.[key] ?? this.actions?.idle;
     if (next && next !== this.curAnim) {
       next.reset().fadeIn(FADE).play();
+      // **걷기·달리기는 개체마다 다른 지점에서 시작한다.**
+      // reset() 은 0 으로 되감는데, 그러면 같은 순간에 걷기 시작한 개체들이
+      // 발을 맞춰 행진한다 — 걷기 클립이 둘뿐이라 이게 가장 크게 티가 난다.
+      if (key === 'walk' || key === 'run') next.time = this._phase * next.getClip().duration;
       if (this.curAnim) this.curAnim.fadeOut(FADE);
       this.curAnim = next;
     }
@@ -235,7 +243,9 @@ export class Zombie {
 
     // 기어다니는 개체는 몸집이 작은 게 아니라 엎드린 것이다 — height 로 줄이면 미니어처가 된다.
     // 그래서 모델 배율은 따로 준다. (height 는 피격 판정·시야 높이에만 쓴다)
-    this.group.scale.setScalar(this.def.modelScale ?? this.def.height / 1.75);
+    // 개체마다 키가 조금씩 다르다 — 4% 차이도 무리에서는 확실히 보인다.
+    // (피격 판정은 def.height/radius 를 쓰므로 이 배율에 안 흔들린다)
+    this.group.scale.setScalar((this.def.modelScale ?? this.def.height / 1.75) * (this._sizeMul ?? 1));
     // 변환 때 루트의 수직 이동을 지워서, 엎드린 클립을 쓰면 골반이 선 자세 높이에 남아 뜬다.
     // 그만큼 모델을 내려서 바닥에 붙인다.
     if (this.model) this.model.position.y = this.def.modelYOffset ?? 0;

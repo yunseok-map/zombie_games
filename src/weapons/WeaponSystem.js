@@ -7,6 +7,56 @@ import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /**
+ * 좀비 몸을 **선분 + 반지름**(캡슐)으로 근사한다.
+ *
+ * 서 있으면 세로로 서고, 엎드린 개체는 **바라보는 방향으로 눕는다.**
+ * 전진 방향은 `(-sin(facing), -cos(facing))` — Zombie.js 의 규약과 같다.
+ * 머리는 앞끝(s=1) 쪽이다.
+ */
+const _cap = { ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, r: 0 };
+function capsuleOf(z) {
+  const d = z.def;
+  if (d.crawler) {
+    const half = (d.bodyLength ?? 1.4) * 0.5;
+    const fx = -Math.sin(z.facing), fz = -Math.cos(z.facing);
+    const y = z.pos.y + (d.hitY ?? d.height * 0.45);
+    _cap.ax = z.pos.x - fx * half; _cap.ay = y; _cap.az = z.pos.z - fz * half;
+    _cap.bx = z.pos.x + fx * half; _cap.by = y; _cap.bz = z.pos.z + fz * half;
+    _cap.r = d.hitRadius ?? d.radius;
+  } else {
+    const r = d.hitRadius ?? d.radius;
+    _cap.ax = z.pos.x; _cap.ay = z.pos.y + r; _cap.az = z.pos.z;
+    _cap.bx = z.pos.x; _cap.by = z.pos.y + Math.max(d.height - r, r); _cap.bz = z.pos.z;
+    _cap.r = r;
+  }
+  return _cap;
+}
+
+/**
+ * 레이(origin + dir*t, t>=0)와 선분 AB 의 최근접.
+ * @returns {{t:number, s:number, distSq:number}} t = 레이 위 거리, s = 선분 위 0~1 위치
+ *
+ * 선분 쪽 파라미터를 0~1 로 자른 뒤 레이 쪽을 다시 잡는다 — 한 번의 보정으로
+ * 충분하다. 히트스캔은 정확한 최단거리가 아니라 "맞았는가"만 알면 된다.
+ */
+function rayVsSegment(o, dir, cap) {
+  const ux = cap.bx - cap.ax, uy = cap.by - cap.ay, uz = cap.bz - cap.az;
+  const wx = o.x - cap.ax, wy = o.y - cap.ay, wz = o.z - cap.az;
+  const b = dir.x * ux + dir.y * uy + dir.z * uz;
+  const c = ux * ux + uy * uy + uz * uz;
+  const d = dir.x * wx + dir.y * wy + dir.z * wz;
+  const e = ux * wx + uy * wy + uz * wz;
+  const den = c - b * b;                      // |dir| = 1 이므로 a = 1
+  let s = den > 1e-8 ? (e - b * d) / den : 0;
+  s = s < 0 ? 0 : s > 1 ? 1 : s;
+  const qx = cap.ax + ux * s, qy = cap.ay + uy * s, qz = cap.az + uz * s;
+  let t = (qx - o.x) * dir.x + (qy - o.y) * dir.y + (qz - o.z) * dir.z;
+  if (t < 0) t = 0;
+  const px = o.x + dir.x * t - qx, py = o.y + dir.y * t - qy, pz = o.z + dir.z * t - qz;
+  return { t, s, distSq: px * px + py * py + pz * pz };
+}
+
+/**
  * WeaponSystem — 무기 종류를 몰라야 한다. 전부 config/weapons.js 의 데이터로 동작한다.
  * 무기를 추가하려면 이 파일이 아니라 weapons.js 에 정의를 넣는다.
  */
@@ -280,29 +330,36 @@ export class WeaponSystem {
     this._emitAmmo();
   }
 
-  /** 레이 위에서 가장 가까운 좀비를 찾는다 (구 근사) */
+  /**
+   * 레이 위에서 가장 가까운 좀비를 찾는다 (**캡슐** 근사).
+   *
+   * 예전에는 구 하나였다. 서 있는 개체는 그럭저럭 맞았지만 **엎드린 개체는
+   * 골반 둘레만 판정돼서, 머리나 다리를 조준하면 그대로 빗나갔다** —
+   * 포복체 몸은 1.45m 가로로 누워 있는데 구의 반지름은 0.54m 였다.
+   * 이제 몸을 선분으로 두고 그 둘레를 판정한다. 서 있으면 세로, 엎드리면
+   * **바라보는 방향으로** 눕는다.
+   */
   _hitscan(origin, dir, range, damage, stun) {
     const zombies = this.getZombies();
-    let best = null, bestT = range;
+    let best = null, bestT = range, bestS = 0;
 
     for (const z of zombies) {
       if (!z.active || z.state === 'DEAD') continue;
-      const cx = z.pos.x - origin.x;
-      const cy = (z.pos.y + z.def.height * 0.55) - origin.y;
-      const cz = z.pos.z - origin.z;
-      const t = cx * dir.x + cy * dir.y + cz * dir.z;   // 레이 위 투영 거리
-      if (t < 0 || t > bestT) continue;
-      const px = cx - dir.x * t, py = cy - dir.y * t, pz = cz - dir.z * t;
-      const distSq = px * px + py * py + pz * pz;
-      const r = z.def.radius + 0.12;
-      if (distSq > r * r) continue;
+      const cap = capsuleOf(z);
+      const r = cap.r + 0.12;
+      const hit = rayVsSegment(origin, dir, cap);
+      if (hit.t < 0 || hit.t > bestT) continue;
+      if (hit.distSq > r * r) continue;
       // 벽 뒤면 무효
       if (this.collision.segmentBlocked(origin.x, origin.z, z.pos.x, z.pos.z)) continue;
-      best = z; bestT = t;
+      best = z; bestT = hit.t; bestS = hit.s;
     }
 
     if (best) {
-      const headshot = (origin.y + dir.y * bestT) > best.pos.y + best.def.height * 0.78;
+      // 엎드린 몸은 머리가 **앞끝**에 있다. 서 있으면 위쪽이다.
+      const headshot = best.def.crawler
+        ? bestS > 0.74
+        : (origin.y + dir.y * bestT) > best.pos.y + best.def.height * 0.78;
       best.hit(damage * (headshot ? 2.2 : 1), stun, headshot, origin);
     }
   }
