@@ -69,7 +69,16 @@ export class Input {
   requestLock() {
     const el = this.canvas;
     if (!el.requestPointerLock) return;
-    const plain = () => { try { el.requestPointerLock(); } catch { /* 무시 */ } };
+    // **인자 없는 requestPointerLock 도 Promise 를 돌려준다.** try/catch 는 그 거부를
+    // 못 잡아서, 브라우저가 락을 거절할 때마다(락을 푼 직후 다시 걸면 크롬이 잠깐 막는다)
+    // `NotAllowedError` 가 처리되지 않은 거부로 콘솔에 남았다.
+    // 이 프로젝트는 콘솔이 깨끗한 것을 QA 기준으로 쓰므로, 소음이 진짜 에러를 가린다.
+    const plain = () => {
+      try {
+        const q = el.requestPointerLock();
+        if (q && typeof q.catch === 'function') q.catch(() => { /* 사용자가 다시 클릭하면 걸린다 */ });
+      } catch { /* 무시 */ }
+    };
     try {
       const p = el.requestPointerLock({ unadjustedMovement: true });
       // 지원 안 하는 환경이면 거부된다. 곧바로 기본 방식으로 다시 건다.

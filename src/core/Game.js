@@ -417,8 +417,9 @@ export class Game {
         this.interaction.use(target, { player: this.player, flashlight: this.flashlight, weapons: this.weapons });
       }
 
-      // 물려 있으면 뿌리치기 게이지를 띄운다 (-1 = 안 물림)
-      this.hud.setStruggle(this.player.grabbedBy ? this.player.struggle : -1);
+      // 물려 있으면 뿌리치기 게이지와 남은 시간을 띄운다 (-1 = 안 물림)
+      this.hud.setStruggle(
+        this.player.grabbedBy ? this.player.struggle : -1, this.player.grabLeft ?? 1);
 
       this.audio.setListener(this.player.pos.x, this.player.pos.z, this.player.yaw);
       this.hud.update(dt, {

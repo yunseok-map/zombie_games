@@ -28,9 +28,16 @@
   #hud.on { opacity:1; }
 
   /* 크로스헤어 — 가운데를 비운 4개 눈금 + 점. 십자 하나면 조준점이 물체에 묻힌다.
-     어두운 배경·밝은 벽 양쪽에서 읽히도록 눈금마다 어두운 테두리를 깐다. */
+     어두운 배경·밝은 벽 양쪽에서 읽히도록 눈금마다 어두운 테두리를 깐다.
+
+     **중앙 정렬과 벌어짐을 한 transform 에 같이 쓴다.** 예전에는 HUD.js 가 매 프레임
+     `style.transform = scale(...)` 로 이 규칙의 translate 를 통째로 덮어써서,
+     게임이 시작된 직후부터 조준점이 화면 중앙에서 오른쪽·아래로 11px 밀린 채
+     고정돼 있었다 — 히트스캔은 화면 정중앙으로 나가므로 **조준점이 거짓말을 했다.**
+     이제 JS 는 `--s` 숫자 하나만 넘기고 정렬 규칙은 여기 한 곳에만 있다. */
   #crosshair { position:absolute; left:50%; top:50%; width:22px; height:22px;
-    transform:translate(-50%,-50%); }
+    transform:translate(-50%,-50%) scale(calc(1 + var(--s,0) * .9));
+    opacity:calc(.85 - var(--s,0) * .45); will-change:transform; }
   #crosshair span { position:absolute; background:#e8ece6; opacity:.72;
     outline:1px solid rgba(0,0,0,.55); outline-offset:0; }
   #crosshair span:nth-child(1) { left:50%; top:0;     width:1px; height:6px; transform:translateX(-50%); }
@@ -40,8 +47,68 @@
   #crosshair span:nth-child(5) { left:50%; top:50%; width:1px; height:1px; opacity:.9;
     transform:translate(-50%,-50%); }
 
-  /* 계기판 — 값이 숫자로도 보여야 "장비를 보고 있다"는 감각이 난다 */
-  #bars { position:absolute; left:30px; bottom:28px; width:206px; font-family:var(--ui); }
+  /* ── 타격 확인 ──
+     이 게임은 손전등 밖이 완전한 검정이고 포그로 시야를 자른다. 8m 밖 좀비를 쏘면
+     어두운 적갈색 핏방울은 사실상 안 보이고 소리는 신음·발소리에 섞인다. 그래서
+     **맞췄는지를 화면이 한 번도 말하지 않았다** — 헤드샷이 2.2배인데 아무도 머리를
+     조준하지 않는 이유가 이것이다. 밝거나 크면 아케이드 슈터가 되므로 짧게 끝낸다.
+     #crosshair 의 자식이 아니라 형제로 둔다 — 자식이면 위 :nth-child 규칙에 물든다. */
+  #hitmark { position:absolute; left:50%; top:50%; width:34px; height:34px;
+    opacity:0; pointer-events:none; }
+  #hitmark span { position:absolute; background:#eef2e8; width:2px; height:8px;
+    outline:1px solid rgba(0,0,0,.6); }
+  #hitmark span:nth-child(1) { left:50%; top:0;    margin-left:-1px; }
+  #hitmark span:nth-child(2) { left:50%; bottom:0; margin-left:-1px; }
+  #hitmark span:nth-child(3) { top:50%; left:0;  width:8px; height:2px; margin-top:-1px; }
+  #hitmark span:nth-child(4) { top:50%; right:0; width:8px; height:2px; margin-top:-1px; }
+  /* 헤드샷은 색과 길이를 같이 바꾼다 — 색만 바꾸면 어두운 화면에서 구분이 안 된다 */
+  #hitmark.head span { background:#ffd34a; height:12px; }
+  #hitmark.head span:nth-child(3), #hitmark.head span:nth-child(4) { width:12px; height:2px; }
+  /* 킬은 붉게 번진다. 색은 새로 뽑지 않고 타이틀 눈금(#a33630)·목표 마름모(#8e2b26)의
+     밝은 형을 쓴다 — 화면 전체가 한 팔레트로 잠긴다 */
+  #hitmark.kill span { background:#d8443a; box-shadow:0 0 9px rgba(216,68,58,.95); }
+  /* 회전을 keyframes 안에서 같이 써야 한다. 애니메이션은 transform 을 통째로 교체한다
+     (타이틀에서 이미 밟은 함정과 같은 종류다) */
+  #hitmark.on      { animation:hitPop  .22s ease-out; }
+  #hitmark.on.kill { animation:killPop .42s ease-out; }
+  @keyframes hitPop {
+    0%   { opacity:0; transform:translate(-50%,-50%) rotate(45deg) scale(.45); }
+    14%  { opacity:1; transform:translate(-50%,-50%) rotate(45deg) scale(1); }
+    100% { opacity:0; transform:translate(-50%,-50%) rotate(45deg) scale(1.4); }
+  }
+  /* 킬만 십자로 뒤집힌다 — 모양이 달라야 "죽였다"가 한눈에 읽힌다 */
+  @keyframes killPop {
+    0%   { opacity:0; transform:translate(-50%,-50%) rotate(45deg) scale(.5); }
+    12%  { opacity:1; transform:translate(-50%,-50%) rotate(0deg)  scale(1.15); }
+    100% { opacity:0; transform:translate(-50%,-50%) rotate(0deg)  scale(1.9); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #hitmark.on, #hitmark.on.kill { animation-duration:.12s; }
+  }
+
+  /* ── 재장전 ──
+     "재장전 중의 취약함이 공포다"가 이 게임의 설계 원칙인데(CLAUDE.md §5-4),
+     정작 그 2초를 화면이 한 번도 표현하지 않았다 — 끝난 뒤 숫자가 바뀌는 게 전부였다.
+     매 프레임 JS 가 필요 없다: 시간을 트랜지션에 심어 두면 컴포지터가 알아서 돌린다
+     (재장전 한 번에 스타일 쓰기 2회). */
+  #reload { position:absolute; left:50%; top:50%; width:46px; height:46px;
+    transform:translate(-50%,-50%); opacity:0; transition:opacity .12s;
+    pointer-events:none; }
+  #reload.on { opacity:.85; }
+  #reload svg { width:100%; height:100%; transform:rotate(-90deg); }
+  #reload circle { fill:none; stroke:#c8ccc6; stroke-width:1.6; opacity:.8;
+    stroke-dasharray:100.53; stroke-dashoffset:100.53; }   /* 2πr, r=16 */
+  #reload.on circle { stroke-dashoffset:0; }
+
+  /* 계기판 — 값이 숫자로도 보여야 "장비를 보고 있다"는 감각이 난다.
+     막대 묶음이 허공에 떠 있으면 웹 위젯으로 읽힌다. 판을 깔고 모서리 하나를 깎으면
+     같은 막대가 **장비 패널**이 된다. clip-path 를 바깥에 걸면 .bar.crit 의 발광이
+     잘리므로(실제로 걸리는 함정) 안쪽 래퍼에 건다. */
+  #bars { position:absolute; left:30px; bottom:28px; width:222px; font-family:var(--ui); }
+  #bars .panel { padding:10px 12px 6px;
+    background:linear-gradient(180deg, rgba(10,14,11,.46), rgba(10,14,11,.14));
+    border-left:1px solid rgba(150,175,140,.24);
+    clip-path:polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); }
   .row { display:flex; align-items:baseline; justify-content:space-between;
     font-size:10px; letter-spacing:.2em; opacity:.42; margin-bottom:3px; }
   .row b { font-weight:400; font-variant-numeric:tabular-nums; letter-spacing:.06em;
@@ -49,8 +116,17 @@
   .bar { position:relative; height:6px; background:rgba(255,255,255,.07);
     margin-bottom:9px; overflow:hidden;
     border-left:1px solid rgba(255,255,255,.16); }
+  /* **트랜지션을 걸면 안 된다.** JS 가 매 프레임 새 값을 쓰므로 트랜지션이 매번
+     처음부터 다시 시작해서 막대가 목표에 영영 도달하지 못한 채 상시로 뒤처진다.
+     지연은 아래 잔상 겹(u)이 만든다 — 그쪽은 값이 띄엄띄엄 바뀌어야 맞다. */
   .bar > i { display:block; height:100%; width:100%; transform-origin:left;
-    transition:transform .18s linear; }
+    transition:none; }
+  /* 지연 잔상 — 채움 뒤에 늦게 따라오는 겹. 이 delay 하나가 "방금 이만큼 깎였다"를
+     만든다. `<i>` **앞**에 둬야 한다(뒤면 채움을 덮는다). 눈금(::after)은 항상 위에 남는다.
+     HP 에만 붙인다 — 스태미나는 늘 움직여서 잔상이 상시로 떠 있고 계기판이 시끄러워진다. */
+  .bar > u { position:absolute; inset:0; display:block; transform-origin:left;
+    background:#d8564c; opacity:.30;
+    transition:transform var(--ghost-fall,.5s) cubic-bezier(.3,0,.15,1) var(--ghost-delay,.35s); }
   /* 25% 간격 눈금 — 눈금이 있으면 남은 양을 어림할 수 있다 */
   .bar::after { content:''; position:absolute; inset:0; pointer-events:none;
     background:repeating-linear-gradient(90deg,
@@ -69,9 +145,14 @@
   /* 위험 상태는 맥동한다 — 숫자를 안 보고 있어도 눈에 걸린다 */
   @keyframes vitalPulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
   .bar.low > i { animation:vitalPulse 1.1s ease-in-out infinite; }
+  /* HP 막대만 화면 가장자리 심박과 **같은 박자**로 뛴다. 둘이 맞는 순간
+     계기판과 화면이 하나의 장치로 읽힌다 (--hb 는 HUD 가 심는다) */
+  #hp.low > i { animation-duration:var(--hb,1.1s); }
   @media (prefers-reduced-motion: reduce) { .bar.low > i { animation:none; } }
   .lbl { font-size:9px; letter-spacing:.28em; opacity:.35; margin-bottom:6px;
-    font-family:var(--ui); }
+    font-family:var(--ui); display:flex; justify-content:space-between; }
+  /* 가상 시설 표식만 — 실존 기관과 무관하다 (CLAUDE.md §2) */
+  .lbl::after { content:'UNIT 03'; opacity:.55; }
 
   #ammo { position:absolute; right:36px; bottom:26px; text-align:right;
     font-family:var(--ui); }
@@ -80,6 +161,11 @@
     line-height:1; font-variant-numeric:tabular-nums; }
   #ammo .n small { font-size:16px; opacity:.38; letter-spacing:.06em; }
   #ammo.low .n { color:#c0553f; }
+  /* 탄창이 비면 "지금 못 쏜다"를 말해 준다. 숫자만 붉어지는 것으로는 부족하다 */
+  #ammo .rl { font-size:10px; letter-spacing:.3em; color:#c0553f; opacity:0;
+    margin-top:4px; font-family:var(--ui); }
+  #ammo.empty .rl { animation:vitalPulse .9s ease-in-out infinite; opacity:.9; }
+  @media (prefers-reduced-motion: reduce) { #ammo.empty .rl { animation:none; } }
 
   /* 목표 — 계기판의 일부처럼 보여야 한다. 자막처럼 크면 화면 한가운데를 뺏는다 */
   #objective { position:absolute; left:30px; top:26px; display:flex; align-items:center;
@@ -108,6 +194,21 @@
     transform:rotate(var(--dir,0deg));
     background:radial-gradient(ellipse 44% 25% at 50% 0%,
       rgba(158,16,13,.95) 0%, rgba(140,12,10,.42) 44%, transparent 74%); }
+
+  /* 방위 호 — 붉은 물듦은 "아프다"를 맡고 이쪽이 "어느 쪽"을 맡는다.
+     물듦은 화면 44%x25% 짜리 거대한 그라디언트라 방위를 읽어내기엔 너무 뭉툭하고,
+     0.4초 만에 꺼져서 고개를 돌리기 시작할 즈음이면 이미 없다.
+     칸을 4개 두는 이유: 앞뒤로 동시에 물리면 나중 것이 앞 것을 지워 버렸다. */
+  #hitdir { position:fixed; left:50%; top:50%; width:min(46vmin,380px); aspect-ratio:1;
+    transform:translate(-50%,-50%); pointer-events:none; z-index:6; }
+  #hitdir > i { position:absolute; inset:0; opacity:0; transform:rotate(var(--a,0deg));
+    background:conic-gradient(from -15deg,
+      rgba(196,38,30,.9) 0deg, rgba(196,38,30,.35) 18deg, rgba(196,38,30,0) 30deg);
+    -webkit-mask:radial-gradient(circle, transparent 63%, #000 65%, #000 73%, transparent 75%);
+            mask:radial-gradient(circle, transparent 63%, #000 65%, #000 73%, transparent 75%); }
+  #hitdir > i.on { animation:dirFade var(--life,1.1s) ease-out forwards; }
+  @keyframes dirFade { 0% { opacity:0; } 9% { opacity:1; } 55% { opacity:.55; } 100% { opacity:0; } }
+  @media (prefers-reduced-motion: reduce) { #hitdir > i.on { animation-duration:.5s; } }
 
   /* ---------- Screens ---------- */
   .screen { position:fixed; inset:0; display:flex; flex-direction:column;
@@ -401,10 +502,16 @@
 
 <div id="hud">
   <div id="crosshair"><span></span><span></span><span></span><span></span><span></span></div>
+  <!-- 타격 확인. 크로스헤어의 형제여야 한다 — 자식이면 #crosshair span 규칙에 물든다 -->
+  <div id="hitmark"><span></span><span></span><span></span><span></span></div>
+  <!-- 재장전 진행 링. 시간은 트랜지션에 심으므로 매 프레임 JS 가 필요 없다 -->
+  <div id="reload"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16"/></svg></div>
   <div id="bars">
-    <div class="lbl">VITALS</div>
+   <div class="panel">
+    <div class="lbl"><span>VITALS</span></div>
+    <!-- HP 에만 잔상 겹(u)이 있다. 채움(i) 앞에 와야 덮이지 않는다 -->
     <div class="row"><span>HP</span><b id="hp-n">100</b></div>
-    <div class="bar" id="hp"><i></i></div>
+    <div class="bar" id="hp"><u></u><i></i></div>
     <div class="row"><span>STAMINA</span><b id="stam-n">100</b></div>
     <div class="bar" id="stam"><i></i></div>
     <div class="row"><span>BATTERY</span><b id="batt-n">100</b></div>
@@ -413,14 +520,17 @@
          이게 없으면 아무도 앉지 않는다. 보이지 않는 시스템은 없는 시스템이다. -->
     <div class="row"><span id="exp-state">EXPOSURE</span><b id="exp-n">6m</b></div>
     <div class="bar" id="exp"><i></i></div>
+   </div>
   </div>
-  <div id="ammo"><div class="w">—</div><div class="n">—</div></div>
+  <div id="ammo"><div class="w">—</div><div class="n">—</div><div class="rl">R — 재장전</div></div>
   <!-- 지금 해야 할 일. 어두운 5구역에서 "뭘 하라는 거지"가 되면 그냥 끈다.
        HINT 는 잠깐 떴다 사라지므로 놓치면 끝이다 — 이건 계속 떠 있는다. -->
   <div id="objective"><i></i><span></span></div>
   <div id="hint"></div>
 </div>
 <div id="dmg"></div>
+<!-- 피격 방위. 4칸을 돌려 쓰므로 여러 방향에서 동시에 맞으면 같이 떠 있는다 -->
+<div id="hitdir"><i></i><i></i><i></i><i></i></div>
 
 <div class="screen" id="title">
   <div class="artwrap"><div class="art"></div><div class="lamp"></div></div>

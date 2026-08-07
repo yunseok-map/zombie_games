@@ -154,6 +154,9 @@ export class Player {
     if (!z.active || z.state !== 'GRAB') { this._endGrab(true); return; }
 
     this._grabT += dt;
+    // 남은 시간을 공개 필드로 둔다 — HUD 가 private `_grabT` 를 읽으면 안 된다.
+    // 못 뿌리치면 큰 피해를 받는데(GRAB.breakDamage) 얼마나 남았는지가 화면에 없었다.
+    this.grabLeft = Math.max(0, 1 - this._grabT / GRAB.maxSeconds);
     this.vel.set(0, 0, 0);
 
     // 시야가 끌린다 — 얼굴을 보게 만드는 것이 이 장치의 전부다
