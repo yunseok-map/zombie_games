@@ -206,15 +206,44 @@ blender --background --python tools/fbx_to_glb.py -- fbx_src public/assets/model
 > 어느 파일에 어떤 몸이 들었는지는 Blender 없이도 확인된다:
 > `grep -a -o -m1 "ZombieGirl[A-Za-z_]*" fbx_src/*.fbx`
 
-### 6-3-E. 본체 GLB 는 **두 개**다 (2026-08-07)
+### 6-3-E. 본체 GLB 는 **세 개**다 (2026-08-07)
 
 | 출력 | 본체 FBX | 무엇 |
 |---|---|---|
-| `zombie_shambler.glb` (4.4MB) | `idle_03.fbx` | 기본 메시(ZombieGirl). 수술복·원본 텍스처 변형 |
-| `zombie_nurse.glb` (7.0MB) | `nurse_idle.fbx` | **전신 방호복 의료진.** 무리의 80% |
+| `zombie_shambler.glb` (4.05MB) | `idle_03.fbx` | 기본 메시(ZombieGirl). 수술복·원본 텍스처 변형 |
+| `zombie_nurse.glb` (3.78MB) | `nurse_idle.fbx` | **전신 방호복 의료진.** 무리의 80% |
+| `zombie_surgeon.glb` (0.69MB) | `idle_05.fbx` | **수술복 외과의.** 클립은 nurse 것을 빌려 쓴다 |
 
-둘 다 **같은 클립 이름**을 갖도록 같은 애니메이션 FBX 로 굽는다. `ZombieModel` 이
+전부 **같은 클립 이름**을 갖도록 같은 애니메이션 FBX 로 굽는다. `ZombieModel` 이
 개체마다 본체를 골라 쓰는데, 클립 이름이 어긋나면 한쪽만 동작이 붙는다.
+
+**어느 FBX 에 어떤 몸이 들었는지는 Blender 없이 확인된다.** FBX 는 바이너리지만
+오브젝트·재질 이름은 평문으로 박혀 있다:
+
+```
+grep -a -o -m1 "ZombieGirl[A-Za-z_]*" fbx_src/*.fbx
+grep -a -o    "Ch[0-9][0-9]_[A-Za-z]*" fbx_src/idle_05.fbx | sort -u
+```
+
+`idle_04.fbx`(60MB) 는 방호복과 **같은 캐릭터**이고 `idle_05.fbx`(52MB) 안에
+`Ch16_Body`(외과의)가 들어 있었다 — 새 모델을 받기 전에 **이미 받아 둔 것부터 열어 봐라.**
+
+### 6-3-E-2. 클립은 한 벌만 싣는다
+
+본체를 늘릴 때마다 같은 24클립이 통째로 한 벌씩 더 실린다(본체당 **약 3.1MB**).
+Mixamo 리그는 뼈 이름이 같으므로 three.js 가 **노드 이름**으로 붙여 준다.
+그래서 두 번째 이후 본체는 애니메이션을 빼고 굽고 첫 본체 것을 빌려 쓴다.
+
+```
+python tools/glb_strip_animations.py public/assets/models/zombie_surgeon.glb
+```
+
+`ZombieModel.MODEL_FILES` 에 `clipsFrom: 'nurse'` 로 표시한다.
+
+> **빌려 쓰기 전에 뼈 이름 집합을 비교해라.** 방호복과 외과의는 뼈 65개가 완전히
+> 일치한다. **기본 메시만 혼자 다르다** — 눈뼈 2개가 더 있고 손가락 뼈 4개가 없다.
+> 어긋난 채로 빌려 쓰면 three.js 가 `no target node found` 를 **console.warn** 으로
+> 뱉고 QA 가 실패한다. 비교는 `skins[].joints` 의 이름 집합으로 한다.
 
 방호복은 애니메이션만 추린 폴더로 굽는다 — `idle_03/04/05` 는 With Skin(§6-2 위반)이라
 합계 127MB 이고, 애니메이션만 필요한데 4096² 텍스처까지 끌고 들어온다. 빼면 idle 변형이

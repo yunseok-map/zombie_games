@@ -13,17 +13,25 @@ import { ZOMBIE_LOOK } from '../config/balance.js';
 const MODEL_DIR = `${import.meta.env.BASE_URL}assets/models/`;
 
 /**
- * 본체 모델 두 종.
- *   base  — ZombieGirl. 크롭탑 + 반바지라, 옷 변형은 **텍스처만** 갈아끼운다.
- *   nurse — 흰 전신 가운 의료진 (Mixamo, fbx_src/nurse_idle.fbx 에서 변환).
+ * 본체 모델 세 종. 실루엣이 서로 확실히 달라야 무리가 복제인간으로 안 보인다.
+ *   base    — ZombieGirl. 크롭탑 + 반바지. 옷 변형은 **텍스처만** 갈아끼운다.
+ *   nurse   — 흰 전신 방호복. 후드·마스크·고글·니트릴 장갑.
+ *   surgeon — 민트색 수술복 + 수술모. 등이 찢겨 있다.
  *
- * **가운은 텍스처가 아니라 메시로 만들어야 한다.** base 를 아무리 희게 칠해도
- * 실루엣이 "짧은 흰 상의 + 맨다리"라 간호사로 안 읽힌다. 그래서 별도 모델을 쓴다.
- * 두 GLB 모두 fbx_src 의 같은 애니메이션 27종을 구워 넣었으므로 클립 이름이 같다.
+ * **옷은 텍스처가 아니라 메시로 만들어야 한다.** base 를 아무리 희게 칠해도
+ * 실루엣이 "짧은 흰 상의 + 맨다리"라 의료진으로 안 읽힌다. 그래서 별도 모델을 쓴다.
+ *
+ * `clipsFrom` — 애니메이션을 **다른 본체에서 빌려 쓴다**는 뜻.
+ * Mixamo 리그는 뼈 이름이 같으므로 three.js 가 이름으로 붙여 준다. 같은 24클립을
+ * 본체마다 한 벌씩 싣는 것은 순수한 낭비다(본체당 약 3.1MB).
+ * surgeon 은 nurse 와 뼈 65개가 **완전히 일치**해서 안전하다 — 확인하고 넣은 것이다.
+ * base 는 눈뼈 2개가 더 있고 손가락 뼈 4개가 없어 혼자 다르므로 자기 클립을 쓴다.
+ * (어긋난 채로 빌려 쓰면 three.js 가 "no target node found" 를 경고로 뱉고 QA 가 실패한다)
  */
 const MODEL_FILES = {
-  base: 'zombie_shambler.glb',
-  nurse: 'zombie_nurse.glb',
+  base: { file: 'zombie_shambler.glb' },
+  nurse: { file: 'zombie_nurse.glb', tune: true },
+  surgeon: { file: 'zombie_surgeon.glb', clipsFrom: 'nurse', tune: true },
 };
 
 /**
@@ -65,9 +73,10 @@ export const CLIP_VARIANTS = {
 // **실루엣**이었다. 기본 메시는 크롭탑 + 반바지라, 텍스처를 아무리 희게 칠해도
 // "짧은 흰 상의 + 맨다리"로 읽힌다. 그래서 가운은 텍스처가 아니라 모델을 바꾼다.
 const VARIANTS = [
-  ...Array(8).fill({ model: 'nurse', outfit: 'coat' }),
-  { model: 'base', outfit: 'scrub' },     // 수술복
-  { model: 'base', outfit: null },        // 원본 (피 묻은 셔츠)
+  ...Array(16).fill({ model: 'nurse', outfit: 'coat' }),   // 80% — 요청 비율 8:2
+  ...Array(2).fill({ model: 'surgeon', outfit: null }),    // 10%
+  { model: 'base', outfit: 'scrub' },                      //  5% 수술복
+  { model: 'base', outfit: null },                         //  5% 원본 (피 묻은 셔츠)
 ];
 /** 기본 메시에만 쓰는 텍스처 변형 (가운은 메시 자체가 다르므로 여기 없다) */
 const TEX_OUTFITS = ['scrub'];
@@ -107,7 +116,8 @@ function buildOutfits(gltf) {
 }
 
 /**
- * 방호복 재질을 화면에 맞게 다듬는다. 로드 직후 **한 번만** 부른다 —
+ * 의료복 재질을 화면에 맞게 다듬는다 (MODEL_FILES 의 `tune` 이 붙은 본체만).
+ * 로드 직후 **한 번만** 부른다 —
  * 재질은 개체끼리 공유하므로 여기서 고치면 전부에 반영되고 비용은 0 이다.
  * 이유는 balance.js 의 ZOMBIE_LOOK 주석 참조 (근거리에서 흰 덩어리가 되던 문제).
  */
@@ -131,11 +141,11 @@ export function preloadZombieModel() {
   if (_loading) return _loading;
   const loader = new GLTFLoader();
   // 한쪽이 없어도 게임은 돌아가야 한다 — 가운 모델이 빠지면 기본 메시로 대체된다
-  const jobs = Object.entries(MODEL_FILES).map(([key, file]) =>
-    loader.loadAsync(`${MODEL_DIR}${file}`)
-      .then((g) => { _models[key] = g; if (key === 'nurse') tuneGownMaterials(g); })
+  const jobs = Object.entries(MODEL_FILES).map(([key, def]) =>
+    loader.loadAsync(`${MODEL_DIR}${def.file}`)
+      .then((g) => { _models[key] = g; if (def.tune) tuneGownMaterials(g); })
       .catch((e) => {
-        console.warn(`[zombie] ${file} 로드 실패 — 이 변형은 기본 메시로 대체합니다.`, e);
+        console.warn(`[zombie] ${def.file} 로드 실패 — 이 변형은 기본 메시로 대체합니다.`, e);
       }));
   _loading = Promise.all(jobs).then(() => {
     if (!_models.base) {
@@ -167,8 +177,10 @@ function pick(list, clips) {
 function makeInstance() {
   // 개체마다 변형을 하나 뽑는다 — 전부 같으면 무리가 복제인간으로 보인다
   let v = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
-  // 가운 모델이 없으면 기본 메시로 떨어진다. 옷 표시는 유지해서 QA 가 알아볼 수 있게 둔다
-  if (!_models[v.model]) v = { model: 'base', outfit: v.outfit };
+  // 본체가 없거나, **클립을 빌려올 상대가 없으면** 기본 메시로 떨어진다.
+  // (빌리는 쪽만 로드에 성공하면 클립이 하나도 없어 T포즈로 서 있게 된다)
+  const lend = MODEL_FILES[v.model]?.clipsFrom;
+  if (!_models[v.model] || (lend && !_models[lend])) v = { model: 'base', outfit: v.outfit };
   const src = _models[v.model];
 
   const root = cloneSkinned(src.scene);
@@ -185,7 +197,9 @@ function makeInstance() {
   });
 
   const mixer = new THREE.AnimationMixer(root);
-  const clips = src.animations;
+  // clipsFrom 이 있으면 그 본체의 클립을 쓴다 (뼈 이름이 같아 그대로 붙는다)
+  const from = MODEL_FILES[v.model]?.clipsFrom;
+  const clips = (from ? _models[from] : src).animations;
 
   // 개체마다 변형을 뽑아 고정한다
   const actions = {};
