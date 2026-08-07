@@ -32,6 +32,11 @@ const MODEL_FILES = {
   base: { file: 'zombie_shambler.glb' },
   nurse: { file: 'zombie_nurse.glb', tune: true },
   surgeon: { file: 'zombie_surgeon.glb', clipsFrom: 'nurse', tune: true },
+  // 경찰. 방역선을 지키던 쪽도 물렸다는 이야기를 실루엣 하나로 한다.
+  // 원본(Sketchfab)은 `mixamorig:` 접두어가 빠진 Mixamo 리그였다 — 이름만 붙여 주니
+  // 뼈 65개가 간호사와 **하나도 안 틀리고** 일치해서 클립을 그대로 빌려 쓴다.
+  // 흰 가운 보정(tune)은 안 건다. 어두운 제복이라 더 누르면 검은 덩어리가 된다.
+  cop: { file: 'zombie_cop.glb', clipsFrom: 'nurse' },
 };
 
 /**
@@ -81,10 +86,11 @@ export const CLIP_VARIANTS = {
 // **실루엣**이었다. 기본 메시는 크롭탑 + 반바지라, 텍스처를 아무리 희게 칠해도
 // "짧은 흰 상의 + 맨다리"로 읽힌다. 그래서 가운은 텍스처가 아니라 모델을 바꾼다.
 const VARIANTS = [
-  ...Array(16).fill({ model: 'nurse', outfit: 'coat' }),   // 80% — 요청 비율 8:2
-  ...Array(2).fill({ model: 'surgeon', outfit: null }),    // 10%
-  { model: 'base', outfit: 'scrub' },                      //  5% 수술복
-  { model: 'base', outfit: null },                         //  5% 원본 (피 묻은 셔츠)
+  ...Array(20).fill({ model: 'nurse', outfit: 'coat' }),   // 80% — 요청 비율 8:2 유지
+  ...Array(2).fill({ model: 'cop', outfit: null }),        //  8% 경찰
+  ...Array(2).fill({ model: 'surgeon', outfit: null }),    //  8% 외과의
+  { model: 'base', outfit: 'scrub' },                      //  4% 수술복
+  { model: 'base', outfit: null },                         //  4% 원본 (피 묻은 셔츠)
 ];
 /** 기본 메시에만 쓰는 텍스처 변형 (가운은 메시 자체가 다르므로 여기 없다) */
 const TEX_OUTFITS = ['scrub'];

@@ -103,6 +103,33 @@ def find_armature(objs):
     return None
 
 
+MIXAMO_PREFIX = "mixamorig:"
+
+
+def normalize_bone_names(arm, meshes):
+    """뼈 이름에 `mixamorig:` 접두어를 붙인다.
+
+    Mixamo 오토리거로 만들었는데 **네임스페이스만 빠진** FBX 가 있다
+    (Sketchfab 재배포본이 대표적이다 — 뼈 구성은 완전히 같은데 이름이
+    `Hips` `LeftUpLeg` 처럼 맨몸이다). three.js 는 클립을 **노드 이름**으로
+    붙이므로 이름이 한 글자만 달라도 T포즈로 선다.
+
+    이름만 맞춰 주면 이미 구워 둔 27클립을 그대로 빌려 쓸 수 있다.
+    **버텍스 그룹도 같이 바꿔야 한다** — 이름으로 뼈를 찾기 때문에,
+    안 바꾸면 스키닝이 통째로 끊겨서 메시가 원점에 뭉친다.
+    """
+    if any(b.name.startswith(MIXAMO_PREFIX) for b in arm.data.bones):
+        return 0
+    names = [b.name for b in arm.data.bones]
+    for nm in names:
+        arm.data.bones[nm].name = MIXAMO_PREFIX + nm
+    for m in meshes:
+        for vg in m.vertex_groups:
+            if not vg.name.startswith(MIXAMO_PREFIX):
+                vg.name = MIXAMO_PREFIX + vg.name
+    return len(names)
+
+
 def tri_count(meshes):
     n = 0
     for m in meshes:
@@ -140,6 +167,10 @@ def main():
         if arm is None:
             print(f"  ! {fname}: 아마추어가 없다 — 건너뜀")
             continue
+
+        renamed = normalize_bone_names(arm, meshes)
+        if renamed:
+            print(f"    뼈 이름 정규화: {fname} — {renamed}개에 mixamorig: 접두어 추가")
 
         # 이 파일이 들고 온 액션을 이름 붙여서 보존한다
         action = arm.animation_data.action if arm.animation_data else None

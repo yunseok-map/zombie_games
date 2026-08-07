@@ -48,7 +48,7 @@ export function surfaceAt(x, z) {
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addProp, addLight, addSpawn,
           addBlood, addWallBlood, scatterDebris, addItem, addDoor,
-          addProp3D, addSign, addSearchable } = ctx;
+          addProp3D, addSign, addSearchable, addPropGLB } = ctx;
 
   // 결정적 난수 — 매 판 같은 배치여야 레벨이 흔들리지 않는다
   let _s = 4021;
@@ -270,6 +270,12 @@ export function build(ctx) {
   addSign(11, 0.3, 2.5, 27.0, Math.PI, 1.5, 0.42, false, 0.48);   // 한쪽 줄이 끊겨 매달림
   addSign(13, CORR_HALF - 0.1, 1.46, 33.5, -Math.PI / 2, 0.5, 0.6, false, 0.16);  // 뜯긴 공고문
   addSign(13, -1.1, 0.03, 34.6, 1.2, 0.4, 0.46, false, 0, -Math.PI / 2);          // 바닥 조각
+
+  // 첫 병실(오른쪽 i=0)의 구석에 사람이 벽을 보고 서 있다. **움직이지 않는다.**
+  // 이 층에서 처음 만나는 인영이고, 조명이 깜빡이는 방이라 그림자가 흔들려서
+  // 살아 있는 것처럼 보인다. 쏴 봐도 아무 일도 안 일어나는 것이 이 연출의 전부다.
+  addPropGLB('prop_standing_body', 7.05, 5.6, -Math.PI / 2, { collide: [0.55, 0.45] });
+  addBlood(6.6, 5.6, 1.1, 'pool');
 
   // 복도 장애물 — 시야를 끊어 긴장을 만든다
   addProp3D('rubblePile', -0.9, 12.5, 0.3, { args: [1.6, 1.2, 0.7], collide: [1.6, 0.75] });

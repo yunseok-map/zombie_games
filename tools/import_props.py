@@ -62,6 +62,8 @@ MANIFEST = {
     "prop_cabinet":     dict(src="filing_cabinet.glb", up="z", size=1.32, axis="y", tris=1200),
     "prop_bodybag":     dict(src="body_bag01.glb",                     tris=1600),
     "prop_corpse":      dict(src="corpse.glb",                         size=1.80, axis="max", tris=6000),
+    # 서 있는 시신. 원본이 15만 삼각형(예산의 43%)이라 반드시 깎아야 한다
+    "prop_standing_body": dict(src="sexy_zombie_girl.glb",             size=1.70, axis="y",   tris=5000),
     "prop_vending":     dict(src="vending_machine.glb",                size=1.83, axis="y", tris=2000),
 
     # ── 영안실에서 추출 ──
@@ -116,7 +118,12 @@ def wipe():
 
 
 def import_glb(path):
-    bpy.ops.import_scene.gltf(filepath=str(path))
+    # FBX 도 받는다 — Sketchfab 은 같은 모델을 FBX 로만 주는 경우가 있다.
+    # 소품으로 쓸 거라 아마추어(뼈대)는 그대로 두고 메시만 뒤에서 골라 쓴다.
+    if str(path).lower().endswith(".fbx"):
+        bpy.ops.import_scene.fbx(filepath=str(path))
+    else:
+        bpy.ops.import_scene.gltf(filepath=str(path))
     return [o for o in bpy.context.scene.objects]
 
 

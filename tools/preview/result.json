@@ -170,6 +170,23 @@
   ]
  },
  {
+  "name": "prop_standing_body",
+  "src": "sexy_zombie_girl.glb",
+  "scale": 1.7,
+  "size": [
+   0.688,
+   1.703,
+   0.335
+  ],
+  "tris": 5000,
+  "mb": 0.32,
+  "src_size": [
+   0.41,
+   1.0,
+   0.19
+  ]
+ },
+ {
   "name": "prop_vending",
   "src": "vending_machine.glb",
   "scale": 0.79677,

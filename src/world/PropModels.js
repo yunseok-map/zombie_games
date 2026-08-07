@@ -39,6 +39,9 @@ export const EXTRA_GLB = [
   'prop_autopsy_table', 'prop_surgical_lamp', 'prop_sink', 'prop_ventilator',
   'prop_computer_cart', 'prop_mop_bucket', 'prop_water_cooler', 'prop_firstaid',
   'prop_panel', 'prop_ivdrip',
+  // 서 있는 시신 — 움직이지 않는다. 좀비인 줄 알고 겨눴다가 아무 일도 안 일어나는
+  // 침묵이 이 병원에서 가장 무서운 순간이다 (CLAUDE.md §5-2 "보이지 않는 것")
+  'prop_standing_body',
 ];
 
 /** bed 처럼 변형이 있는 것은 인자를 보고 파일을 고른다 */
