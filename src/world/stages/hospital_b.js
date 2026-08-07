@@ -94,8 +94,13 @@ export function build(ctx) {
   addProp3D('gurneyToppled', -1.2, 24.0, 0.25, { collide: [1.0, 1.6] });
   // 영안실이 넘쳐서 통로까지 시신을 내놓았다. 플레이어는 **이 사이를 지나가야 한다** —
   // 지나가는 동안 시선이 계속 아래로 끌린다. 이 구역에서 가장 오래 남는 그림이다.
+  //
+  // **시체가방에는 충돌을 걸지 않는다.** 높이가 0.33m — 무릎 높이라 넘어가는 게 정상인데,
+  // Collision 은 XZ 전용이라 박스를 걸면 천장까지 닿는 보이지 않는 벽이 된다.
+  // 다른 네 구역은 원래부터 충돌 없이 놓고 있었고, B1 만 걸려 있어서
+  // **영안실에서만 시신 앞이 막혔다.** (PROGRESS.md 알려진 함정)
   for (const bz of [5.6, 7.8, 26.2, 28.4]) {
-    addPropGLB('prop_bodybag', -HALL_HALF + 0.62, bz, 0, { collide: [0.9, 2.0] });
+    addPropGLB('prop_bodybag', -HALL_HALF + 0.62, bz, 0);
   }
   addPropGLB('prop_ventilator', HALL_HALF - 0.5, 18.6, -Math.PI / 2, { collide: [0.65, 0.65] });
   scatterDebris(0, (HALL_Z0 + HALL_Z1) / 2, HALL_HALF * 2 - 0.4, hallLen, 0.3);
@@ -121,12 +126,14 @@ export function build(ctx) {
 
   // **여기가 이 구역의 그림이다** — 락커가 다 차서 시신을 바닥에 늘어놓았다.
   // 줄지어 놓인 시체가방은 "얼마나 많이 죽었는가"를 숫자 대신 길이로 보여준다.
+  // 간격 2.4m 에 충돌 박스 깊이가 2.0m 였다 — **틈이 0.4m 밖에 안 남는데
+  // 플레이어 반지름이 0.35m 다.** 여섯 개가 이어져 12m 짜리 벽이 되어 있었다.
   for (let i = 0; i < 6; i++) {
-    addPropGLB('prop_bodybag', morgueCx + 2.6, 8.0 + i * 2.4, 0, { collide: [0.9, 2.0] });
+    addPropGLB('prop_bodybag', morgueCx + 2.6, 8.0 + i * 2.4, 0);
   }
   // 한 줄은 흐트러져 있다 — 열려 있고, 안이 비었다. 뭔가 걸어 나갔다.
-  addPropGLB('prop_bodybag', morgueCx + 0.7, 11.2, 0.42, { collide: [1.0, 2.0] });
-  addPropGLB('prop_bodybag', morgueCx + 0.2, 19.6, -0.30, { collide: [1.0, 2.0] });
+  addPropGLB('prop_bodybag', morgueCx + 0.7, 11.2, 0.42);
+  addPropGLB('prop_bodybag', morgueCx + 0.2, 19.6, -0.30);
   addBlood(morgueCx + 0.7, 12.6, 2.0, 'drag');          // 가방에서 기어 나간 자국
 
   // 부검대와 시신 — 작업 중이었다는 것이 읽혀야 한다

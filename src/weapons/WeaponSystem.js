@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW, WEAPON_SWING, WALL_IMPACT } from '../config/balance.js';
+import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW, WEAPON_SWING, WEAPON_RELOAD, WALL_IMPACT } from '../config/balance.js';
 import { getCurve, sampleCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
@@ -111,6 +111,8 @@ export class WeaponSystem {
     // 접촉 시점 판정 예약 · 부딪힌 뒤의 반발
     this._meleePending = null; this._meleeAt = 0; this._impact = 0;
     this._bob = 0;
+    // 재장전 동작 — 진행률을 남은 시간에서 뽑으므로 전체 길이를 들고 있어야 한다
+    this._reloadTotal = 0; this._clackDone = false;
     this._swayX = 0; this._swayY = 0;   // 마우스를 돌리면 무기가 뒤따라온다
     this._idle = 0;
 
@@ -132,9 +134,24 @@ export class WeaponSystem {
 
   pickUp(id) {
     if (!WEAPONS[id]) return false;
-    if (!this.inventory.includes(id)) this.inventory.push(id);
+    const isNew = !this.inventory.includes(id);
+    if (isNew) this.inventory.push(id);
     this._initAmmo(id);
-    bus.emit(EV.HINT, { text: `${WEAPONS[id].label} 획득`, duration: 2 });
+    // **주우면 바로 손에 쥔다.** E 를 눌러 집어 든 것이므로 의도가 분명하고,
+    // 안 그러면 "획득" 문구만 뜨고 화면이 그대로라 주운 줄도 모른다.
+    if (isNew) {
+      this.index = this.inventory.length - 1;
+      this.cancelSwing();
+      this._impact = 0;
+      this.cooldown = 0.25;
+      this._buildViewModel();
+      bus.emit(EV.WEAPON_CHANGED, { weapon: this.current });
+      this._emitAmmo();
+    }
+    const slot = WEAPONS[id].slot;
+    bus.emit(EV.HINT, {
+      text: `${WEAPONS[id].label} 획득 — ${slot} 키로 전환`, duration: 2.6,
+    });
     return true;
   }
 
@@ -175,9 +192,24 @@ export class WeaponSystem {
     this._emitAmmo();
   }
 
+  /**
+   * 슬롯 키를 누르면 **그 슬롯의 무기를 차례로 돌린다.**
+   *
+   * 예전에는 `findIndex` 로 그 슬롯의 **첫 무기**만 골랐다. 근접이 전부 슬롯 1 이므로
+   * 쇠지렛대(B1)·소방도끼(3F)·소화기를 주워도 1번 키는 영원히 쇠파이프를 잡았다 —
+   * **구역마다 무기를 하나씩 놓아 뒀는데 주운 순간 죽은 무기가 됐다.**
+   * 인벤토리에 그 슬롯이 하나뿐이면 동작은 예전과 같다.
+   */
   switchTo(slot) {
-    const idx = this.inventory.findIndex((id) => WEAPONS[id].slot === slot);
-    if (idx < 0 || idx === this.index) return;
+    const idxs = [];
+    for (let i = 0; i < this.inventory.length; i++) {
+      if (WEAPONS[this.inventory[i]].slot === slot) idxs.push(i);
+    }
+    if (!idxs.length) return;
+    const at = idxs.indexOf(this.index);
+    // 이미 그 슬롯을 들고 있으면 다음 것으로, 아니면 그 슬롯의 첫 번째로
+    const idx = at < 0 ? idxs[0] : idxs[(at + 1) % idxs.length];
+    if (idx === this.index) return;
     this.index = idx;
     // 재장전 중에 무기를 바꾸면 진행 링이 화면에 남는다 — 여기서도 끝을 알려야 한다
     if (this.reloading > 0) bus.emit(EV.RELOAD_END, { cancelled: true });
@@ -575,10 +607,19 @@ export class WeaponSystem {
     const a = this.ammo[def.id];
     if (!a || a.mag >= def.magSize || a.reserve <= 0) return;
     this.reloading = def.reloadTime;
+    this._startReloadAnim(def.reloadTime);
     // 재장전 중의 취약함이 이 게임의 공포 장치인데(CLAUDE.md §5-4) 그 시간을
     // 화면이 한 번도 표현하지 않았다 — 끝난 뒤 숫자가 바뀌는 것이 전부였다.
     bus.emit(EV.RELOAD_START, { seconds: def.reloadTime });
-    bus.emit(EV.SFX, { name: 'reload', volume: 0.7 });
+    bus.emit(EV.SFX, {
+      name: 'reload', volume: WEAPON_RELOAD.outVolume, rate: WEAPON_RELOAD.outRate,
+    });
+  }
+
+  /** 뷰모델 재장전 동작을 처음부터 돌린다. 한 발씩 넣는 무기는 발마다 다시 부른다 */
+  _startReloadAnim(seconds) {
+    this._reloadTotal = seconds;
+    this._clackDone = false;
   }
 
   _finishReload() {
@@ -591,6 +632,7 @@ export class WeaponSystem {
         a.mag++; a.reserve--;
         if (a.reserve > 0 && a.mag < def.magSize) {
           this.reloading = def.reloadTime;
+          this._startReloadAnim(def.reloadTime);   // 동작도 발마다 다시 돈다
           // 한 발씩 넣는 무기는 여기서 다시 시작한다 — 안 알리면 링이 첫 발에서 멈춘다
           bus.emit(EV.RELOAD_START, { seconds: def.reloadTime });
         } else bus.emit(EV.RELOAD_END, {});
@@ -715,13 +757,32 @@ export class WeaponSystem {
     const aimY = this.aiming ? 0.09 : 0;
     const aimZ = this.aiming ? 0.08 : 0;
 
+    // ── 재장전 동작 ── 총을 내렸다가 올린다. 0 → 1 → 0 으로 한 번 부푼다.
+    // 진행률을 재장전 **남은 시간**에서 뽑으므로 무기마다 길이가 알아서 맞는다
+    // (권총 1.6초 · 못총 2.1초 · 산탄총은 한 발당 0.55초씩 반복).
+    let rl = 0;
+    if (this.reloading > 0 && this._reloadTotal > 0) {
+      const t = Math.min(1, 1 - this.reloading / this._reloadTotal);
+      rl = Math.sin(Math.PI * t ** WEAPON_RELOAD.curve);
+      // 탄창이 들어가는 소리는 **총이 다시 올라오기 시작할 무렵**에 나야 한다.
+      // 시작할 때와 같은 음원을 더 빠르게 돌려 짧고 딱딱한 '철컥'으로 쓴다.
+      if (!this._clackDone && t >= WEAPON_RELOAD.inAt) {
+        this._clackDone = true;
+        bus.emit(EV.SFX, {
+          name: 'reload', volume: WEAPON_RELOAD.inVolume, rate: WEAPON_RELOAD.inRate,
+        });
+      }
+    }
+
     const R = this.viewRoot;
     const k = Math.min(1, 14 * dt);
     R.position.x += (0.26 + aimX + bobX + sx + cpx - R.position.x) * k;
-    R.position.y += (-0.24 + aimY + bobY + breath + sy + cpy - R.position.y) * k;
+    R.position.y += (-0.24 + aimY + bobY + breath + sy + cpy
+      - rl * WEAPON_RELOAD.dropY - R.position.y) * k;
     R.position.z = -0.45 + aimZ + this._recoil * 0.10
       + wind * 0.06 - arc * 0.16 + cpz                   // 예비동작에 당겼다가 앞으로 내지른다
-      + this._impact * WEAPON_SWING.impactPush;          // 부딪히면 손 쪽으로 되튄다
+      + this._impact * WEAPON_SWING.impactPush           // 부딪히면 손 쪽으로 되튄다
+      + rl * WEAPON_RELOAD.pullZ;                        // 재장전은 몸 쪽으로 당긴다
 
     // 쉬는 자세 — 축에 딱 맞춰 놓으면 "박스를 들고 있다"로 보인다
     const rest = this.current.type === 'gun' && this.aiming
@@ -730,9 +791,11 @@ export class WeaponSystem {
 
     // 반발은 스윙 진행 방향의 **반대**로 튕긴다 — 그래야 막힌 것으로 보인다
     R.rotation.x = rest.x + this._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4 + crx
-      - this._impact * WEAPON_SWING.impactPitch;
+      - this._impact * WEAPON_SWING.impactPitch
+      + rl * WEAPON_RELOAD.pitch;                        // 총구가 아래로 빠진다
     R.rotation.y = rest.y + (wind * 0.30 - arc * 0.62) * dir + sx * 1.6 + cry;
     R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir + crz
-      + this._impact * WEAPON_SWING.impactRoll * dir;
+      + this._impact * WEAPON_SWING.impactRoll * dir
+      + rl * WEAPON_RELOAD.roll;                         // 탄창 쪽이 보이게 눕는다
   }
 }

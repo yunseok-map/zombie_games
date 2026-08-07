@@ -1,0 +1,195 @@
+<meta charset="utf-8">
+<title>QUARANTINE No.3 — 게임 소개 및 설명</title>
+<style>
+  /* 제출물 3번 — 게임 소개 및 설명.
+     브라우저에서 열고 Ctrl+P → "PDF로 저장" 하면 그대로 제출본이 된다.
+     외부 폰트·이미지를 쓰지 않는다(오프라인에서도 같은 모양으로 나와야 한다). */
+  :root{
+    --ink:#14171a; --dim:#5b6570; --line:#d6dbe0; --accent:#8a2a20; --bg:#fff;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0 auto; padding:28px 34px 60px; max-width:860px; background:var(--bg); color:var(--ink);
+    font:15px/1.75 "Malgun Gothic","맑은 고딕",-apple-system,"Segoe UI",sans-serif;
+    word-break:keep-all; overflow-wrap:break-word;
+  }
+  h1{font-size:27px; line-height:1.3; margin:0 0 6px; letter-spacing:-.01em}
+  h1 small{display:block; font-size:14px; font-weight:400; color:var(--dim); letter-spacing:.12em; margin-bottom:8px}
+  h2{font-size:18px; margin:34px 0 10px; padding-bottom:7px; border-bottom:2px solid var(--ink)}
+  h3{font-size:15.5px; margin:20px 0 6px; color:var(--accent)}
+  p{margin:9px 0}
+  .lede{font-size:16.5px; line-height:1.7; margin:14px 0 4px}
+  .meta{color:var(--dim); font-size:13px; margin:2px 0 0}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top}
+  th{background:#f2f4f6; font-weight:600; white-space:nowrap}
+  td.k{white-space:nowrap; font-weight:600; width:1%}
+  kbd{font:600 12.5px var(--mono); border:1px solid #b9c0c7; border-bottom-width:2px;
+      border-radius:4px; padding:1px 6px; background:#f7f8f9; white-space:nowrap}
+  code{font:13px var(--mono); background:#f2f4f6; padding:1px 5px; border-radius:3px}
+  ul,ol{margin:9px 0; padding-left:22px}
+  li{margin:4px 0}
+  .note{border-left:3px solid var(--accent); background:#faf6f5; padding:10px 14px; margin:14px 0}
+  .todo{border-left:3px solid #b8860b; background:#fdfaf0; padding:10px 14px; margin:14px 0}
+  .todo b{color:#8a6508}
+  hr{border:0; border-top:1px solid var(--line); margin:26px 0}
+  .foot{margin-top:34px; padding-top:12px; border-top:1px solid var(--line); color:var(--dim); font-size:12.5px}
+  @media print{
+    @page{size:A4; margin:16mm 14mm}
+    body{padding:0; max-width:none; font-size:10.5pt}
+    h1{font-size:19pt} h2{font-size:13pt; margin-top:20px} h3{font-size:11.5pt}
+    table{font-size:9.5pt} kbd{font-size:9pt}
+    h2,h3{break-after:avoid} table,.note,.todo{break-inside:avoid}
+  }
+</style>
+
+<h1>
+  <small>제출물 3 — 게임 소개 및 설명</small>
+  QUARANTINE No.3 <span style="font-weight:400">— 제3격리병원</span>
+</h1>
+<p class="lede">
+  정전된 격리병원에 갇힌 조사요원이 <b>손전등 하나에 의지해</b> 지하로 내려가 전원을 복구하고,
+  병동을 거슬러 올라 <b>옥상에서 구조받는</b> 1인칭 서바이벌 호러.
+</p>
+<p class="meta">웹 브라우저에서 바로 실행 · 1회 플레이 12~18분 · 1인 개발 · 개발 기간 2026-08-04 ~ 08-08</p>
+
+<h2>1. 링크</h2>
+<table>
+  <tr><td class="k">플레이 (빌드)</td><td>https://yunseok-map.github.io/zombie_games/</td></tr>
+  <tr><td class="k">전체 소스</td><td>https://github.com/yunseok-map/zombie_games</td></tr>
+  <tr><td class="k">플레이 영상</td><td><b>[제출 전 YouTube 링크를 여기에 채운다 — 30~60초]</b></td></tr>
+</table>
+<div class="todo">
+  <b>제출 전 확인</b> — 영상 링크 칸이 비어 있으면 안 된다. 영상은 30~60초, 실제 플레이 화면
+  그대로여야 하며 YouTube 에 <b>공개 또는 링크 공개</b>로 두어야 심사자가 볼 수 있다.
+</div>
+
+<h2>2. 어떤 게임인가</h2>
+<table>
+  <tr><td class="k">장르</td><td>1인칭 서바이벌 호러</td></tr>
+  <tr><td class="k">플랫폼</td><td>웹 (Three.js + Vite). 설치·플러그인 없이 브라우저에서 실행</td></tr>
+  <tr><td class="k">플레이 시간</td><td>1회 12~18분 (5개 구역 · 엔딩까지)</td></tr>
+  <tr><td class="k">핵심 감정</td><td>무력함 → 잠깐의 안도 → 다시 무력함</td></tr>
+  <tr><td class="k">공포의 재료</td><td>어둠 · 소리 · 정적. 과도한 신체 훼손 묘사를 목표로 하지 않는다</td></tr>
+</table>
+
+<h3>세계관</h3>
+<p>
+  2029년, 원인 불명의 감염이 확산되어 국가가 격리시설을 지정했다. <b>제3격리병원</b>은 그중 하나였고,
+  수용 인원이 한계를 넘은 지 나흘째 통신이 끊겼다. 플레이어는 시설 조사를 위해 투입된 요원이며,
+  진입 직후 정전으로 출입구가 잠긴다.
+</p>
+<p class="meta">
+  등장하는 기관·브랜드·인물은 전부 가상이다. 간판·포스터·서류 텍스처에도 실존 명칭을 넣지 않았다.
+  AI 이미지 생성 프롬프트에는 항상 <code>no real-world logos, no brand names, fictional signage</code> 를 포함했다.
+</p>
+
+<h2>3. 게임 방법</h2>
+
+<h3>목표</h3>
+<p>
+  다섯 구역을 순서대로 돌파해 <b>옥상에서 구조 헬기를 타는 것</b>이 최종 목표다.
+  각 구역에는 통과 조건이 되는 <b>사건</b>이 하나씩 있고, 그 사건을 해결하는 행동이 곧
+  <b>소음을 만들어 좀비를 부른다</b>. 진행과 위험이 같은 행동에 묶여 있는 것이 이 게임의 규칙이다.
+</p>
+
+<table>
+  <tr><th>구역</th><th>무대</th><th>해야 하는 일</th></tr>
+  <tr><td class="k">1F</td><td>격리병동 — 복도와 병실</td><td>카드키를 찾아 잠긴 계단실 문을 연다</td></tr>
+  <tr><td class="k">B1</td><td>영안실·기계실 — <b>완전 암흑</b></td><td>전원 레버 3개를 올린다 → 점등 직후 대규모 웨이브</td></tr>
+  <tr><td class="k">2F</td><td>병동 — 점멸 조명, 커튼이 시야를 끊는다</td><td>무전기 4대를 켠다 (켤 때마다 소음 → 웨이브)</td></tr>
+  <tr><td class="k">3F</td><td>수술부·중환자실 — 좁음이 공포다</td><td>무영등 2개에 전원을 넣어 봉쇄문을 푼다</td></tr>
+  <tr><td class="k">옥상</td><td>천장 없는 야외 · 헬리패드</td><td>신호탄을 쏘고 <b>90초를 버틴다</b> → 헬기 도착</td></tr>
+</table>
+
+<h3>조작</h3>
+<table>
+  <tr>
+    <td class="k">이동</td>
+    <td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>SHIFT</kbd> 달리기 · <kbd>CTRL</kbd> 앉기</td>
+  </tr>
+  <tr>
+    <td class="k">전투</td>
+    <td><kbd>마우스 좌</kbd> 공격 · <kbd>R</kbd> 재장전 · <kbd>1</kbd> <kbd>2</kbd> 무기 전환</td>
+  </tr>
+  <tr>
+    <td class="k">그 밖</td>
+    <td><kbd>F</kbd> 손전등 · <kbd>E</kbd> 상호작용/수색 · <kbd>ESC</kbd> 일시정지</td>
+  </tr>
+  <tr>
+    <td class="k">위급</td>
+    <td>좀비에게 붙잡히면 <kbd>SPACE</kbd> 를 연타해 뿌리친다 (가만히 있으면 절대 안 풀린다)</td>
+  </tr>
+</table>
+<p class="meta">조작법은 게임 안 <kbd>ESC</kbd> 일시정지 화면에도 같은 내용으로 들어 있다.</p>
+
+<h3>종료 조건</h3>
+<ul>
+  <li><b>클리어</b> — 옥상에서 90초를 버티고 헬기에 탑승하면 <b>EXTRACTED</b>. 게임의 유일한 해피엔딩이다.</li>
+  <li><b>사망</b> — 체력이 0이 되면 사망 화면. <b>“이 구역부터”</b> 또는 <b>“처음부터”</b>를 고를 수 있다
+      (구역 체크포인트). 체력·배터리는 구역을 넘어가도 회복되지 않는다.</li>
+</ul>
+
+<h2>4. 이 게임이 지키는 세 가지 규칙</h2>
+<p>난이도를 숫자로 올리는 대신, <b>플레이어가 매 순간 손해를 감수하고 선택하게</b> 만들었다.</p>
+<ol>
+  <li><b>손전등을 켜면 보이지만 들킨다.</b> 손전등은 시야를 주는 동시에 좀비의 감지 반경을 1.6배로 늘린다.
+      화면 왼쪽 아래 <b>노출도 계기</b>가 지금 내가 몇 미터 밖에서 보이는지 실시간으로 알려 준다
+      (앉기 2m ~ 달리기+손전등 22m). 배터리는 켜 두는 동안 계속 닳고, 20% 아래로 떨어지면 깜빡인다.</li>
+  <li><b>총알로는 다 못 죽인다.</b> 한 판에 모을 수 있는 탄약 전량이 필요 피해량과 비슷하도록 맞춰 두었다.
+      근접이 절반을 책임지게 되어 있고, 그래서 <b>좀비에게 다가가는 것 말고 선택지가 없는 순간</b>이 온다.</li>
+  <li><b>재장전 중의 2초가 가장 무섭다.</b> 재장전 링이 화면에 차오르는 동안 아무것도 할 수 없다.
+      탄창이 비면 <kbd>R</kbd> 표시가 맥동한다.</li>
+</ol>
+
+<h2>5. 실행 방법</h2>
+<ol>
+  <li>위 <b>플레이 링크</b>를 브라우저에서 연다. <b>설치·로그인·유료 라이선스가 필요 없다.</b></li>
+  <li>로딩이 끝나면 시작 버튼을 누른다. 마우스 포인터가 화면에 잠긴다(포인터락).</li>
+  <li><b>반드시 소리를 켠다.</b> 이 게임은 소리가 절반이다 — 좀비는 보이기 전에 먼저 들린다.
+      브라우저 정책상 소리는 <b>첫 클릭 이후</b>에만 나온다.</li>
+  <li>중간에 그만두려면 <kbd>ESC</kbd>. 포인터락이 풀리고 일시정지 화면으로 들어간다.</li>
+</ol>
+
+<h3>권장 환경</h3>
+<table>
+  <tr><td class="k">브라우저</td><td>Chrome / Edge 최신 버전 (WebGL2)</td></tr>
+  <tr><td class="k">해상도</td><td>1920×1080 기준으로 만들었다. 창 크기에 맞춰 자동 조정된다</td></tr>
+  <tr><td class="k">그래픽</td><td>내장 그래픽에서도 60fps 로 돌아간다 — 프레임이 예산을 넘으면
+      <b>해상도를 스스로 낮춘다</b>(적응형 해상도). 심사자의 PC 를 고를 수 없기 때문에 넣었다</td></tr>
+  <tr><td class="k">회선</td><td>빌드 18.8MB. 10Mbps 회선에서 첫 로딩 약 11초, 50Mbps 에서 약 3초</td></tr>
+</table>
+<div class="note">
+  <b>어두운 게임이다.</b> 모니터 밝기가 낮으면 복도가 통째로 안 보일 수 있다.
+  손전등 원뿔 밖은 <b>의도적으로 완전한 검정</b>이며, 이것이 이 게임의 공포 장치다.
+  화면이 너무 어둡다면 밝기를 조금 올리고 시작하기를 권한다.
+</div>
+<p class="meta">
+  접근성: 운영체제의 “동작 줄이기(prefers-reduced-motion)” 설정을 켜면 심박 맥동·화면 흔들림 계열
+  애니메이션이 꺼진다.
+</p>
+
+<h2>6. 화면에서 무엇을 보는가</h2>
+<table>
+  <tr><td class="k">좌하단 계기판</td><td>체력 · 스태미나 · 배터리 · <b>노출도</b>. 위험할 때 맥동하고, 방금 깎인
+      체력이 잔상으로 남는다</td></tr>
+  <tr><td class="k">좌상단</td><td>지금 해야 할 일. 진행에 따라 갱신된다 (예: “무전기 2/4”)</td></tr>
+  <tr><td class="k">중앙</td><td>조준점. 맞히면 히트마커가 튀고, 헤드샷은 노랗게, 처치하면 붉게 번진다</td></tr>
+  <tr><td class="k">우하단</td><td>든 무기와 남은 탄약. 비면 재장전 안내가 맥동한다</td></tr>
+  <tr><td class="k">화면 가장자리</td><td>맞은 <b>방향</b>이 붉게 물든다. 체력이 낮으면 가장자리가 심장 박동으로 뛴다</td></tr>
+</table>
+
+<h2>7. 만든 사람 · 제작 정보</h2>
+<table>
+  <tr><td class="k">개발</td><td>1인 개발 (개인 참여) — 기획 · 구현 · 에셋 파이프라인 · QA</td></tr>
+  <tr><td class="k">기술</td><td>Three.js (WebGL2) · Vite · 순수 JavaScript. 게임 엔진을 쓰지 않았다</td></tr>
+  <tr><td class="k">규모</td><td>소스 31개 파일 · 8,246줄 · 커밋 98개</td></tr>
+  <tr><td class="k">AI 활용</td><td><b>제출물 4번 「AI 활용 기술 문서」</b>에 도구 · 프롬프트 · 판단 근거 ·
+      외부 에셋 출처를 전부 정리해 두었다</td></tr>
+</table>
+
+<p class="foot">
+  QUARANTINE No.3 (제3격리병원) · NHN GAME × AI HACKATHON (NAN 2026) 사전 과제 제출물 3번<br>
+  문서 최종 수정 2026-08-08
+</p>

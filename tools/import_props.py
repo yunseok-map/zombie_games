@@ -62,8 +62,12 @@ MANIFEST = {
     "prop_cabinet":     dict(src="filing_cabinet.glb", up="z", size=1.32, axis="y", tris=1200),
     "prop_bodybag":     dict(src="body_bag01.glb",                     tris=1600),
     "prop_corpse":      dict(src="corpse.glb",                         size=1.80, axis="max", tris=6000),
-    # 서 있는 시신. 원본이 15만 삼각형(예산의 43%)이라 반드시 깎아야 한다
-    "prop_standing_body": dict(src="sexy_zombie_girl.glb",             size=1.70, axis="y",   tris=5000),
+    # 서 있는 시신. 원본이 15만 삼각형(예산의 43%)이라 반드시 깎아야 한다.
+    # **5000 은 너무 깎았다** — 사람 실루엣이 남지 않고 삼각형이 흩어진 파편 덩어리가
+    # 됐다(게임 안에서 유리 조각처럼 보였다). 원본이 머리카락·옷을 별도 껍질로 들고 있어서
+    # 97% 를 깎으면 껍질끼리 뒤엉킨다. 20000 이면 1F 정적 삼각형이 83k → 98k 로
+    # 예산(350k) 안에 넉넉히 들어간다.
+    "prop_standing_body": dict(src="sexy_zombie_girl.glb",             size=1.70, axis="y",   tris=20000),
     "prop_vending":     dict(src="vending_machine.glb",                size=1.83, axis="y", tris=2000),
 
     # ── 영안실에서 추출 ──
