@@ -206,11 +206,34 @@ blender --background --python tools/fbx_to_glb.py -- fbx_src public/assets/model
 > 어느 파일에 어떤 몸이 들었는지는 Blender 없이도 확인된다:
 > `grep -a -o -m1 "ZombieGirl[A-Za-z_]*" fbx_src/*.fbx`
 
+### 6-3-E. 본체 GLB 는 **두 개**다 (2026-08-07)
+
+| 출력 | 본체 FBX | 무엇 |
+|---|---|---|
+| `zombie_shambler.glb` (4.4MB) | `idle_03.fbx` | 기본 메시(ZombieGirl). 수술복·원본 텍스처 변형 |
+| `zombie_nurse.glb` (7.0MB) | `nurse_idle.fbx` | **전신 방호복 의료진.** 무리의 80% |
+
+둘 다 **같은 클립 이름**을 갖도록 같은 애니메이션 FBX 로 굽는다. `ZombieModel` 이
+개체마다 본체를 골라 쓰는데, 클립 이름이 어긋나면 한쪽만 동작이 붙는다.
+
+방호복은 애니메이션만 추린 폴더로 굽는다 — `idle_03/04/05` 는 With Skin(§6-2 위반)이라
+합계 127MB 이고, 애니메이션만 필요한데 4096² 텍스처까지 끌고 들어온다. 빼면 idle 변형이
+5종 → 2종으로 줄 뿐이다(`ZombieModel.pick()` 이 **있는 클립만** 고르므로 부분 집합이어도 안전).
+
+```
+blender --background --python tools/fbx_to_glb.py -- <애니만_추린_폴더> public/assets/models/zombie_nurse.glb nurse_idle.fbx
+```
+
+> **삼각형 상한(6000)에 걸리는 모델은 예전 스크립트로 굽지 마라.** 데시메이트를
+> 모디파이어로 남겨 두면 익스포터가 애니메이션 프레임마다 5만 삼각형을 다시 깎아서
+> **66분을 넘겨도 안 끝난다.** 지금은 익스포트 직전에 확정 적용하므로 1분 30초다.
+
 ### 6-4. 보관 위치
 
 ```
 fbx_src/                              ← 원본 FBX (gitignore 됨. 무거워서 저장소에 안 올린다)
 public/assets/models/zombie_shambler.glb   ← 변환 결과물 (이것만 커밋된다)
+public/assets/models/zombie_nurse.glb      ← 방호복 본체 (〃)
 ```
 
 ### 6-5. 변환

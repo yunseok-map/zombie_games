@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { ZOMBIE_LOOK } from '../config/balance.js';
 
 /**
  * ZombieModel — GLB 를 한 번만 읽고 개체마다 복제해준다.
@@ -9,7 +10,21 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
  * 반드시 SkeletonUtils.clone 을 써야 한다. 지오메트리·재질은 공유되므로 메모리는 안 늘어난다.
  */
 
-const URL = `${import.meta.env.BASE_URL}assets/models/zombie_shambler.glb`;
+const MODEL_DIR = `${import.meta.env.BASE_URL}assets/models/`;
+
+/**
+ * 본체 모델 두 종.
+ *   base  — ZombieGirl. 크롭탑 + 반바지라, 옷 변형은 **텍스처만** 갈아끼운다.
+ *   nurse — 흰 전신 가운 의료진 (Mixamo, fbx_src/nurse_idle.fbx 에서 변환).
+ *
+ * **가운은 텍스처가 아니라 메시로 만들어야 한다.** base 를 아무리 희게 칠해도
+ * 실루엣이 "짧은 흰 상의 + 맨다리"라 간호사로 안 읽힌다. 그래서 별도 모델을 쓴다.
+ * 두 GLB 모두 fbx_src 의 같은 애니메이션 27종을 구워 넣었으므로 클립 이름이 같다.
+ */
+const MODEL_FILES = {
+  base: 'zombie_shambler.glb',
+  nurse: 'zombie_nurse.glb',
+};
 
 /**
  * 상태별 클립 후보. 개체마다 하나씩 뽑아 고정한다.
@@ -43,11 +58,22 @@ export const CLIP_VARIANTS = {
  * null 은 원본(피 묻은 셔츠). 텍스처는 gen_zombie_variants.py 가 만든다.
  */
 // 흰 가운이 이 병원의 얼굴이다 — 의료진이 먼저 감염됐다는 이야기가 옷으로 읽혀야 한다.
-// 배열에 들어간 비율만큼 뽑힌다: 가운 5 / 수술복 2 / 원본 1.
-const OUTFITS = ['coat', 'coat', 'coat', 'coat', 'coat', 'scrub', 'scrub', null];
+// 배열에 들어간 비율만큼 뽑힌다: **가운 8 / 수술복 1 / 원본 1**.
+//
+// 가운만 별도 메시를 쓰는 이유 — 2026-08-07 에 실측해 보니 기본 메시의 가운 비율은
+// 이미 75% 였는데도 "간호사가 안 보인다"는 피드백이 나왔다. 원인은 비율이 아니라
+// **실루엣**이었다. 기본 메시는 크롭탑 + 반바지라, 텍스처를 아무리 희게 칠해도
+// "짧은 흰 상의 + 맨다리"로 읽힌다. 그래서 가운은 텍스처가 아니라 모델을 바꾼다.
+const VARIANTS = [
+  ...Array(8).fill({ model: 'nurse', outfit: 'coat' }),
+  { model: 'base', outfit: 'scrub' },     // 수술복
+  { model: 'base', outfit: null },        // 원본 (피 묻은 셔츠)
+];
+/** 기본 메시에만 쓰는 텍스처 변형 (가운은 메시 자체가 다르므로 여기 없다) */
+const TEX_OUTFITS = ['scrub'];
 const TEX_DIR = `${import.meta.env.BASE_URL}assets/textures/`;
 
-let _gltf = null;
+const _models = {};        // 'base' | 'nurse' → gltf
 let _loading = null;
 let _outfitSets = null;
 const _waiters = [];
@@ -65,7 +91,7 @@ function buildOutfits(gltf) {
   gltf.scene.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) origs.add(o.material); });
 
   const sets = new Map();
-  for (const name of new Set(OUTFITS)) {
+  for (const name of TEX_OUTFITS) {
     if (!name) { sets.set(name, null); continue; }
     const body = load(`zombie_${name}_body`);
     const main = load(`zombie_${name}_main`);
@@ -80,27 +106,55 @@ function buildOutfits(gltf) {
   return sets;
 }
 
+/**
+ * 방호복 재질을 화면에 맞게 다듬는다. 로드 직후 **한 번만** 부른다 —
+ * 재질은 개체끼리 공유하므로 여기서 고치면 전부에 반영되고 비용은 0 이다.
+ * 이유는 balance.js 의 ZOMBIE_LOOK 주석 참조 (근거리에서 흰 덩어리가 되던 문제).
+ */
+function tuneGownMaterials(gltf) {
+  const [r, g, b] = ZOMBIE_LOOK.gownTint;
+  const done = new Set();
+  gltf.scene.traverse((o) => {
+    const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+    for (const m of mats) {
+      if (done.has(m.uuid)) continue;
+      done.add(m.uuid);
+      m.color?.multiply(new THREE.Color(r, g, b));
+      if ('roughness' in m) m.roughness = ZOMBIE_LOOK.gownRoughness;
+      if ('metalness' in m) m.metalness = ZOMBIE_LOOK.gownMetalness;
+    }
+  });
+}
+
 /** 게임 시작 전에 부른다. 로딩이 끝나면 대기 중인 좀비들에게 모델이 붙는다. */
 export function preloadZombieModel() {
   if (_loading) return _loading;
-  _loading = new GLTFLoader().loadAsync(URL).then((g) => {
-    _gltf = g;
-    _outfitSets = buildOutfits(g);
+  const loader = new GLTFLoader();
+  // 한쪽이 없어도 게임은 돌아가야 한다 — 가운 모델이 빠지면 기본 메시로 대체된다
+  const jobs = Object.entries(MODEL_FILES).map(([key, file]) =>
+    loader.loadAsync(`${MODEL_DIR}${file}`)
+      .then((g) => { _models[key] = g; if (key === 'nurse') tuneGownMaterials(g); })
+      .catch((e) => {
+        console.warn(`[zombie] ${file} 로드 실패 — 이 변형은 기본 메시로 대체합니다.`, e);
+      }));
+  _loading = Promise.all(jobs).then(() => {
+    if (!_models.base) {
+      // 기본 메시마저 없으면 캡슐로 간다 (CLAUDE.md §1-2)
+      console.warn('[zombie] 기본 GLB 가 없습니다 — 캡슐 대체 메시로 진행합니다.');
+      return null;
+    }
+    _outfitSets = buildOutfits(_models.base);
     for (const fn of _waiters) fn();
     _waiters.length = 0;
-    return g;
-  }).catch((e) => {
-    // 모델이 없어도 게임은 캡슐로 돌아가야 한다 (CLAUDE.md §1-2)
-    console.warn('[zombie] GLB 로드 실패 — 캡슐 대체 메시로 진행합니다.', e);
-    return null;
+    return _models.base;
   });
   return _loading;
 }
 
 /** 모델이 준비되면 콜백. 이미 로드됐으면 즉시 호출된다. */
 export function requestZombieModel(cb) {
-  if (_gltf) { cb(makeInstance()); return; }
-  _waiters.push(() => { if (_gltf) cb(makeInstance()); });
+  if (_models.base) { cb(makeInstance()); return; }
+  _waiters.push(() => { if (_models.base) cb(makeInstance()); });
   preloadZombieModel();
 }
 
@@ -111,10 +165,16 @@ function pick(list, clips) {
 }
 
 function makeInstance() {
-  const root = cloneSkinned(_gltf.scene);
-  // 개체마다 옷을 하나 뽑는다 — 전부 같은 옷이면 무리가 복제인간으로 보인다
-  const outfit = OUTFITS[Math.floor(Math.random() * OUTFITS.length)];
-  const set = _outfitSets?.get(outfit);
+  // 개체마다 변형을 하나 뽑는다 — 전부 같으면 무리가 복제인간으로 보인다
+  let v = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
+  // 가운 모델이 없으면 기본 메시로 떨어진다. 옷 표시는 유지해서 QA 가 알아볼 수 있게 둔다
+  if (!_models[v.model]) v = { model: 'base', outfit: v.outfit };
+  const src = _models[v.model];
+
+  const root = cloneSkinned(src.scene);
+  const outfit = v.outfit;
+  // 가운 모델은 이미 흰 가운 텍스처를 갖고 있다 — 갈아끼우면 안 된다
+  const set = v.model === 'base' ? _outfitSets?.get(outfit) : null;
   root.traverse((o) => {
     if (o.isMesh || o.isSkinnedMesh) {
       if (set && set.has(o.material.uuid)) o.material = set.get(o.material.uuid);
@@ -125,7 +185,7 @@ function makeInstance() {
   });
 
   const mixer = new THREE.AnimationMixer(root);
-  const clips = _gltf.animations;
+  const clips = src.animations;
 
   // 개체마다 변형을 뽑아 고정한다
   const actions = {};

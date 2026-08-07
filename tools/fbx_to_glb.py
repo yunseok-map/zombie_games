@@ -179,8 +179,18 @@ def main():
         for m in base_meshes:
             mod = m.modifiers.new("decimate", 'DECIMATE')
             mod.ratio = ratio
+            # ★ 여기서 **확정 적용**해야 한다. 모디파이어로 남겨 두면 glTF 익스포터가
+            #   애니메이션을 구울 때 프레임마다 원본(5만 삼각형) 데시메이트를 다시 계산한다.
+            #   클립 23개 × 수십 프레임 = 수천 번. 실제로 이것 때문에 가운 모델 변환이
+            #   한 시간을 넘겨도 안 끝났다. 기본 모델은 삼각형이 적어 데시메이트가
+            #   아예 안 걸렸기 때문에 이 함정이 지금까지 드러나지 않았다.
+            bpy.ops.object.select_all(action='DESELECT')
+            m.select_set(True)
+            bpy.context.view_layer.objects.active = m
+            bpy.ops.object.modifier_apply(modifier=mod.name)
         bpy.context.view_layer.update()
-        print(f"  데시메이트 적용 (비율 {ratio:.3f}) -> 약 {MAX_TRIS}")
+        tris = tri_count(base_meshes)
+        print(f"  데시메이트 확정 적용 (비율 {ratio:.3f}) -> {tris}")
 
     # ── 내보내기 ───────────────────────────────────────────
     shrink_textures()
@@ -205,7 +215,7 @@ def main():
     print(f"완료: {out_path}")
     print(f"  크기      {size/1024:.0f} KB")
     print(f"  애니메이션 {len(clips)}개: {', '.join(clips)}")
-    print(f"  삼각형    {min(tris, MAX_TRIS)}")
+    print(f"  삼각형    {tris}")
     print("=" * 52)
 
 

@@ -33,8 +33,10 @@ export function surfaceAt(x, z) {
 }
 
 export function build(ctx) {
+  // addPropGLB 가 빠져 있었다 — 그래서 영안실인데 시체 서랍장·시체가방·시신 GLB 를
+  // 하나도 못 쓰고 캐비닛을 3단으로 쌓아 흉내내고 있었다. (PROGRESS.md 함정 참고)
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
-          scatterDebris, addProp3D, addSign, addSearchable, addWeapon, addLever,
+          scatterDebris, addProp3D, addPropGLB, addSign, addSearchable, addWeapon, addLever,
           triggerWave, setMood, setLights } = ctx;
 
   let _s = 90211;
@@ -90,6 +92,12 @@ export function build(ctx) {
   addWallBlood(-HALL_HALF + 0.12, 1.3, 18.0, Math.PI / 2, 1.6, 'handprint');
   addWallBlood(HALL_HALF - 0.12, 1.3, 12.0, -Math.PI / 2, 1.6, 'handprint');
   addProp3D('gurneyToppled', -1.2, 24.0, 0.25, { collide: [1.0, 1.6] });
+  // 영안실이 넘쳐서 통로까지 시신을 내놓았다. 플레이어는 **이 사이를 지나가야 한다** —
+  // 지나가는 동안 시선이 계속 아래로 끌린다. 이 구역에서 가장 오래 남는 그림이다.
+  for (const bz of [5.6, 7.8, 26.2, 28.4]) {
+    addPropGLB('prop_bodybag', -HALL_HALF + 0.62, bz, 0, { collide: [0.9, 2.0] });
+  }
+  addPropGLB('prop_ventilator', HALL_HALF - 0.5, 18.6, -Math.PI / 2, { collide: [0.65, 0.65] });
   scatterDebris(0, (HALL_Z0 + HALL_Z1) / 2, HALL_HALF * 2 - 0.4, hallLen, 0.3);
   addLight(0, 2.9, 12, 'flicker', 0x3a4a52);
   addLight(0, 2.9, 26, 'pulse', 0x2e6a5a);
@@ -103,19 +111,37 @@ export function build(ctx) {
   addWall(morgueCx, 4, ROOM_X - HALL_HALF, WALL_T);
   addWall(morgueCx, 30, ROOM_X - HALL_HALF, WALL_T);
   addSign(14, -HALL_HALF + 0.11, 1.62, 8.4, Math.PI / 2, 0.4, 0.16);   // 영안실 명패
-  // 시체 보관 서랍 벽 — 캐비닛을 3단으로 쌓아 흉내낸다
-  for (let i = 0; i < 7; i++) {
-    const z = 7 + i * 3.2;
-    for (let tier = 0; tier < 3; tier++) {
-      addProp3D('cabinet', -ROOM_X + 0.5, z, Math.PI / 2,
-        { y: tier * 1.26, collide: tier === 0 ? [0.5, 0.8] : null });
-    }
-    if (i % 2 === 0) addSearchable(-ROOM_X + 1.3, z, '보관 서랍');
+  // 시체 보관 서랍 벽 — 진짜 영안실 락커 GLB (3.27 x 2.20 x 2.39m).
+  // yaw 90도로 눕혀 문이 방 안쪽(+x)을 보게 하고, 서쪽 벽에 붙인다.
+  for (let i = 0; i < 5; i++) {
+    const z = 7.6 + i * 3.5;
+    addPropGLB('prop_morgue_lockers', -ROOM_X + 1.3, z, Math.PI / 2, { collide: [2.4, 3.3] });
+    if (i % 2 === 0) addSearchable(-ROOM_X + 2.9, z, '보관 서랍');
   }
+
+  // **여기가 이 구역의 그림이다** — 락커가 다 차서 시신을 바닥에 늘어놓았다.
+  // 줄지어 놓인 시체가방은 "얼마나 많이 죽었는가"를 숫자 대신 길이로 보여준다.
+  for (let i = 0; i < 6; i++) {
+    addPropGLB('prop_bodybag', morgueCx + 2.6, 8.0 + i * 2.4, 0, { collide: [0.9, 2.0] });
+  }
+  // 한 줄은 흐트러져 있다 — 열려 있고, 안이 비었다. 뭔가 걸어 나갔다.
+  addPropGLB('prop_bodybag', morgueCx + 0.7, 11.2, 0.42, { collide: [1.0, 2.0] });
+  addPropGLB('prop_bodybag', morgueCx + 0.2, 19.6, -0.30, { collide: [1.0, 2.0] });
+  addBlood(morgueCx + 0.7, 12.6, 2.0, 'drag');          // 가방에서 기어 나간 자국
+
+  // 부검대와 시신 — 작업 중이었다는 것이 읽혀야 한다
+  addPropGLB('prop_autopsy_table', morgueCx - 1.2, 20.0, Math.PI / 2, { collide: [0.8, 2.0] });
+  addPropGLB('prop_corpse', morgueCx - 1.2, 20.0, Math.PI / 2, { y: 0.95 });
+  addBlood(morgueCx - 1.2, 20.0, 1.6, 'pool', 0.96);
+  addPropGLB('prop_sink', -ROOM_X + 0.45, 27.4, Math.PI / 2, { collide: [0.6, 0.7] });
+  addPropGLB('prop_mop_bucket', morgueCx - 2.6, 27.8, 0.6, { collide: [0.8, 0.5] });
+
+  // 시야를 끊는 배치 — 손전등이 방 전체를 한 번에 훑지 못하게 가운데를 막는다
   for (let i = 0; i < 4; i++) {
     addProp3D('gurneyToppled', morgueCx + 1.5, 9 + i * 5.5, rnd() * 6.28, { collide: [1.0, 1.6] });
   }
-  addProp3D('examTable', morgueCx - 1.0, 20, 0, { args: [3.2, 0.6], collide: [3.2, 0.65] });
+  addProp3D('curtain', morgueCx + 0.6, 16.4, 0, { args: [2.6, 2.1] });   // 반쯤 쳐진 칸막이
+  addProp3D('curtain', morgueCx - 2.0, 24.2, Math.PI / 2, { args: [2.2, 2.1] });
   addBlood(morgueCx, 12, 3.0, 'pool');
   addBlood(morgueCx + 1.2, 22, 2.4);
   scatterDebris(morgueCx, 17, ROOM_X - HALL_HALF - 1.5, 24, 0.28);
@@ -135,6 +161,13 @@ export function build(ctx) {
                            [machCx - 2.4, 26, Math.PI], [machCx + 2.0, 24, 0]]) {
     addProp3D('vendingMachine', x, z, r, { collide: [0.95, 0.8] });
   }
+  // 배전반 — 전원 레버를 찾아 헤매는 구역인데 정작 배전반이 하나도 없었다.
+  // 벽을 따라 늘어놓으면 "여기가 전기를 다루는 곳"이 한눈에 읽힌다.
+  for (const pz of [10, 13.2, 18.4]) {
+    addPropGLB('prop_panel', ROOM_X - 0.62, pz, -Math.PI / 2, { collide: [0.5, 0.85] });
+  }
+  addPropGLB('prop_water_cooler', HALL_HALF + 0.7, 12.2, 0, { collide: [0.4, 0.4] });
+  addPropGLB('prop_mop_bucket', machCx - 2.6, 7.4, 0.9, { collide: [0.8, 0.5] });
   addProp3D('cart', machCx, 18, 0.5, { collide: [0.7, 0.5] });
   addSearchable(machCx, 17.5, '공구 카트');
   addSearchable(machCx + 2.0, 20.5, '부품 상자');
