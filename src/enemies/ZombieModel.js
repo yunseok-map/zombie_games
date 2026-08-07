@@ -47,9 +47,9 @@ export const CLIP_VARIANTS = {
   // 배속 상한에 막혀 클립이 앞부분만 재생되던 탓에 공중부양 구간까지 가지도 못했다.
   // (재는 법: tools/measure_contact.js 의 measureStride, 그리고 클립별 최저뼈 Y 훑기)
   //
-  // 지금 남은 건 둘뿐이라 **걷기 변형이 부족하다.** Mixamo 에서 "Zombie Walk" 계열을
-  // 더 받아 walk_05, walk_06 으로 넣으면 그대로 늘어난다(ANIM.clipSpeed 에 원래 속도만 추가).
-  walk:   ['walk_02', 'walk_03'],
+  // walk_05 는 Sketchfab 의 "Zombie Walk"(OSCAR CREATIVO) 다. 뼈가 mixamorig 로 같아서
+  // 그대로 붙는다 — 걷기 변형이 2종 → 3종이 됐다. (2026-08-07, ASSETS.md §4-C)
+  walk:   ['walk_02', 'walk_03', 'walk_05'],
   run:    ['run', 'run_02'],
   attack: ['attack_01', 'attack_02', 'attack_03', 'attack_04', 'attack_05', 'kicking'],
   death:  ['death_01', 'death_02', 'death_03'],
@@ -64,7 +64,7 @@ export const CLIP_VARIANTS = {
 
   // 기어다니는 개체용. 풀은 타입을 모르고 미리 만들어지므로 클립은 전부 준비해 두고,
   // 어떤 걸 쓸지는 Zombie._animKey() 가 def.crawler 를 보고 고른다.
-  crawl:     ['crawl'],
+  crawl:     ['crawl', 'crawl_02'],
   crawlIdle: ['crawl_idle'],
 };
 

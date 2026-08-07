@@ -240,6 +240,7 @@ export const ANIM = {
   clipSpeed: {
     walk_02: 0.46,
     walk_03: 0.40,
+    walk_05: 0.43,   // Sketchfab "Zombie Walk" — 4.07초 / 보폭 0.87m (2026-08-07 실측)
     run: 2.08,
     run_02: 2.08,
   },
