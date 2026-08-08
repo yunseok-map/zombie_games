@@ -179,6 +179,11 @@ try {
     const r = await page.evaluate(async () => {
       const g = window.game, W = g.weapons, P = g.player;
       const errs = [];
+      // 어떤 소리가 실제로 울렸는지 센다. 등록·파일이 맞아도 부르는 조건이 틀리면
+      // 소리는 안 난다 — 이 프로젝트에서 두 번 그랬다(zombie_notice · melee_hit).
+      const heard = {};
+      const busMod = await import('/src/core/EventBus.js');
+      busMod.bus.on(busMod.EV.SFX, ({ name }) => { heard[name] = (heard[name] ?? 0) + 1; });
       const run = (label, fn) => { try { fn(); } catch (e) { errs.push(`${label}: ${e.message}`); } };
       const step = (n, dt = 1 / 60) => {
         for (let i = 0; i < n; i++) run('뷰모델 갱신', () => W._animateViewModel(dt, null));
@@ -186,10 +191,8 @@ try {
 
       // 좀비 하나를 눈앞에 세운다 — 맞히는 경로와 빗나가는 경로를 모두 밟기 위해
       let zb = null;
-      run('좀비 스폰', () => {
-        zb = g.pool.spawnAt?.('shambler', P.pos.x, P.pos.z - 2)
-          ?? g.pool.zombies?.find(z => z.active);
-      });
+      run('좀비 스폰', () => { zb = g.pool.spawn('shambler', P.pos.x, P.pos.z - 2); });
+      if (!zb) errs.push('좀비 스폰 실패 — 이 아래 검사가 의미를 잃는다');
 
       for (let slot = 1; slot <= 3; slot++) {
         run(`무기 ${slot} 전환`, () => W.switchTo(slot));
@@ -214,11 +217,38 @@ try {
           }
         }
       }
-      return { errs, 무기수: Object.keys(W.ammo ?? {}).length };
+      // 물림·탈진도 밟는다 — 플레이어 목소리가 실제로 울리는지 보려면 여기까지 와야 한다
+      if (zb) {
+        run('물림 시작', () => { zb.state = 'GRAB'; P.beginGrab(zb); });
+        // grabbedBy 가 비면 게임이 이미 풀어준 것이다 — 거기서 멈춘다.
+        // 예전에는 여기서 null 을 계속 밀어 넣어 테스트가 120번 터졌다(게임이 아니라 테스트 잘못).
+        for (let i = 0; i < 120 && P.grabbedBy; i++) run('물림 진행', () => P._grabbed(1 / 60));
+        if (P.grabbedBy) run('물림 해제', () => P._endGrab(true));
+      }
+      run('탈진', () => {
+        P._exhausted = true; P.stamina = 0;
+        for (let i = 0; i < 400; i++) P._stamina(1 / 60);
+      });
+      // 크게 다친 상태의 신음 — 부상 2단계라야 난다. 체력을 떨어뜨려야 이 경로를 밟는다
+      run('중상 신음', () => {
+        P._exhausted = false;
+        P.hp = 8;                       // injury >= 2 로 떨어뜨린다
+        P._painT = 0;
+        for (let i = 0; i < 600; i++) P._stamina(1 / 60);
+      });
+      run('피격', () => { P._invuln = 0; P.hp = 60; P.damage(5); });
+
+      return { errs, heard };
     });
     log('=== 전투 검사 ===');
-    log(`발사·타격·재장전 경로 실행 — 오류 ${r.errs.length}건`);
+    log(`발사·타격·재장전·물림·탈진 경로 실행 — 오류 ${r.errs.length}건`);
     if (r.errs.length) { failed += r.errs.length; r.errs.slice(0, 12).forEach(e => log('  ' + e)); }
+
+    // 플레이어 목소리가 실제로 울렸는가 — 등록만 되고 안 울리는 것을 잡는다
+    const voice = Object.entries(r.heard).filter(([n]) => n.startsWith('player_'));
+    log(`\n울린 소리 ${Object.keys(r.heard).length}종 · 그중 플레이어 목소리 ${voice.length}종`);
+    voice.sort().forEach(([n, c]) => log(`  ${n.padEnd(20)} ${c}회`));
+    if (voice.length === 0) { failed++; log('  ❌ 플레이어 목소리가 한 번도 안 울렸다'); }
     log('');
   }
 } finally {

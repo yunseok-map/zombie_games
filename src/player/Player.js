@@ -141,6 +141,10 @@ export class Player {
     this.vel.set(0, 0, 0);
     this.addShake(SHAKE.hurt);
     bus.emit(EV.SFX, { name: 'zombie_attack', x: z.pos.x, z: z.pos.z, volume: 1 });
+    // 물린 순간의 비명. 게임에서 가장 무서운 순간인데 **플레이어 쪽은 완전히 무음**이었다 —
+    // 좀비만 으르렁대고 나는 아무 반응이 없어서 남의 일처럼 보였다.
+    bus.emit(EV.SFX, { name: 'player_grabbed', volume: AUDIO.voice.grabbedVolume });
+    this._struggleT = AUDIO.voice.struggleEvery;
   }
 
   /**
@@ -173,6 +177,17 @@ export class Player {
     // 지속 피해 — **무적시간을 무시한다.** 물린 채로 안 깎이면 위협이 아니다
     this.hp = Math.max(0, this.hp - GRAB.dps * dt);
     if (this.hp <= 0) { this._endGrab(false); this._die(); return; }
+
+    // 몸부림 — 물려 있는 내내 일정 간격으로. 비명 한 번만 지르고 조용해지면
+    // 붙잡힌 것이 아니라 잠깐 놀란 것으로 읽힌다.
+    this._struggleT -= dt;
+    if (this._struggleT <= 0) {
+      this._struggleT = AUDIO.voice.struggleEvery;
+      bus.emit(EV.SFX, {
+        name: `player_struggle_${1 + ((Math.random() * AUDIO.voice.struggleVariants) | 0)}`,
+        volume: AUDIO.voice.struggleVolume,
+      });
+    }
 
     // 뿌리치기
     if (this.input.justPressed('Space')) {
@@ -282,6 +297,29 @@ export class Player {
     } else {
       this.stamina = Math.min(PLAYER.maxStamina, this.stamina + PLAYER.staminaRegen * dt);
       if (this._exhausted && this.stamina >= PLAYER.staminaMinToSprint) this._exhausted = false;
+    }
+
+    // 지쳤을 때 헐떡임. 전에는 스태미나가 바닥나도 **화면 눈금만 빨개지고 귀로는
+    // 아무 일도 안 일어났다** — 달리기를 뺏긴 이유가 몸이 아니라 UI 에 있었다.
+    const V = AUDIO.voice;
+    this._breathT = (this._breathT ?? 0) - dt;
+    if (this._exhausted && this._breathT <= 0) {
+      this._breathT = V.breathEvery;
+      bus.emit(EV.SFX, {
+        name: `player_breath_${1 + ((Math.random() * V.breathVariants) | 0)}`,
+        volume: V.breathVolume,
+      });
+    }
+
+    // 크게 다친 채로 이따금 내는 신음 (부상 2단계 = 절뚝임보다 심한 상태).
+    // 물려 있는 동안은 안 낸다 — 그때는 몸부림 소리가 이미 깔린다.
+    this._painT = (this._painT ?? 0) - dt;
+    if (this.injury >= 2 && !this.grabbedBy && this._painT <= 0) {
+      this._painT = V.painEvery;
+      bus.emit(EV.SFX, {
+        name: `player_pain_${1 + ((Math.random() * V.painVariants) | 0)}`,
+        volume: V.painVolume,
+      });
     }
   }
 
@@ -404,7 +442,13 @@ export class Player {
     this._invuln = PLAYER.invulnAfterHit;
     this.addShake(SHAKE.hurt);
     if (from) this.addKick(from);
-    bus.emit(EV.SFX, { name: 'player_hurt', volume: 0.8 });
+    // 피격음 3종을 번갈아 — 한 종류만 쓰면 연속으로 맞을 때 즉시 녹음처럼 들린다.
+    // 1번은 기존 파일(player_hurt), 2·3번이 새로 추가된 것이라 이름 규칙이 갈린다.
+    const hv = 1 + ((Math.random() * AUDIO.voice.hurtVariants) | 0);
+    bus.emit(EV.SFX, {
+      name: hv === 1 ? 'player_hurt' : `player_hurt_${hv}`,
+      volume: AUDIO.voice.hurtVolume,
+    });
     // 화면 기준 각도로 바꿔서 넘긴다 — HUD 는 월드 좌표를 모른다.
     // 0 = 정면, +는 오른쪽. 몸이 돌면 표시도 같이 돌아야 한다
     // 각도 빼기로 구하면 부호를 틀리기 쉽다. 이 파일 위쪽(_move)에 적힌 기저를 그대로 쓴다 —

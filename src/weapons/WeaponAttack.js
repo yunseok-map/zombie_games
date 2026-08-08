@@ -16,7 +16,7 @@
  */
 
 import * as THREE from 'three';
-import { MUZZLE, NOISE, WEAPON_SWING, WALL_IMPACT } from '../config/balance.js';
+import { MUZZLE, NOISE, WEAPON_SWING, WALL_IMPACT, AUDIO } from '../config/balance.js';
 import { getCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 
@@ -217,6 +217,21 @@ export function _swingMelee(sys, def) {
     // 중이라 바람 소리가 동작보다 먼저 났다. 뷰모델이 타격 구간에 들어갈 때 낸다
     // (WEAPON_SWING.whooshAt).
     sys._whooshDone = false;
+
+    // 기합 — **매번 내면 3분 만에 견딜 수 없어진다.** 확률로 거르고 쿨다운을 건다.
+    // 연타 중에도 이따금씩만 나야 "힘을 준 한 번"으로 읽힌다.
+    // 시간 기준은 `_idle` 을 쓴다 — 뷰모델이 매 프레임 dt 를 더하는 초 단위 시계다.
+    // 스윙 **횟수**로 세면 안 된다. "1회 이상 간격"은 두 번째 스윙부터 늘 참이라
+    // 쿨다운이 아예 없는 것과 같아진다 (한 번 그렇게 썼다).
+    const V = AUDIO.voice;
+    const now = sys._idle ?? 0;
+    if (Math.random() < V.effortChance && now - (sys._lastEffortAt ?? -999) >= V.effortCooldown) {
+      sys._lastEffortAt = now;
+      bus.emit(EV.SFX, {
+        name: `player_effort_${1 + ((Math.random() * V.effortVariants) | 0)}`,
+        volume: V.effortVolume,
+      });
+    }
 
     // 판정을 접촉 시점으로 예약한다. 상한을 두는 이유는 쿨다운이 긴 무기에서
     // 클릭이 씹힌 느낌이 나지 않게 하기 위해서다.

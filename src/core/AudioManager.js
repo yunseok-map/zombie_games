@@ -43,6 +43,32 @@ const MANIFEST = {
   melee_hit: 'sfx/sfx_axe_hit_flesh.mp3',
   reload: 'sfx/sfx_reload_pistol.mp3',
   player_hurt: 'sfx/sfx_player_hurt.mp3',
+
+  // ── 1인칭 플레이어 목소리 (2026-08-08) ──────────────────────────────────
+  // 그전까지 플레이어가 내는 소리는 위의 player_hurt 하나뿐이었다. 좀비는 8종을
+  // 내는데 플레이어는 맞을 때 한 번 끙 하고 마는, 몸이 없는 카메라였다.
+  //
+  // **여기 등록만 해서는 게임에 없는 것이다** (PROGRESS.md 함정 — zombie_notice 가
+  // 두 세션 동안 등록만 되고 한 번도 안 울렸다). 부르는 곳을 반드시 같이 만든다:
+  //   effort   → WeaponAttack._swingMelee  (근접을 휘두를 때, 확률적으로)
+  //   grabbed  → Player.beginGrab          (물린 순간)
+  //   struggle → Player._grabbed           (뿌리치려 몸부림칠 때)
+  //   breath   → Player._stamina           (스태미나가 바닥났을 때)
+  //   pain     → Player._syncCamera        (크게 다친 채로 숨 쉴 때)
+  //   hurt_2/3 → Player.hurt               (기존 hurt 와 번갈아)
+  player_effort_1: 'sfx/sfx_player_effort_01.mp3',
+  player_effort_2: 'sfx/sfx_player_effort_02.mp3',
+  player_effort_3: 'sfx/sfx_player_effort_03.mp3',
+  player_grabbed: 'sfx/sfx_player_grabbed.mp3',
+  player_struggle_1: 'sfx/sfx_player_struggle_01.mp3',
+  player_struggle_2: 'sfx/sfx_player_struggle_02.mp3',
+  player_breath_1: 'sfx/sfx_player_breath_01.mp3',
+  player_breath_2: 'sfx/sfx_player_breath_02.mp3',
+  player_pain_1: 'sfx/sfx_player_pain_01.mp3',
+  player_pain_2: 'sfx/sfx_player_pain_02.mp3',
+  player_hurt_2: 'sfx/sfx_player_hurt_02.mp3',
+  player_hurt_3: 'sfx/sfx_player_hurt_03.mp3',
+
   ambience: 'ambience/amb_hospital_hum.mp3',
 };
 

@@ -74,6 +74,43 @@ export const EVENTS = {
  */
 export const AUDIO = {
   footstepVariants: { concrete: 4, tile: 4, debris: 3, wet: 2 },
+
+  /**
+   * ── 1인칭 플레이어 목소리 (2026-08-08) ──
+   *
+   * 목소리는 **넣는 것보다 안 넣는 때를 정하는 것이 어렵다.** 휘두를 때마다
+   * 기합이 나오면 3분 만에 견딜 수 없어진다. 그래서 전부 확률과 쿨다운을 건다.
+   *
+   * 볼륨이 좀비 소리보다 낮은 이유 — 이건 **내 목에서 나는 소리**라 3D 감쇠가
+   * 없다. 같은 볼륨으로 두면 좀비보다 크게 들려서 긴장이 내 쪽으로 쏠린다.
+   */
+  voice: {
+    // 근접 기합 — 확률로 거른다. 매번 나오면 연타할 때 견딜 수 없다
+    effortChance: 0.42,
+    effortCooldown: 1.1,      // 초. 연타해도 이 간격보다 촘촘히는 안 난다
+    effortVolume: 0.5,
+    effortVariants: 3,
+
+    // 물림 — 게임에서 가장 무서운 순간이라 유일하게 크게 낸다
+    grabbedVolume: 0.95,
+    struggleVolume: 0.6,
+    struggleEvery: 0.75,      // 물려 있는 동안 이 간격으로 몸부림 소리
+    struggleVariants: 2,
+
+    // 지쳤을 때 — 스태미나가 바닥나면 화면에만 뜨고 귀로는 아무것도 없었다
+    breathVolume: 0.55,
+    breathEvery: 2.6,         // 지쳐 있는 동안 반복 간격
+    breathVariants: 2,
+
+    // 크게 다쳤을 때(부상 2단계) 이따금 나는 신음. 자주 나면 처량하기만 하다
+    painVolume: 0.5,
+    painEvery: 7.0,
+    painVariants: 2,
+
+    // 피격 — 기존 1종에 2종을 더해 3종을 번갈아 쓴다
+    hurtVolume: 0.8,
+    hurtVariants: 3,
+  },
 };
 
 
