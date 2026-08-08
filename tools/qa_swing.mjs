@@ -83,13 +83,6 @@ try {
     const cam = g.camera;
     const out = {};
 
-    // 근접 무기만 — 이름은 config/weapons.js 가 정한다
-    const meleeIds = Object.entries(W.slots ?? {}).map(([, v]) => v).filter(Boolean);
-    const ids = (W.owned ? [...W.owned] : meleeIds).filter(id => {
-      const d = (window.__WEAPONS__ ?? {})[id];
-      return true;
-    });
-
     const probe = (label) => {
       const def = W.current;
       if (!def || def.type === 'gun') return null;

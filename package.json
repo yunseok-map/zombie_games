@@ -12,7 +12,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src tools --quiet",
+    "lint": "eslint src tools --max-warnings 0",
     "qa": "node tools/qa_run.mjs",
     "qa:dist": "npm run build && node tools/qa_dist.mjs",
     "qa:geometry": "node tools/qa_geometry.mjs",

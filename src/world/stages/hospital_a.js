@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { makeRng } from '../rng.js';
 
 /**
@@ -47,7 +46,7 @@ export function surfaceAt(x, z) {
 }
 
 export function build(ctx) {
-  const { addWall, addFloor, addCeiling, addProp, addLight, addSpawn,
+  const { addWall, addFloor, addCeiling, addLight, addSpawn,
           addBlood, addWallBlood, scatterDebris, addItem, addDoor,
           addProp3D, addSign, addSearchable, addPropGLB } = ctx;
 

@@ -1,8 +1,7 @@
 /**
  * ESLint — **오직 한 가지 목적**으로 둔다: 임포트가 빠진 식별자를 잡는 것.
  *
- *   npm i --no-save eslint
- *   npx eslint src tools
+ *   npm run lint
  *
  * 왜 필요한가 — 파일을 가르다 임포트를 빠뜨리면 **빌드는 그대로 통과한다.**
  * JS 는 그 줄을 실제로 실행할 때까지 모르기 때문이다. 자동 검사가 안 밟는
@@ -41,7 +40,9 @@ export default [
     linterOptions: { reportUnusedDisableDirectives: true },
     rules: {
       'no-undef': 'error',
-      // 쓰지 않는 임포트는 경고만 — 가르는 과정에서 남은 것을 알려 주되 막지는 않는다
+      // 쓰지 않는 값은 **가르다 만 흔적**이다. 위험하진 않지만 읽는 사람을 헷갈리게
+      // 하므로 0을 유지한다 (`npm run lint` 이 `--max-warnings 0`).
+      // 일부러 안 쓰는 것은 `_` 로 시작하면 통과한다.
       'no-unused-vars': ['warn', {
         args: 'none', varsIgnorePattern: '^_', caughtErrors: 'none',
       }],

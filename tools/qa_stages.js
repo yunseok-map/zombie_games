@@ -196,11 +196,10 @@ function checkStage(game, idx) {
     dupItems.slice(0, 3).map((it) => `(${it.x.toFixed(1)},${it.z.toFixed(1)})`).join(' '));
 
   // ── 14~16. 예산 ──
-  let dc = 0, tris = 0, shadowCasters = 0;
+  let dc = 0, tris = 0;
   L.group.traverse((o) => {
     if (!o.isMesh) return;
     dc++;
-    if (o.castShadow) shadowCasters++;
     const t = (o.geometry.index ? o.geometry.index.count
       : o.geometry.attributes.position.count) / 3;
     tris += o.isInstancedMesh ? t * o.count : t;
