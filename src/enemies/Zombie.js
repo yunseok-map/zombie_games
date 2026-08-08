@@ -580,7 +580,13 @@ export class Zombie {
       }
 
       if (!this._settled) {
-        this.group.position.y = this._groundOffset();
+        // 접지 높이를 **그대로 먹이면 안 된다.** 그러면 매 프레임 "가장 낮은 뼈"가
+        // 바닥에 붙어서, 몸이 떨어지는 대신 그 팔다리를 축으로 공중에서 돈다
+        // (한 발로 버티며 허리가 솟은 자세). 클립에 낙하 성분이 없기 때문이다.
+        // 시간으로 가속해 내려보내고, 접지 높이를 **하한**으로만 쓴다.
+        const ground = this._groundOffset();
+        const k = Math.min(1, fallT / (this._settleAt ?? 1.6));
+        this.group.position.y = Math.max(ground * (k ** CORPSE.fallEase), ground);
         if (fallT > (this._settleAt ?? 1.6)) {
           this._settled = true;                 // 동작이 끝났다. 고정하고 뼈 순회를 멈춘다
           this._corpseY = this.group.position.y;
