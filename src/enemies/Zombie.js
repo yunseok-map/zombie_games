@@ -106,7 +106,12 @@ export class Zombie {
   _animKey() {
     if (this.state === 'DEAD') return 'death';
     if (this.stun > 0 || this.flinch > 0) return 'hit';
-    if (this._screamTimer > 0) return 'scream';        // 발견 순간의 포효
+    // 발견 순간의 포효. **기어다니는 개체는 제외한다** — 이것도 선 자세 클립이라
+    // 아래 crawler 분기가 막는 것과 똑같이 몸이 바닥 아래로 묻힌다. 그 분기를 만들 때
+    // scream 이 위에 있어서 같이 안 고쳐졌다. 실측: 플레이어를 발견한 포복체의
+    // 가장 낮은 뼈가 **-0.50m** (3F 40회 순회 중 6회, 전부 클립 scream).
+    // 소리는 그대로 난다 — `_screamTimer` 는 클립이 아니라 발견 시점에 걸린다.
+    if (this._screamTimer > 0 && !this.def.crawler) return 'scream';
     // 기어다니는 개체는 서는 동작이 없다 — 이동/정지/공격 전부 엎드린 클립을 쓴다.
     // **공격 판정을 ATTACK 보다 먼저 본다.** 선 자세 공격 클립을 쓰면 modelYOffset(-0.62)
     // 때문에 몸이 바닥 아래로 묻힌다 (tools/qa_motion.js 가 잡았다).
