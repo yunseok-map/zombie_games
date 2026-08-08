@@ -1,5 +1,6 @@
 import { GENERATOR } from '../../config/balance.js';
 import { bus, EV } from '../../core/EventBus.js';
+import { makeRng } from '../rng.js';
 
 /**
  * 구역 B — B1 영안실 · 기계실 (SPEC.md §3)
@@ -40,8 +41,7 @@ export function build(ctx) {
           triggerWave, setMood, setLights,
           wallWithDoors } = ctx;
 
-  let _s = 90211;
-  const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const rnd = makeRng(90211);
   const trim = (cx, cz, len, horizontal) => {
     addProp3D('baseboard', cx, cz, 0, { args: [len, horizontal] });
     addProp3D('handrail', cx, cz, 0, { args: [len, horizontal] });

@@ -43,13 +43,13 @@ jobs:
       # 임포트 누락은 빌드가 안 잡아 준다 — JS 는 그 줄을 실행할 때까지 모른다.
       # 실제로 두 번 이 방식으로 결함이 새어 나갔다 (eslint.config.mjs 주석 참고).
       - name: 임포트 누락 검사 (no-undef)
-        run: npx eslint src tools --quiet
+        run: npm run lint
       - name: 자동 검사 (구역 125항목 + 모션 1482프레임 + 전투 경로)
         if: ${{ inputs.skip_qa != true }}
         env:
           # 러너에 미리 깔린 크롬. 하네스는 GPU 를 안 쓰고 SwiftShader 로 돈다.
           CHROME_PATH: /usr/bin/google-chrome
-        run: node tools/qa_run.mjs
+        run: npm run qa
       - name: 검사를 건너뛴 이유를 로그에 남긴다
         if: ${{ inputs.skip_qa == true }}
         run: echo "::warning::검사를 건너뛰고 배포한다. 배포본이 검증되지 않았다."
@@ -65,6 +65,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # 굽는 것과 **구운 것이 열리는 것**은 다른 문제다.
+      # 여기까지는 qa 잡이 전부 개발 서버(vite dev)에 붙어서 본 결과다. 심사자가
+      # 여는 것은 dist/ 이고, 에셋 경로(base)·청크 순서는 빌드에서만 갈린다.
+      # 그래서 올리기 직전에 dist 를 실제로 띄워 보고 PLAYING 까지 들어가는지 본다.
+      - name: 배포본 점검 (dist 를 띄워 실제로 시작되는지)
+        if: ${{ inputs.skip_qa != true }}
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/qa_dist.mjs
       # Pages 를 **처음 켜는 것**은 워크플로 토큰 권한 밖이다. 저장소 설정에서
       # Settings > Pages > Source 를 "GitHub Actions" 로 한 번만 바꿔 주면 그 뒤로는 자동이다.
       # (enablement: true 를 줘도 여기서 403 으로 떨어진다 — 실제로 그랬다)

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SCATTER, IMPACT } from '../config/balance.js';
+import { makeRng } from './rng.js';
 
 /**
  * Scatter — 핏자국 데칼과 의료폐기물 잔해.
@@ -15,14 +16,6 @@ const TEX_DIR = `${import.meta.env.BASE_URL}assets/textures/`;
 const BLOOD_KINDS = ['pool', 'splatter', 'drag'];
 const WALL_KINDS = ['handprint'];      // 벽에만 쓴다. 바닥 무작위 풀에 넣으면 어색하다
 
-/** 고정 시드 난수 — 매 판 같은 자리에 나와야 레벨이 흔들리지 않는다 */
-function makeRng(seed) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 4294967296;
-  };
-}
 
 /** 주사기 — 배럴 + 바늘 + 허브 + 밀대. X축으로 눕혀서 만든다 (바닥에 굴러다니게) */
 function makeSyringeGeo() {

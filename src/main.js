@@ -70,5 +70,12 @@ document.getElementById('btn-retry').addEventListener('click', () => beginFrom(t
 document.getElementById('btn-restart').addEventListener('click', () => beginFrom(false));
 document.getElementById('btn-resume').addEventListener('click', () => game.resume());
 
-// 개발 중 디버그: 콘솔에서 game 접근
+/**
+ * 검증 훅. **디버그 편의가 아니라 계약이다** — `tools/` 의 자동 검사가 전부 이걸로 붙는다.
+ * (구역 125항목 · 모션 1482프레임 · 전투 경로 · 밝기 · 지오메트리 지문)
+ *
+ * 헤드리스 크롬은 소프트웨어 렌더라 이 게임이 1fps 로 돌아서, 실제 플레이로는
+ * 검사를 할 수가 없다. 그래서 하네스는 `game.state = 'PAUSED'` 로 세운 뒤
+ * 고정 dt 로 직접 돌린다. 이 참조를 지우면 CI 의 QA 게이트가 통째로 멈춘다.
+ */
 window.game = game;

@@ -1,13 +1,25 @@
 {
   "name": "quarantine-no3",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
-  "description": "QUARANTINE No.3 - 1인칭 좀비 서바이벌 호러 (제3격리병원)",
+  "description": "QUARANTINE No.3 (제3격리병원) — 1인칭 좀비 서바이벌 호러. Vite + Three.js.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint src tools --quiet",
+    "qa": "node tools/qa_run.mjs",
+    "qa:dist": "npm run build && node tools/qa_dist.mjs",
+    "qa:geometry": "node tools/qa_geometry.mjs",
+    "qa:brightness": "node tools/qa_brightness.mjs",
+    "qa:audio": "node tools/check_audio.mjs",
+    "verify": "npm run lint && npm run qa:audio && npm run qa",
+    "pdf": "node tools/make_submission_pdf.mjs"
   },
   "dependencies": {
     "three": "^0.169.0"

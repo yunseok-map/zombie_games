@@ -10,6 +10,7 @@
 
 import { EVENTS, SCATTER } from '../../config/balance.js';
 import { bus, EV } from '../../core/EventBus.js';
+import { makeRng } from '../rng.js';
 
 const WALL_T = 0.2;
 const HALL_HALF = 2.8;
@@ -40,8 +41,7 @@ export function build(ctx) {
           addLever, addDoor, triggerWave, setLights,
           room, wallWithDoors } = ctx;
 
-  let _s = 40517;
-  const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const rnd = makeRng(40517);
   const trim = (cx, cz, len, horizontal) => {
     addProp3D('baseboard', cx, cz, 0, { args: [len, horizontal] });
     addProp3D('handrail', cx, cz, 0, { args: [len, horizontal] });

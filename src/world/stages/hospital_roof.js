@@ -11,6 +11,7 @@
 
 import { EVENTS } from '../../config/balance.js';
 import { bus, EV } from '../../core/EventBus.js';
+import { makeRng } from '../rng.js';
 
 const WALL_T = 0.25;
 const PARAPET_D = 0.3;             // 난간 벽 두께
@@ -52,8 +53,7 @@ export function build(ctx) {
           scatterDebris, addProp3D, addPropGLB, addSign, addSearchable,
           addLever, triggerWave, setMood, setLights, setExit } = ctx;
 
-  let _s = 5150207;
-  const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const rnd = makeRng(5150207);
 
   // ───────── 바닥 · 난간 (천장은 없다 — 이 구역의 정체성) ─────────
   const deckD = DECK_Z1 - DECK_Z0, deckMid = (DECK_Z0 + DECK_Z1) / 2;

@@ -32,7 +32,7 @@ npm run dev            # → http://localhost:5180
 **따라온다** — 게임에 필요한 전부
 - `src/` 게임 코드 · `public/assets/` 완성된 에셋 17MB (텍스처·사운드·모델·GLB)
 - `tools/` 생성 스크립트 전부 + `tools/source_models/` Sketchfab GLB 원본 19개(98MB)
-- 문서 전부 (`CLAUDE.md` `SPEC.md` `PROGRESS.md` `ASSETS.md` `TODO_MORNING.md`)
+- 문서 전부 (`CLAUDE.md` `SPEC.md` `PROGRESS.md` `ASSETS.md` `docs/notes/`)
 
 **안 온다** — 용량이 커서 `.gitignore` 에 있다. 없어도 게임은 정상이다.
 

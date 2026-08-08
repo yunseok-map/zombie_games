@@ -15,6 +15,14 @@ import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
+/**
+ * 이징 — **모듈 최상단에 둔다.** 프레임 함수 안에 두면 초당 60개씩 클로저가 새로 생긴다.
+ * 이 프로젝트는 이미 같은 이유로 Atmosphere 의 정렬 비교 함수를 밖으로 뺀 적이 있다.
+ */
+const easeOut = (t) => 1 - (1 - t) ** 3;
+const easeIn = (t) => t * t * t;
+const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+
 export function _buildViewModel(z) {
     for (const m of z.viewParts) { z.viewRoot.remove(m); m.geometry?.dispose(); }
     z.viewParts.length = 0;
@@ -85,10 +93,6 @@ export function _buildViewModel(z) {
    * 예비동작 · 궤적 · 마무리, 그리고 시선을 돌릴 때 무기가 뒤따라오는 관성.
    */
 export function _animateViewModel(z, dt, input) {
-    const easeOut = (t) => 1 - (1 - t) ** 3;
-    const easeIn = (t) => t * t * t;
-    const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
-
     z._recoil = Math.max(0, z._recoil - dt * 7);
 
     // 총구 화염은 아주 짧게, 그리고 세기를 조금씩 흔든다 (매번 같으면 스트로브처럼 보인다)

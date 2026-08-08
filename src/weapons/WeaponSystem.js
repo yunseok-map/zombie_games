@@ -231,45 +231,27 @@ export class WeaponSystem {
     }
   }
 
+  /**
+   * ── 아래는 전부 `WeaponAttack` 으로 넘기는 한 줄 위임이다 ──
+   *
+   * 실제 구현과 **그 이유를 적은 주석은 WeaponAttack.js 한 곳에만** 둔다.
+   * 여기에 같은 설명을 복사해 두면 한쪽만 고쳐져서 둘이 어긋난다 — 실제로
+   * `_hitscan` · `_traceWorld` · `_swingMelee` 세 개가 그렇게 두 벌이었다.
+   * 이 파일에 남는 것은 "무엇을 어디로 넘기는가"뿐이다.
+   */
   // ───────────────────────── 총기 ─────────────────────────
   _fireGun(def) { return WeaponAttack._fireGun(this, def); }
-
-  /**
-   * 레이 위에서 가장 가까운 좀비를 찾는다 (**캡슐** 근사).
-   *
-   * 예전에는 구 하나였다. 서 있는 개체는 그럭저럭 맞았지만 **엎드린 개체는
-   * 골반 둘레만 판정돼서, 머리나 다리를 조준하면 그대로 빗나갔다** —
-   * 포복체 몸은 1.45m 가로로 누워 있는데 구의 반지름은 0.54m 였다.
-   * 이제 몸을 선분으로 두고 그 둘레를 판정한다. 서 있으면 세로, 엎드리면
-   * **바라보는 방향으로** 눕는다.
-   */
   _hitscan(origin, dir, range, damage, stun) { return WeaponAttack._hitscan(this, origin, dir, range, damage, stun); }
-
-  /**
-   * 빗나간 총알이 벽·바닥·천장 어디에 박혔는지 찾는다.
-   *
-   * Collision 은 XZ 전용 AABB 라 3D 레이 교차가 없다. 그래서 일정 간격으로
-   * 전진시키며 막히는 첫 지점을 잡는다 — **간격이 벽 두께(0.2m)보다 작아야 한다.**
-   * 사거리를 끊는 이유는 비용이다: 권총 사거리 60m 를 그대로 훑으면 500회가 되는데,
-   * 그 너머 탄흔은 어차피 화면에 안 보인다.
-   */
   _traceWorld(origin, dir) { return WeaponAttack._traceWorld(this, origin, dir); }
 
   // ───────────────────────── 근접 ─────────────────────────
-  /**
-   * 스윙을 **시작만** 한다. 판정은 무기가 가장 뻗는 순간에 `_resolveMelee` 가 한다.
-   *
-   * 예전에는 이 함수가 클릭한 그 프레임에 판정까지 끝냈다. 그런데 뷰모델이 가장
-   * 뻗는 시점은 스윙의 54% 지점(쇠파이프 기준 0.258초 뒤)이라, **화면에서는 아직
-   * 쉬는 자세인데 좀비가 이미 피를 뿜고 젖혀졌다.** 히트스톱까지 그 시점에 걸려서
-   * "클릭 → 정지 → 그제서야 휘두름" 순서가 됐다.
-   * 좀비 쪽은 `ATTACK.contact` 로 이미 해결한 문제인데 플레이어 쪽만 남아 있었다.
-   *
-   * 쿨다운은 여기서 그대로 걸리므로 **연타 리듬은 1프레임도 안 바뀐다.**
-   */
   _swingMelee(def) { return WeaponAttack._swingMelee(this, def); }
+  _resolveMelee(def) { return WeaponAttack._resolveMelee(this, def); }
 
-  /** 예약된 근접 판정이 있으면 취소한다 — 무기 교체·부활 시 유령 타격을 막는다 */
+  // ───────────────────────── 투척 ─────────────────────────
+  _throw(def) { return WeaponAttack._throw(this, def); }
+  _releaseThrow() { return WeaponAttack._releaseThrow(this); }
+
   /**
    * 진행 중인 동작을 없던 일로 한다. 무기를 바꾸거나 되살아날 때 부른다.
    *
@@ -284,17 +266,6 @@ export class WeaponSystem {
     this._throwT = 99;
     if (this.viewMesh) this.viewMesh.visible = true;
   }
-
-  /**
-   * 실제 판정. **접촉 시점의 시선·위치**를 쓴다 — 휘두르는 도중 몸을 돌리면
-   * 빗나간다. 좀비 공격과 같은 규칙이 되는 것이라 이쪽이 맞다.
-   */
-  _resolveMelee(def) { return WeaponAttack._resolveMelee(this, def); }
-
-  // ───────────────────────── 투척 ─────────────────────────
-  _throw(def) { return WeaponAttack._throw(this, def); }
-  /** 병이 손을 떠나는 순간 — WeaponViewModel 이 진행률을 보고 부른다 */
-  _releaseThrow() { return WeaponAttack._releaseThrow(this); }
 
   /**
    * 투척물을 다 썼을 때 손을 비운다.

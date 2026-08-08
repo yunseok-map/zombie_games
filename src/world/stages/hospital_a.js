@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { makeRng } from '../rng.js';
 
 /**
  * 구역 A — 1F 로비 · 응급실 (SPEC.md §3)
@@ -51,8 +52,7 @@ export function build(ctx) {
           addProp3D, addSign, addSearchable, addPropGLB } = ctx;
 
   // 결정적 난수 — 매 판 같은 배치여야 레벨이 흔들리지 않는다
-  let _s = 4021;
-  const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const rnd = makeRng(4021);
 
   /** 벽면을 따라 걸레받이 + 핸드레일 (Phase 2) */
   const trim = (cx, cz, len, horizontal, rail = true) => {
