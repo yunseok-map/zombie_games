@@ -55,6 +55,12 @@ const rod = (r, len, x = 0, y = 0, z = 0, seg = 8) => {
   g.translate(x, y, z);
   return g;
 };
+/** 작은 덩어리 — 심지 불꽃처럼 **실루엣이 도형으로 읽히면 안 되는** 것에 쓴다 */
+const blob = (r, x = 0, y = 0, z = 0, seg = 8) => {
+  const g = new THREE.SphereGeometry(r, seg, seg);
+  g.translate(x, y, z);
+  return g;
+};
 const P = (mat, geo) => ({ mat, geo });
 
 /** 쇠파이프 — 끝이 찌그러지고 테이프를 감았다 */
@@ -144,7 +150,10 @@ export function molotov() {
     P('accent', rod(0.038, 0.15, 0, 0, -0.13, 8)),                // 안에 든 기름
     P('glass', rod(0.021, 0.08, 0, 0, -0.28, 8)),                 // 병목
     P('grip', rod(0.026, 0.06, 0, 0, -0.31, 7)),                  // 감아 놓은 천
-    P('flame', box(0.03, 0.045, 0.03, 0, 0.012, -0.355)),         // 타고 있는 심지
+    // **박스로 두면 안 된다.** 어둠 속에서 불빛만 보이는데 그게 정확한 사각형이라
+    // UI 결함처럼 읽힌다 (옥상 야간 프레임에서 실제로 그렇게 보였다).
+    P('flame', blob(0.022, 0, 0.008, -0.35)),
+    P('flame', blob(0.014, 0, 0.030, -0.352, 6)),                 // 위로 뻗은 끝
   ];
 }
 
