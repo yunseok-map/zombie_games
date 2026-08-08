@@ -60,6 +60,23 @@ export class Atmosphere {
     this.ambient = new THREE.AmbientLight(0x6a7a86, FX.ambientIntensity);
     scene.add(this.ambient);
 
+    /**
+     * 달빛 — **옥상 전용**이지만 광원 자체는 항상 씬에 있다.
+     *
+     * 구역마다 넣었다 뺐다 하면 안 된다. three 의 셰이더 프로그램 캐시 키에
+     * 광원 **개수**가 들어가서(위 `_slots` 주석과 같은 이유), 옥상에 올라갈 때마다
+     * 씬의 재질이 통째로 재컴파일된다. 그래서 개수는 1로 고정하고 **세기만** 0↔n 으로
+     * 여닫는다. 실내에서는 intensity 0 이라 계산은 돌아도 결과가 0 이다.
+     *
+     * 그림자는 끈다 — 예산상 그림자 광원은 손전등뿐이다 (CLAUDE.md §3).
+     * 달빛에 그림자를 켜면 옥상 전체를 덮는 4096² 패스가 하나 더 생긴다.
+     */
+    this.moon = new THREE.DirectionalLight(FX.moonColor, 0);
+    this.moon.castShadow = false;
+    this.moon.position.set(...FX.moonDir);
+    scene.add(this.moon);
+    scene.add(this.moon.target);      // target 이 씬에 없으면 방향이 안 먹는다
+
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = FX.exposure;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -102,13 +119,18 @@ export class Atmosphere {
   }
 
   /** 구역별 분위기 덮어쓰기 — StageLoader 가 호출 */
-  applyStageMood({ fogDensity, fogColor, ambientIntensity }) {
+  applyStageMood({ fogDensity, fogColor, ambientIntensity, ambientColor, moonIntensity }) {
     if (fogColor !== undefined) {
       this.scene.fog.color.setHex(fogColor);
       this.scene.background.setHex(fogColor);
     }
     if (fogDensity !== undefined) this.scene.fog.density = fogDensity;
     if (ambientIntensity !== undefined) this.ambient.intensity = ambientIntensity;
+    // 색은 **명시 안 하면 기본으로 되돌린다.** 안 그러면 옥상의 푸른 기가 다음
+    // 구역까지 따라간다 (다시 시작하면 1F 가 파랗게 보인다).
+    this.ambient.color.setHex(ambientColor ?? FX.ambientColor);
+    // 달빛도 마찬가지 — 명시한 구역에서만 켜진다. 기본은 0 이다.
+    this.moon.intensity = moonIntensity ?? 0;
   }
 
   /**

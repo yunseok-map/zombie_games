@@ -2,6 +2,12 @@
  * Input — 키보드 / 마우스 / 포인터락.
  * 프레임마다 update() 에서 consume 되는 값(마우스 델타, 눌린 순간)을 구분해 제공한다.
  */
+/**
+ * Ctrl 과 함께 눌렸을 때 브라우저 기본 동작을 막을 키. Game._devKeys 가 쓰는 조합이다.
+ * **Ctrl+N·T·W 는 여기 넣어도 소용없다** — 크롬이 예약해서 페이지로 오지도 않는다.
+ */
+const DEV_COMBOS = ['KeyG', 'KeyM', 'KeyI'];
+
 export class Input {
   constructor(canvas) {
     this.canvas = canvas;
@@ -21,6 +27,9 @@ export class Input {
       if (!this.keys.has(c)) this.pressed.add(c);
       this.keys.add(c);
       if (['Space', 'Tab', 'KeyE', 'KeyR', 'KeyF'].includes(c)) e.preventDefault();
+      // 관리자 조합(Game._devKeys) 이 브라우저 기능을 같이 여는 것을 막는다.
+      // 크롬에서 Ctrl+G 는 "다음 찾기"고, 파이어폭스에서 Ctrl+I 는 페이지 정보다.
+      if (e.ctrlKey && DEV_COMBOS.includes(c)) e.preventDefault();
     };
     this._onKeyUp = (e) => { this.keys.delete(e.code); };
     // 창이 포커스를 잃으면 keyup 이 안 온다 → 키가 눌린 채로 굳는다
