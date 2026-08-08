@@ -159,6 +159,18 @@ export function build(ctx) {
       } else if (doorKind === 'board') {
         addProp3D('boardedDoor', wallX, doorZ, wallYaw, { args: [DOOR_W] });
         addWall(wallX, doorZ, 0.16, DOOR_W);          // 판자로 막힌 문은 못 지나간다
+        // **왜 막았는지**가 판자 하나로는 안 읽힌다. 복도 쪽에 치운 흔적을 남긴다 —
+        // 급히 봉쇄하면서 밀어낸 것들이다. 방마다 다른 물건이라 반복으로 안 보인다.
+        // 복도 폭이 4m(CORR_HALF 2)라 벽에서 0.5m 안쪽에만 둔다 — 통행을 막지 않는다.
+        if (side === 0) {
+          // 뽑아서 던져 둔 링거대. 봉쇄하느라 방에서 끌어낸 것이다.
+          addProp3D('ivStand', wallX - sx * 0.5, doorZ + 1.05, 0, { collide: [0.34, 0.34] });
+          addBlood(wallX - sx * 0.62, doorZ - 0.5, 0.7, 'drag', 0.012);
+        } else {
+          // 문을 등지고 밀어붙인 수납장. 안에서 밀지 못하게 대 놓은 것이다.
+          addProp3D('cabinet', wallX - sx * 0.42, doorZ - 0.55, wallYaw,
+            { collide: [0.55, 0.9] });
+        }
       } else {
         addProp3D('doorPanel', wallX, doorZ + DOOR_W / 2, wallYaw + sx * ajar,
           { args: [DOOR_W - 0.05, 2.05] });
