@@ -149,6 +149,10 @@ export class Zombie {
     this.facing = Math.random() * Math.PI * 2;
     this.state = 'WANDER';
     this.active = true;
+    // 풀에서 돌려쓰는 개체다 — **불붙은 채로 죽은 놈의 불을 물려받으면 안 된다.**
+    // 스폰되자마자 아무것도 없는 자리에서 타오르게 된다 (weapons/Throwables.js)
+    this._burning = 0;
+    this._burnTick = 0;
 
     // 캡슐 폴백일 때만 색을 칠한다. 모델이 있으면 텍스처가 이미 있고,
     // 매 스폰마다 재질을 새로 만들면 그것 자체가 GC 부담이다.

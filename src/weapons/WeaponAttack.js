@@ -16,7 +16,7 @@
  */
 
 import * as THREE from 'three';
-import { MUZZLE, NOISE, WEAPON_SWING, WALL_IMPACT, AUDIO } from '../config/balance.js';
+import { MUZZLE, NOISE, WEAPON_SWING, WALL_IMPACT, AUDIO, THROW_ANIM } from '../config/balance.js';
 import { getCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 
@@ -339,8 +339,24 @@ export function _resolveMelee(sys, def) {
  */
 export function _throw(sys, def) {
     sys.cooldown = def.cooldown;
-    sys._swing = 1;
+    // **여기서 던지지 않는다.** 동작을 시작만 하고, 병이 손을 떠나는 순간에
+    // `_releaseThrow` 가 실제로 날린다 (근접이 접촉 시점에 판정하는 것과 같은 구조).
+    // 클릭 프레임에 날리면 화면에서는 병을 손에 든 채로 병이 앞에 생긴다.
+    sys._throwT = 0;
+    sys._throwDur = THROW_ANIM.dur;
+    sys._throwPending = def;
+}
+
+/** 병이 손을 떠나는 순간. WeaponViewModel 이 동작 진행률을 보고 부른다 */
+export function _releaseThrow(sys) {
+    const def = sys._throwPending;
+    sys._throwPending = null;
+    if (!def) return;
     bus.emit(EV.SFX, { name: 'throw_whoosh', volume: 0.8 });
     sys.throwables?.throwItem(
       def, sys.camera, sys.player.pos.x, sys.player.pos.z, sys.camera.position.y);
+
+    // 마지막 하나였으면 **표시만 남긴다.** 여기서 바로 무기를 바꾸면 던지는 동작이
+    // 방출 순간에 잘려서 파이프가 손에 툭 나타난다. 동작이 끝난 뒤에 바꾼다.
+    sys._emptyAfterThrow = (sys.ammo[def.id]?.mag ?? 0) <= 0;
 }

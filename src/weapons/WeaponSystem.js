@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { MUZZLE, SURFACE, WEAPON_RELOAD } from '../config/balance.js';
+import { MUZZLE, SURFACE, WEAPON_RELOAD, THROW_ANIM } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import * as WeaponViewModel from './WeaponViewModel.js';
 import * as WeaponAttack from './WeaponAttack.js';
@@ -63,6 +63,10 @@ export class WeaponSystem {
     this._recoil = 0;
     this._swing = 0;
     this._swingT = 99; this._swingDur = 0.5; this._swingDir = 1;
+    // 던지는 동작. 99 는 "돌고 있지 않다" 는 뜻 (_swingT 와 같은 규약)
+    this._throwT = 99; this._throwDur = THROW_ANIM.dur;
+    this._throwPending = null;
+    this._emptyAfterThrow = false;   // 마지막 하나를 던졌다 — 동작이 끝나면 손을 비운다
     // 접촉 시점 판정 예약 · 부딪힌 뒤의 반발
     this._meleePending = null; this._meleeAt = 0; this._impact = 0;
     this._bob = 0;
@@ -266,7 +270,20 @@ export class WeaponSystem {
   _swingMelee(def) { return WeaponAttack._swingMelee(this, def); }
 
   /** 예약된 근접 판정이 있으면 취소한다 — 무기 교체·부활 시 유령 타격을 막는다 */
-  cancelSwing() { this._meleePending = null; }
+  /**
+   * 진행 중인 동작을 없던 일로 한다. 무기를 바꾸거나 되살아날 때 부른다.
+   *
+   * **던지기도 같이 끊어야 한다.** 안 그러면 두 가지가 남는다 —
+   *  · 예약된 병이 그대로 날아간다 (이미 손에 없는 무기의 것이)
+   *  · 던지는 도중 만들어진 새 뷰모델이 "빈손" 구간에 걸려 숨은 채로 남는다
+   */
+  cancelSwing() {
+    this._meleePending = null;
+    this._throwPending = null;
+    this._emptyAfterThrow = false;
+    this._throwT = 99;
+    if (this.viewMesh) this.viewMesh.visible = true;
+  }
 
   /**
    * 실제 판정. **접촉 시점의 시선·위치**를 쓴다 — 휘두르는 도중 몸을 돌리면
@@ -276,6 +293,23 @@ export class WeaponSystem {
 
   // ───────────────────────── 투척 ─────────────────────────
   _throw(def) { return WeaponAttack._throw(this, def); }
+  /** 병이 손을 떠나는 순간 — WeaponViewModel 이 진행률을 보고 부른다 */
+  _releaseThrow() { return WeaponAttack._releaseThrow(this); }
+
+  /**
+   * 투척물을 다 썼을 때 손을 비운다.
+   *
+   * 그전에는 **없는 화염병을 계속 들고 있었다** — 개수가 0 인데 손에는 병이 있고,
+   * 클릭하면 "화염병 없음" 만 뜬다. 근접(1번)으로 돌려준다. 근접은 탄약이 없으므로
+   * 어떤 상황에서도 유효한 유일한 슬롯이다.
+   */
+  _autoSwitchFromEmpty() {
+    const cur = this.current;
+    if (!cur || cur.type !== 'throw') return;
+    if ((this.ammo[cur.id]?.mag ?? 0) > 0) return;
+    this.switchTo(1);
+    bus.emit(EV.HINT, { text: `${cur.label} 소진`, duration: 1.4 });
+  }
 
   // ───────────────────────── 재장전 ─────────────────────────
   reload() {

@@ -177,6 +177,7 @@ export class Throwables {
   clear() {
     for (const p of this.projectiles) { p.active = false; p.mesh.visible = false; }
     for (const z of this.zones) { z.active = false; z.sfx?.stop(); z.sfx = null; }
+    for (const zb of this.getZombies()) { zb._burning = 0; zb._burnTick = 0; }
     for (const l of this.lights) l.intensity = 0;
     for (let i = 0; i < FIRE.particles; i++) {
       this.pLife[i] = 0;
@@ -188,6 +189,7 @@ export class Throwables {
   update(dt) {
     this._moveProjectiles(dt);
     this._burn(dt);
+    this._burnBodies(dt);
     this._moveParticles(dt);
     this._aimLights();
   }
@@ -287,14 +289,49 @@ export class Throwables {
         const dx = zb.pos.x - zone.x, dz = zb.pos.z - zone.z;
         if (dx * dx + dz * dz > r2) continue;
         zb.burn(FIRE.dps * FIRE.tick);
-        for (let i = 0; i < FIRE.emberOnHit; i++) {
-          this._spawnParticle(zb.pos.x, 0.6 + Math.random() * 0.9, zb.pos.z, 1.1);
-        }
+        // 불이 **옮겨붙는다.** 웅덩이를 벗어나도 이 시간만큼 더 탄다 (_burnBodies)
+        zb._burning = FIRE.stick;
       }
 
       // **플레이어도 탄다.** 안 그러면 통로에 던져 놓고 뒤에 서 있는 무적 버튼이 된다
       const px = this.player.pos.x - zone.x, pz = this.player.pos.z - zone.z;
       if (px * px + pz * pz <= r2) this.player.damage(FIRE.playerDps * FIRE.tick);
+    }
+  }
+
+  /**
+   * 몸에 옮겨붙은 불. **매 프레임** 돈다 (웅덩이 피해는 0.4초 박자지만 불꽃은 이어져야 한다).
+   *
+   * 재질을 못 건드려서(개체끼리 공유) 입자로만 만든다. 다리에서 머리까지 흩뿌리고,
+   * 좀비가 걸어가면 불도 같이 따라간다 — 불붙은 채로 다가오는 그림이 이 무기의 값이다.
+   */
+  _burnBodies(dt) {
+    for (const zb of this.getZombies()) {
+      if (!zb._burning || zb._burning <= 0) continue;
+      if (!zb.active || zb.state === 'DEAD') { zb._burning = 0; continue; }
+      zb._burning -= dt;
+
+      // 사그라들면 불꽃도 같이 준다
+      const tail = Math.min(1, zb._burning / 0.8);
+      const n = FIRE.bodyRate * dt * tail;
+      let count = Math.floor(n);
+      if (Math.random() < n - count) count++;
+      const h = (zb.def?.height ?? 1.8) * (FIRE.bodyHeight / 1.8);
+      for (let i = 0; i < count; i++) {
+        this._spawnParticle(
+          zb.pos.x + (Math.random() - 0.5) * 0.5,
+          0.15 + Math.random() * h,
+          zb.pos.z + (Math.random() - 0.5) * 0.5,
+          0.75);
+      }
+
+      // 웅덩이 밖에서도 계속 닳는다. 안 그러면 불 밖으로 한 발 나오는 순간 멀쩡해져서
+      // 불이 **바닥에 그려진 금** 처럼 보인다.
+      zb._burnTick = (zb._burnTick ?? 0) - dt;
+      if (zb._burnTick <= 0) {
+        zb._burnTick = FIRE.tick;
+        zb.burn(FIRE.stickDps * FIRE.tick);
+      }
     }
   }
 

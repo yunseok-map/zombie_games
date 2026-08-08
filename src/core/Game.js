@@ -130,6 +130,15 @@ export class Game {
     // 맞으면 화면 흔들림 말고 **화면 자체**도 반응한다 — 채도가 빠지고 초점이 나간다.
     // 지금까지는 HUD 의 빨간 테두리 하나뿐이라 "UI 가 알렸다"로만 읽혔다.
     bus.on(EV.PLAYER_DAMAGED, () => this.post?.hurt());
+    /**
+     * 물린 **그 순간**에도 화면이 반응한다.
+     *
+     * 물려도 즉시 피해가 들어가지는 않으므로(뿌리치면 안 맞는다) 위의
+     * PLAYER_DAMAGED 가 안 걸린다 — 게임에서 가장 무서운 순간인데 화면만 멀쩡했다.
+     * 소리·흔들림·HUD 몸부림 게이지는 이미 있었고 후처리만 빠져 있었다.
+     * `GRAB_START` 는 그동안 **아무도 듣지 않는 죽은 이벤트**였다.
+     */
+    bus.on(EV.GRAB_START, () => this.post?.hurt(1.4));
 
     this.input.onLockChange = (locked) => {
       if (!locked && this.state === 'PLAYING') this.pause();

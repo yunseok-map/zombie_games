@@ -9,7 +9,7 @@
  */
 
 import * as THREE from 'three';
-import { WEAPON_VIEW, WEAPON_SWING, WEAPON_RELOAD, SURFACE, MUZZLE } from '../config/balance.js';
+import { WEAPON_VIEW, WEAPON_SWING, WEAPON_RELOAD, SURFACE, MUZZLE, THROW_ANIM } from '../config/balance.js';
 import { getCurve, sampleCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
@@ -141,16 +141,51 @@ export function _animateViewModel(z, dt, input) {
       wind = easeOut(w) * (1 - strike);
     }
 
+    /**
+     * ── 던지기: 예비(0~32%) → 방출(32~44%) → 마무리 ──
+     *
+     * 휘두르기와 리듬이 다르다. 뒤로 크게 당겼다가 앞으로 뿌리고, **손을 떠난 뒤에는
+     * 빈손이 보인다.** 그전까지는 이 구간이 통째로 없어서 뷰모델 진폭이 정확히 0 이었다
+     * (실측: 쇠파이프 회전 1.66rad vs 화염병 0.00). 병을 든 채로 병이 앞에 생겼다.
+     */
+    let tWind = 0, tThrow = 0;
+    if (z._throwT < z._throwDur) {
+      z._throwT += dt;
+      const T = THROW_ANIM;
+      const p = Math.min(1, z._throwT / z._throwDur);
+      // 병이 손을 떠나는 순간에 실제로 날린다 (근접이 접촉 시점에 판정하는 것과 같다)
+      if (z._throwPending && p >= T.release) z._releaseThrow();
+      tWind = p < T.windEnd
+        ? easeOut(p / T.windEnd)
+        : Math.max(0, 1 - (p - T.windEnd) / 0.10);
+      const fwd = p < T.windEnd ? 0 : easeIn(Math.min(1, (p - T.windEnd) / (1 - T.windEnd)));
+      const back = easeInOut(Math.max(0, Math.min(1, (p - T.release) / (1 - T.release))));
+      tThrow = fwd * (1 - back);
+      // 손을 떠난 뒤에는 **빈손**이다. 남은 개수가 있으면 끝에서 다시 든다 —
+      // 없으면 끝까지 안 든다(아래에서 근접으로 바꾼다).
+      const gone = p >= T.release && (p < T.showAgain || z._emptyAfterThrow);
+      if (z.viewMesh) z.viewMesh.visible = !gone;
+      // 동작이 방금 끝났다 — 마지막 하나였으면 여기서 손을 비운다
+      if (z._throwT >= z._throwDur && z._emptyAfterThrow) {
+        z._emptyAfterThrow = false;
+        z._autoSwitchFromEmpty();
+      }
+    } else if (z.viewMesh && !z.viewMesh.visible) {
+      z.viewMesh.visible = true;      // 무기를 바꿔도 숨은 채로 남지 않게
+    }
+
     // ── 스윙에 시점이 따라간다 ──
     // 무기만 84도를 휘두르고 카메라가 1도도 안 움직이면 "손만 움직이는 유령"이 된다.
     // Player 가 카메라를 조립하므로 여기서는 값만 건네준다. Player.update 가 먼저
     // 돌기 때문에 한 프레임(16ms) 늦게 반영되는데, 스윙이 480ms 라 보이지 않는다.
     if (z.player) {
       const W = WEAPON_SWING, d = z._swingDir;
+      const A = THROW_ANIM;
       z.player.swingLook = {
-        pitch: wind * W.camWindPitch + arc * W.camArcPitch,
+        pitch: wind * W.camWindPitch + arc * W.camArcPitch
+          + tWind * A.camWindPitch + tThrow * A.camThrowPitch,
         yaw: arc * W.camArcYaw * d,
-        roll: arc * W.camArcRoll * d,
+        roll: arc * W.camArcRoll * d + tThrow * A.camThrowRoll,
       };
     }
     z._swing = arc;
@@ -221,11 +256,14 @@ export function _animateViewModel(z, dt, input) {
 
     const R = z.viewRoot;
     const k = Math.min(1, 14 * dt);
+    const A = THROW_ANIM;
     R.position.x += (0.26 + aimX + bobX + sx + cpx - R.position.x) * k;
     R.position.y += (-0.24 + aimY + bobY + breath + sy + cpy
+      + tWind * A.windUp - tThrow * A.throwDown        // 들었다가 훑어 내린다
       - rl * WEAPON_RELOAD.dropY - R.position.y) * k;
     R.position.z = -0.45 + aimZ + z._recoil * 0.10
       + wind * 0.06 - arc * 0.16 + cpz                   // 예비동작에 당겼다가 앞으로 내지른다
+      + tWind * A.windBack - tThrow * A.throwFwd         // 뒤로 당겼다가 앞으로 뿌린다
       + z._impact * WEAPON_SWING.impactPush           // 부딪히면 손 쪽으로 되튄다
       + rl * WEAPON_RELOAD.pullZ;                        // 재장전은 몸 쪽으로 당긴다
 
@@ -236,10 +274,12 @@ export function _animateViewModel(z, dt, input) {
 
     // 반발은 스윙 진행 방향의 **반대**로 튕긴다 — 그래야 막힌 것으로 보인다
     R.rotation.x = rest.x + z._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4 + crx
+      + tWind * A.windPitch + tThrow * A.throwPitch      // 젖혔다가 손목이 넘어간다
       - z._impact * WEAPON_SWING.impactPitch
       + rl * WEAPON_RELOAD.pitch;                        // 총구가 아래로 빠진다
     R.rotation.y = rest.y + (wind * 0.30 - arc * 0.62) * dir + sx * 1.6 + cry;
     R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir + crz
+      + tWind * A.windRoll + tThrow * A.throwRoll
       + z._impact * WEAPON_SWING.impactRoll * dir
       + rl * WEAPON_RELOAD.roll;                         // 탄창 쪽이 보이게 눕는다
 }
