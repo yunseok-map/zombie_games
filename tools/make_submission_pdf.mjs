@@ -31,7 +31,8 @@ const { PDFDocument } = require('pdf-lib');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
-const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const CHROME = process.env.CHROME_PATH
+  || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
 const TARGETS = [
   { html: 'submission_game_overview.html', pdf: '제출3_게임소개.pdf',
