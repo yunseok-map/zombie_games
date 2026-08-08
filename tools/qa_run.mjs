@@ -26,11 +26,20 @@
  */
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const puppeteer = require('puppeteer-core');
+let puppeteer;
+try {
+  puppeteer = require('puppeteer-core');
+} catch {
+  console.error('puppeteer-core 가 없다. 아래를 먼저 실행한다:\n' +
+    '  npm i --no-save puppeteer-core\n' +
+    '(주의: 그 뒤에 다른 `npm i --no-save ...` 를 돌리면 이게 다시 걷힌다 — 실제로 그랬다)');
+  process.exit(2);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // CI(리눅스)에는 이 경로가 없다. 워크플로가 CHROME_PATH 로 알려준다.
@@ -56,16 +65,36 @@ let server = null;
 async function ensureServer() {
   if (await alive()) { log(`개발 서버 재사용 — ${URL}`); return; }
   log(`개발 서버 시작 — ${URL}`);
-  server = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['vite', '--port', String(PORT), '--strictPort', '--no-open'],
-    { cwd: ROOT, stdio: 'ignore', shell: process.platform === 'win32' });
+  // npx 를 거치지 않고 vite 를 **직접** 띄운다. 이유가 둘이다:
+  //  · 요즘 Node 는 보안상 `.cmd` 를 shell 없이 실행하지 못한다 (spawn EINVAL).
+  //  · shell 을 켜면 vite 가 손자 프로세스가 되어 죽여도 안 죽는다.
+  const viteBin = path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
+  if (!fs.existsSync(viteBin)) throw new Error(`vite 를 못 찾았다: ${viteBin} — npm ci 를 먼저 돌린다`);
+  server = spawn(process.execPath,
+    [viteBin, '--port', String(PORT), '--strictPort', '--no-open'],
+    { cwd: ROOT, stdio: 'ignore' });
   for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 500));
     if (await alive()) return;
   }
   throw new Error('개발 서버가 30초 안에 뜨지 않았다');
 }
-const stopServer = () => { if (server && !server.killed) server.kill(); };
+
+/**
+ * npx 는 vite 를 **자식으로** 띄운다. npx 만 죽이면 vite 가 고아로 남아 포트를 계속
+ * 물고 있다 — 다음 실행이 그 낡은 서버를 "재사용"해서, 방금 고친 코드가 아니라
+ * 옛날 코드를 검사하게 된다. 조용히 틀린 결과가 나오는 종류의 사고다.
+ * 그래서 프로세스 트리째 죽인다.
+ */
+function stopServer() {
+  if (!server || server.killed) return;
+  if (process.platform === 'win32') {
+    try { spawn('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' }); }
+    catch { server.kill(); }
+  } else {
+    try { process.kill(-server.pid, 'SIGTERM'); } catch { server.kill(); }
+  }
+}
 
 // ───────────── 실행 ─────────────
 await ensureServer();
