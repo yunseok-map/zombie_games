@@ -459,17 +459,29 @@ Basic 빨강         121.2     ← 메시는 멀쩡히 거기 있다
    실제로 싸워 보고 청각체(빠름·소리만 반응)와 포복체(낮아서 늦게 보임)의 비율을 맞춘다.
    *완료 기준: 포복체를 밟기 전에 발견하게 되는가.*
 3. **제출물 — 배포 URL 과 PDF 두 개는 끝났다. 남은 것은 30~60초 영상 하나뿐이다.**
-   - `docs/submission_game_overview.html` (제출물 3번, A4 6쪽) ·
-     `docs/submission_ai_tech.html` (제출물 4번, A4 10쪽).
-     **브라우저에서 열고 Ctrl+P → "PDF로 저장" 하면 그대로 제출본이다.**
-     인쇄 대화상자에서 **"배경 그래픽"을 켜야** 표 머리와 스크린샷이 나온다.
+   - **PDF 2종은 이제 파일로 존재한다** (2026-08-08 20:43 생성) —
+     `docs/제출3_게임소개.pdf` (**A4 7쪽** · 976KB) · `docs/제출4_AI활용기술.pdf` (**A4 15쪽** · 699KB).
+     원본은 각각 `docs/submission_game_overview.html` · `docs/submission_ai_tech.html`.
+     **손으로 Ctrl+P 하지 마라** — "배경 그래픽" 체크를 빠뜨리면 표 머리와 스크린샷이
+     통째로 사라진다. 아래 재생성 절차를 쓴다(`printBackground` 를 강제한다).
+   - **HTML 을 고쳤으면 PDF 를 반드시 다시 뽑는다.** PDF 는 자동으로 안 따라온다.
    - 스크린샷 5장은 `docs/img/` 에 있다. **인쇄용으로 감마만 올려 밝혔고**(합성·보정 없음),
      그 사실을 문서 본문에 적어 두었다. HTML 이 상대경로로 참조하므로 **`docs/` 폴더째로 다뤄야 한다.**
    - 스크린샷을 다시 찍는다면: 옥상은 **계단탑 시작 지점에서 찍으면 벽만 나온다.**
      헬리패드(z=32) 둘레에만 유도등이 있다. 그리고 **이 게임의 yaw 0 은 +Z** 다
      (`fx = sin(yaw), fz = cos(yaw)`) — three 의 카메라와 부호가 반대라 한 번 헛돌았다.
-   - **문서에 아직 비어 있는 칸이 두 군데 있다** — 영상 링크(제출물 3번 §1)와
-     ElevenLabs · Mixamo 라이선스 확인(제출물 4번 §6-4). 둘 다 노란 상자로 표시해 두었다.
+   - **라이선스 2건은 끝났다** (2026-08-08 약관 원문 확인 · 제출물 4번 §6-4).
+     **Mixamo(Adobe)** — 로열티 없음, 상업·비상업 무제한, **어트리뷰션 불요**.
+     원본 파일의 재판매·단독 재배포만 금지라 우리 사용은 해당 없음.
+     **ElevenLabs** — 약관이 *"Free User ... may only use the Services for
+     non-commercial purposes"* 라 **무료 플랜 산출물은 비상업 한정**이다. 산출물 권리 자체는
+     유·무료 구분 없이 생성자에게 있고(*"you retain all rights in and to your Output"*),
+     **여기저기 블로그가 말하는 "elevenlabs.io 표기 의무"는 약관에 없다** — 어트리뷰션 조항 자체가 없다.
+     본 제출물은 판매·광고·수익화가 없는 무료 웹 게임이라 비상업 조건 안에 있고,
+     그 근거를 문서에 그대로 적었다. **상업 배포하게 되면 유료 플랜에서 34종을 다시 뽑아야 한다**
+     (라이선스는 생성 시점 플랜을 따르므로 사후 업그레이드로 소급되지 않는다).
+   - **아직 비어 있는 칸은 하나뿐 — 영상 링크(제출물 3번 §1).**
+     노란 상자로 표시돼 있다. **영상을 올린 뒤 HTML 에 링크를 넣고 제출3 PDF 를 다시 뽑아야 한다.**
    *사용자가 "영상·PDF 는 마지막 날에 한다"고 정했다.*
    *CLAUDE.md §1-8: D-2 이후에는 구조를 건드리지 않는다. **오늘이 D-2(08-08)다** —
    지금부터는 값 조정과 에셋 교체만 한다.*
@@ -1233,6 +1245,8 @@ B1  시체 40구(불량 0) · 타격 25회(무효 0) · 결함 0건
 | `python tools/glb_strip_animations.py <glb...>` | 클립을 통째로 들어낸다. **뼈 이름이 같은 다른 본체에서 빌려 쓸 때만** 쓴다 (본체당 약 3.1MB 절감) |
 | 콘솔: `(await import('/tools/measure_contact.js')).measureContact(game)` | 공격 클립의 **닿는 프레임**을 실측 → `ATTACK.contact` |
 | 콘솔: `(await import('/tools/measure_contact.js')).measureStride(game)` | 걷기·달리기 클립의 **원래 속도**를 실측 → `ANIM.clipSpeed` |
+| `node tools/make_submission_pdf.mjs` | **제출용 PDF 2종 생성 + 검사.** 손으로 Ctrl+P 하지 마라 — "배경 그래픽"을 빠뜨리면 표 머리와 스크린샷이 사라진다. 깨진 이미지·가로 넘침·로드 실패를 같이 잰다 |
+| `node tools/check_pdf_layout.mjs [쪽...]` | 뽑은 PDF 의 **쪽 하단 여백**을 전 쪽 측정. 쪽번호를 주면 `docs/pdf_pages/` 에 PNG 로도 저장 |
 | `python tools/preview_sheet.py` | 변환 결과 미리보기를 한 장으로 모음 |
 | `python tools/gen_surfaces.py [px]` | 벽·바닥·천장 텍스처 재인코딩 (기본 1024, `512` 로 되돌림) |
 | `blender --background --python tools/extract_swing.py -- fbx_src/person public/assets/models/swing_curves.json` | 사람 모션 → 무기 스윙 궤적 |
