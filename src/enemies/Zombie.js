@@ -157,6 +157,21 @@ export class Zombie {
       if (this.curAnim && this.curAnim !== next) {
         this.curAnim.fadeOut(this.curAnim === this.actions?.hit ? ANIM.hitFadeOut : ANIM.fade);
       }
+      // **사망은 curAnim 하나만 빼는 것으로 부족하다.**
+      //
+      // 여기는 직전 클립 하나만 페이드아웃한다. 평소에는 그걸로 충분한데,
+      // 전환이 페이드보다 빨리 일어나면(달리다 → 맞고 → 공격) 앞의 것들이 다 빠지기
+      // 전에 다음 것이 올라온다. 게다가 `_startSwing` 은 공격 클립을 `_updateAnim` 을
+      // 거치지 않고 `reset().play()` 로 되감는다 — 그 순간 가중치가 다시 1 이 된다.
+      // 그렇게 **run·attack·hit 이 셋 다 가중치 1 로 남은 채** 죽으면, 사망 클립이
+      // 끝까지 재생돼도 최종 자세가 넷의 평균이라 시체가 **선 채로 굳는다**
+      // (실측: 죽기 전 state=ATTACK, death 가중치 1·시각 4.97/4.97 인데 몸높이 1.33m).
+      // 사망은 되돌아올 수 없는 상태이므로 여기서 나머지를 전부 내려도 안전하다.
+      if (key === 'death') {
+        for (const a of Object.values(this.actions ?? {})) {
+          if (a && a !== next) a.fadeOut(ANIM.fade);
+        }
+      }
       this.curAnim = next;
       this._hitRestart = false;
     }
