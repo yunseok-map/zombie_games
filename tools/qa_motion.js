@@ -26,6 +26,21 @@ const TOL_BELOW = -0.04;
 const TOL_ABOVE = 0.28;
 
 /**
+ * 사망 중에는 **떠 있는 것이 정상이다** (2026-08-08).
+ *
+ * 예전에는 접지 보정이 쓰러지는 내내 걸려서 가장 낮은 뼈가 항상 0.06 이었다.
+ * 그래서 이 검사는 사망 프레임을 사실상 안 보고 지나갔다. 그런데 그 붙박임 자체가
+ * 결함이었다 — 몸이 떨어지는 대신 가장 낮은 팔다리를 축으로 공중에서 돌았다
+ * (PROGRESS.md "시체가 공중에서 도는 것"). 지금은 시간으로 가속해 내려온다.
+ *
+ * 그래서 쓰러지는 1.85초 동안은 뜨는 것이 맞다. 다섯 층 x 네 종류 실측 최대가
+ * 0.77m 였으므로 0.28 x 3.4 = 0.95m 로 잡는다. 넘으면 그건 낙하가 아니라 부양이다.
+ * **다 쓰러진 뒤의 접지**는 이 검사가 아니라 `scratchpad/qa/walk_audit.mjs` 가 본다
+ * (층마다 네 종류를 죽여 4초 뒤 가장 낮은 뼈를 잰다 — 20/20 이 0.06).
+ */
+const FALL_ABOVE_MUL = 3.4;
+
+/**
  * 넉백으로 몸이 젖혀질 때(KNOCK.bend) 발이 내려가는 만큼은 빼고 본다.
  *
  * Zombie 는 피격 중 group 을 통째로 기울인다. 회전축이 발치라서, 축에서 옆으로
@@ -56,8 +71,9 @@ function lowestBoneY(z, motion) {
     if (_v.y < lo) lo = _v.y;
   });
   if (!Number.isFinite(lo)) return null;
-  // 사망은 Zombie 가 이미 "가장 낮은 뼈를 restHeight 에 맞추는" 스냅을 돌린다.
-  // 거기서 오프셋을 또 빼면 이중 보정이 되어 멀쩡한 시체가 떠 있다고 나온다.
+  // 사망은 Zombie 가 접지 높이를 직접 물린다(다 쓰러진 뒤 restHeight, 쓰러지는 중에는
+  // 거기까지 가속해 내려온다). 여기서 오프셋을 또 빼면 이중 보정이 되어
+  // 멀쩡한 시체가 떠 있다고 나온다. 쓰러지는 중의 허용치는 FALL_ABOVE_MUL 을 본다.
   if (motion === '사망') return lo;
   return lo - (z.def?.modelYOffset ?? 0);
 }
@@ -110,11 +126,14 @@ function diagnose(row, motion, offsetTuned) {
     // 몸을 젖히는 동작(사망·비명)은 발뒤꿈치가 뜨는 것이 정상이다 — 좁게 잡으면
     // 클립이 의도한 자세를 계속 결함이라고 외친다
     const rearing = motion === '사망' || /^(scream|death)/.test(row.클립 ?? '');
+    // 쓰러지는 중은 젖히는 것과 다른 사유다 — 몸이 실제로 공중에 있다 (FALL_ABOVE_MUL)
+    const falling = motion === '사망';
     // 두 사유는 **겹칠 수 있다.** 예전에는 삼항으로 하나만 골라서, 오프셋을 맞춘
     // 포복체가 비명 클립에 들어가는 순간 허용치가 0.952 → 0.616 으로 오히려 좁아졌다.
     // 그래서 바닥에 잘 붙어 있는 자세(뼈 7.8cm)를 20회 중 2회꼴로 결함이라고 외쳤다.
     // 둘 다 "더 떠도 정상"인 사유이므로 **느슨한 쪽**을 쓴다.
-    const above = TOL_ABOVE * Math.max(rearing ? 2.2 : 1, offsetTuned ? 3.4 : 1);
+    const above = TOL_ABOVE * Math.max(
+      falling ? FALL_ABOVE_MUL : 1, rearing ? 2.2 : 1, offsetTuned ? 3.4 : 1);
     // 젖혀진 만큼 발이 내려가는 것은 정상이므로 그만큼 허용치를 내린다
     const tiltSag = (row.기울기 ?? 0) * TILT_REACH;
     const below = (offsetTuned ? TOL_BELOW * 4 : TOL_BELOW) - tiltSag;
