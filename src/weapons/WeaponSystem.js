@@ -5,56 +5,8 @@ import { getCurve, sampleCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-
-/**
- * 좀비 몸을 **선분 + 반지름**(캡슐)으로 근사한다.
- *
- * 서 있으면 세로로 서고, 엎드린 개체는 **바라보는 방향으로 눕는다.**
- * 전진 방향은 `(-sin(facing), -cos(facing))` — Zombie.js 의 규약과 같다.
- * 머리는 앞끝(s=1) 쪽이다.
- */
-const _cap = { ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, r: 0 };
-function capsuleOf(z) {
-  const d = z.def;
-  if (d.crawler) {
-    const half = (d.bodyLength ?? 1.4) * 0.5;
-    const fx = -Math.sin(z.facing), fz = -Math.cos(z.facing);
-    const y = z.pos.y + (d.hitY ?? d.height * 0.45);
-    _cap.ax = z.pos.x - fx * half; _cap.ay = y; _cap.az = z.pos.z - fz * half;
-    _cap.bx = z.pos.x + fx * half; _cap.by = y; _cap.bz = z.pos.z + fz * half;
-    _cap.r = d.hitRadius ?? d.radius;
-  } else {
-    const r = d.hitRadius ?? d.radius;
-    _cap.ax = z.pos.x; _cap.ay = z.pos.y + r; _cap.az = z.pos.z;
-    _cap.bx = z.pos.x; _cap.by = z.pos.y + Math.max(d.height - r, r); _cap.bz = z.pos.z;
-    _cap.r = r;
-  }
-  return _cap;
-}
-
-/**
- * 레이(origin + dir*t, t>=0)와 선분 AB 의 최근접.
- * @returns {{t:number, s:number, distSq:number}} t = 레이 위 거리, s = 선분 위 0~1 위치
- *
- * 선분 쪽 파라미터를 0~1 로 자른 뒤 레이 쪽을 다시 잡는다 — 한 번의 보정으로
- * 충분하다. 히트스캔은 정확한 최단거리가 아니라 "맞았는가"만 알면 된다.
- */
-function rayVsSegment(o, dir, cap) {
-  const ux = cap.bx - cap.ax, uy = cap.by - cap.ay, uz = cap.bz - cap.az;
-  const wx = o.x - cap.ax, wy = o.y - cap.ay, wz = o.z - cap.az;
-  const b = dir.x * ux + dir.y * uy + dir.z * uz;
-  const c = ux * ux + uy * uy + uz * uz;
-  const d = dir.x * wx + dir.y * wy + dir.z * wz;
-  const e = ux * wx + uy * wy + uz * wz;
-  const den = c - b * b;                      // |dir| = 1 이므로 a = 1
-  let s = den > 1e-8 ? (e - b * d) / den : 0;
-  s = s < 0 ? 0 : s > 1 ? 1 : s;
-  const qx = cap.ax + ux * s, qy = cap.ay + uy * s, qz = cap.az + uz * s;
-  let t = (qx - o.x) * dir.x + (qy - o.y) * dir.y + (qz - o.z) * dir.z;
-  if (t < 0) t = 0;
-  const px = o.x + dir.x * t - qx, py = o.y + dir.y * t - qy, pz = o.z + dir.z * t - qz;
-  return { t, s, distSq: px * px + py * py + pz * pz };
-}
+import * as WeaponViewModel from './WeaponViewModel.js';
+import * as WeaponAttack from './WeaponAttack.js';
 
 /**
  * WeaponSystem — 무기 종류를 몰라야 한다. 전부 config/weapons.js 의 데이터로 동작한다.
@@ -230,69 +182,7 @@ export class WeaponSystem {
    */
   refreshViewModel() { this._buildViewModel(); }
 
-  _buildViewModel() {
-    for (const m of this.viewParts) { this.viewRoot.remove(m); m.geometry?.dispose(); }
-    this.viewParts.length = 0;
-    // GLB 는 Group 이라 geometry 가 없다 — 옵셔널로 접근해야 한다
-    if (this.viewMesh) { this.viewRoot.remove(this.viewMesh); this.viewMesh.geometry?.dispose(); this.viewMesh = null; }
-
-    const def = this.current;
-
-    // 1순위: CC0 GLB 모델
-    const glb = cloneWeaponGLB(def.id);
-    if (glb) {
-      const v = WEAPON_VIEW[def.id] ?? { scale: 1, rot: [0, 0, 0], pos: [0, 0, 0] };
-      glb.scale.setScalar(v.scale);
-      glb.rotation.set(...v.rot);
-      glb.position.set(...v.pos);
-      glb.traverse((o) => {
-        if (!o.isMesh) return;
-        o.frustumCulled = false;
-        // 손전등 코앞이라 원본 색 그대로면 하얗게 탄다
-        o.material = o.material.clone();
-        // 무기별 값이 있으면 그걸 쓴다 — 텍스처 있는 모델과 민무늬 모델은 기준이 다르다
-        o.material.color.multiplyScalar(
-          SURFACE.viewModelDim * (v.colorMul ?? WEAPON_VIEW.colorMul ?? 1));
-      });
-      this.viewRoot.add(glb);
-      this.viewParts.push(glb);
-      this.viewMesh = glb;
-      return;
-    }
-
-    // 2순위: 절차적 모델
-    const build = WEAPON_MODELS[def.id];
-    if (build) {
-      // 재질별로 묶어 병합 — 무기 하나가 드로우콜 4~5개를 넘지 않게 한다
-      const byMat = new Map();
-      for (const { mat, geo } of build()) {
-        if (!byMat.has(mat)) byMat.set(mat, []);
-        byMat.get(mat).push(geo);
-      }
-      for (const [key, geos] of byMat) {
-        const merged = geos.length > 1 ? mergeGeometries(geos, false) : geos[0];
-        if (geos.length > 1) for (const g of geos) g.dispose();
-        if (!merged) continue;
-        const m = new THREE.Mesh(merged, this.viewMats[key] ?? this.viewMats.dark);
-        m.frustumCulled = false;      // 카메라 자식이라 컬링 판정이 어긋난다
-        this.viewRoot.add(m);
-        this.viewParts.push(m);
-      }
-      this.viewMesh = this.viewParts[0] ?? null;   // 애니메이션 코드가 참조한다
-      return;
-    }
-
-    // 모델이 없는 무기는 예전처럼 박스로 대체한다 (CLAUDE.md §1-2 — 없어도 돌아가야 한다)
-    const s = def.viewScale ?? [0.08, 0.1, 0.4];
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(def.viewColor ?? 0x555555).multiplyScalar(SURFACE.viewModelDim),
-      roughness: 0.55, metalness: 0.75,
-    });
-    this.viewMesh = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), mat);
-    this.viewMesh.position.z = -s[2] / 2;
-    this.viewRoot.add(this.viewMesh);
-    this.viewParts.push(this.viewMesh);
-  }
+  _buildViewModel() { return WeaponViewModel._buildViewModel(this); }
 
   update(dt, input) {
     if (this.cooldown > 0) this.cooldown -= dt;
@@ -335,44 +225,7 @@ export class WeaponSystem {
   }
 
   // ───────────────────────── 총기 ─────────────────────────
-  _fireGun(def) {
-    const a = this.ammo[def.id];
-    if (!a || a.mag <= 0) {
-      bus.emit(EV.HINT, { text: '탄창 비어 있음 — R', duration: 1.2 });
-      this.cooldown = 0.35;
-      if (a && a.reserve > 0) this.reload();
-      return;
-    }
-    a.mag--;
-    this.cooldown = def.cooldown;
-    this._recoil = 1;
-    this._muzzle = MUZZLE.duration;    // 총구 화염 — 한순간 복도 전체가 드러난다
-
-    const origin = new THREE.Vector3().copy(this.camera.position);
-    const baseDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    const spread = def.spread * (this.aiming ? 0.45 : 1);
-
-    // 벽 탄흔은 **한 발에 한 번만** 찾는다. 추적 한 번이 150스텝 x 충돌박스 전체라,
-    // 산탄(7발)이 전부 빗나가면 같은 계산을 일곱 번 하게 된다. 눈으로도 같은 자리에
-    // 먼지가 일곱 겹으로 쌓여 오히려 나빠진다 — 한 번이 맞다.
-    this._tracedThisShot = false;
-    for (let p = 0; p < (def.pellets ?? 1); p++) {
-      const dir = baseDir.clone();
-      dir.x += (Math.random() - 0.5) * spread * 2;
-      dir.y += (Math.random() - 0.5) * spread * 2;
-      dir.z += (Math.random() - 0.5) * spread * 2;
-      dir.normalize();
-      this._hitscan(origin, dir, def.range, def.damage, 0.35);
-    }
-
-    bus.emit(EV.SFX, { name: 'pistol_fire', volume: def.silenced ? 0.35 : 1 });
-    bus.emit(EV.NOISE, {
-      x: this.player.pos.x, z: this.player.pos.z,
-      radius: NOISE[def.noise] ?? NOISE.gunshot, source: 'gunshot',
-    });
-    bus.emit(EV.WEAPON_FIRED, { weapon: def });
-    this._emitAmmo();
-  }
+  _fireGun(def) { return WeaponAttack._fireGun(this, def); }
 
   /**
    * 레이 위에서 가장 가까운 좀비를 찾는다 (**캡슐** 근사).
@@ -383,34 +236,7 @@ export class WeaponSystem {
    * 이제 몸을 선분으로 두고 그 둘레를 판정한다. 서 있으면 세로, 엎드리면
    * **바라보는 방향으로** 눕는다.
    */
-  _hitscan(origin, dir, range, damage, stun) {
-    const zombies = this.getZombies();
-    let best = null, bestT = range, bestS = 0;
-
-    for (const z of zombies) {
-      if (!z.active || z.state === 'DEAD') continue;
-      const cap = capsuleOf(z);
-      const r = cap.r + 0.12;
-      const hit = rayVsSegment(origin, dir, cap);
-      if (hit.t < 0 || hit.t > bestT) continue;
-      if (hit.distSq > r * r) continue;
-      // 벽 뒤면 무효
-      if (this.collision.segmentBlocked(origin.x, origin.z, z.pos.x, z.pos.z)) continue;
-      best = z; bestT = hit.t; bestS = hit.s;
-    }
-
-    if (best) {
-      // 엎드린 몸은 머리가 **앞끝**에 있다. 서 있으면 위쪽이다.
-      const headshot = best.def.crawler
-        ? bestS > WEAPON_SWING.meleeHeadS
-        : (origin.y + dir.y * bestT) > best.pos.y + best.def.height * 0.78;
-      best.hit(damage * (headshot ? 2.2 : 1), stun, headshot, origin);
-      return;
-    }
-    // 아무도 못 맞혔으면 **세상 어딘가에는 맞았다.** 지금까지는 총구 화염 0.065초
-    // 말고는 아무 일도 안 일어나서, 칠흑 속에서 조준이 맞았는지 알 단서가 없었다.
-    this._traceWorld(origin, dir);
-  }
+  _hitscan(origin, dir, range, damage, stun) { return WeaponAttack._hitscan(this, origin, dir, range, damage, stun); }
 
   /**
    * 빗나간 총알이 벽·바닥·천장 어디에 박혔는지 찾는다.
@@ -420,39 +246,7 @@ export class WeaponSystem {
    * 사거리를 끊는 이유는 비용이다: 권총 사거리 60m 를 그대로 훑으면 500회가 되는데,
    * 그 너머 탄흔은 어차피 화면에 안 보인다.
    */
-  _traceWorld(origin, dir) {
-    if (this._tracedThisShot) return;     // 산탄 한 발에 한 번 (위 `_fireGun` 주석)
-    this._tracedThisShot = true;
-    const step = WALL_IMPACT.step;
-    const n = Math.ceil(WALL_IMPACT.maxRange / step);
-    let px = origin.x, py = origin.y, pz = origin.z;
-    for (let i = 1; i <= n; i++) {
-      const x = origin.x + dir.x * step * i;
-      const y = origin.y + dir.y * step * i;
-      const z = origin.z + dir.z * step * i;
-      let nx = 0, ny = 0, nz = 0;
-      if (y <= 0) { ny = 1; }                              // 바닥
-      else if (y >= WALL_IMPACT.ceilingHeight) { ny = -1; }   // 천장
-      else if (this.collision.isBlocked(x, z, 0.02)) {
-        // 벽 법선은 진행 방향의 반대로 근사한다. 어느 면인지까지 알 필요는 없다 —
-        // 먼지가 튀어나오는 방향만 그럴듯하면 된다.
-        nx = -dir.x; nz = -dir.z;
-        const l = Math.hypot(nx, nz) || 1;
-        nx /= l; nz /= l;
-      } else { px = x; py = y; pz = z; continue; }
-
-      bus.emit(EV.WALL_HIT, { x: px, y: Math.max(py, 0.02), z: pz, nx, ny, nz });
-      // 소리는 기존 둔기 타격음을 빠르게 돌려 쓴다 — 재생속도를 올리면 짧고
-      // 딱딱한 '틱' 이 되어 콘크리트 파편음 대역에 들어온다. 3D 경로를 그대로
-      // 타므로 거리 감쇠·패닝·저역통과가 공짜로 붙는다.
-      bus.emit(EV.SFX, {
-        name: `hit_blunt_${1 + ((Math.random() * 2) | 0)}`,
-        x: px, z: pz,
-        volume: WALL_IMPACT.sfxVolume, rate: WALL_IMPACT.sfxRate,
-      });
-      return;
-    }
-  }
+  _traceWorld(origin, dir) { return WeaponAttack._traceWorld(this, origin, dir); }
 
   // ───────────────────────── 근접 ─────────────────────────
   /**
@@ -466,25 +260,7 @@ export class WeaponSystem {
    *
    * 쿨다운은 여기서 그대로 걸리므로 **연타 리듬은 1프레임도 안 바뀐다.**
    */
-  _swingMelee(def) {
-    this.cooldown = def.cooldown;
-    // 시간 기반 스윙. 예비동작 → 타격 → 마무리 순서가 있어야 "휘둘렀다"로 읽힌다
-    this._swingT = 0;
-    this._swingDur = Math.min(def.cooldown * 0.92, 0.62);
-    this._swingDir = -this._swingDir;        // 좌우 번갈아 휘두른다
-    this._impact = 0;                        // 지난 스윙의 반발이 남아 있으면 궤적이 끊긴다
-    // 궤적도 번갈아 쓴다 — 같은 곡선만 반복하면 사람이 휘두르는 느낌이 도로 사라진다
-    this._swingCurve = getCurve(this._swingDir > 0
-      ? 'standing_melee_attack_downward'
-      : 'standing_melee_attack_backhand');
-    bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
-
-    // 판정을 접촉 시점으로 예약한다. 상한을 두는 이유는 쿨다운이 긴 무기에서
-    // 클릭이 씹힌 느낌이 나지 않게 하기 위해서다.
-    this._meleePending = def;
-    this._meleeAt = Math.min(
-      this._swingDur * WEAPON_SWING.contact, WEAPON_SWING.contactMaxDelay);
-  }
+  _swingMelee(def) { return WeaponAttack._swingMelee(this, def); }
 
   /** 예약된 근접 판정이 있으면 취소한다 — 무기 교체·부활 시 유령 타격을 막는다 */
   cancelSwing() { this._meleePending = null; }
@@ -493,112 +269,10 @@ export class WeaponSystem {
    * 실제 판정. **접촉 시점의 시선·위치**를 쓴다 — 휘두르는 도중 몸을 돌리면
    * 빗나간다. 좀비 공격과 같은 규칙이 되는 것이라 이쪽이 맞다.
    */
-  _resolveMelee(def) {
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    /**
-     * **바닥을 내려다보면 근접 공격이 통째로 빗나가던 버그** (2026-08-07 수정)
-     *
-     * 판정은 바닥에 눕힌 부채꼴(위에서 본 각도)인데, 비교 대상인 `fwd` 는
-     * 카메라의 **3D** 전방이라 수평 길이가 `cos(고개각)` 만큼 짧다.
-     * 그래서 고개를 숙일수록 내적이 통째로 줄고, 정면으로 딱 겨눠도
-     * `halfArc` 문턱을 못 넘는다. 각도가 좁은 무기일수록 먼저 죽는다:
-     *
-     *   쇠파이프(70°) → 35° 아래 · 소방도끼(55°) → **27.5° 아래면 무조건 빗나감**
-     *
-     * 기는 좀비는 눈높이 1.55m 에서 1.2m 앞이면 이미 46° 아래다.
-     * 즉 **기는 좀비는 근접으로 아예 죽일 수 없었다.** 총은 캡슐 레이라 멀쩡했으므로
-     * "가끔 좀비가 안 죽는다"로 보였다.
-     *
-     * 고개각은 부채꼴 판정에 들어가면 안 된다 — 수평 성분만 뽑아 다시 정규화한다.
-     */
-    const fwdLen = Math.hypot(fwd.x, fwd.z) || 1;
-    const fx = fwd.x / fwdLen, fz = fwd.z / fwdLen;
-    const halfArc = Math.cos(THREE.MathUtils.degToRad(def.arcDeg) / 2);
-    const zombies = this.getZombies();
-    let hitAny = false;
-
-    for (const z of zombies) {
-      if (!z.active || z.state === 'DEAD') continue;
-      const dx = z.pos.x - this.player.pos.x;
-      const dz = z.pos.z - this.player.pos.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > def.range + z.def.radius) continue;
-      // 발밑에 딱 붙은 개체는 방향이 무의미하다 — 나누면 0으로 나뉘어 판정이 튄다
-      const close = dist < 1e-3;
-      const dot = close ? 1 : (dx / dist) * fx + (dz / dist) * fz;
-      if (dot < halfArc) continue;
-      // **벽 너머는 못 때린다.** 총은 이미 이 규칙을 지키는데(_hitscan) 근접만
-      // 빠져 있어서, 문 하나 사이에 두고 붙은 좀비를 쇠파이프로 때릴 수 있었다.
-      if (this.collision.segmentBlocked(
-        this.player.pos.x, this.player.pos.z, z.pos.x, z.pos.z)) continue;
-
-      // 근접에도 머리 판정이 있다. 예전에는 세 번째 인자가 **항상 false 하드코딩**이라
-      // 도끼로 머리를 찍어도 정강이를 친 것과 데미지·소리·피가 전부 같았다.
-      // 발밑에 붙은 개체는 레이가 튀므로 판정하지 않는다.
-      let headshot = false;
-      if (!close) {
-        const cap = capsuleOf(z);
-        const h = rayVsSegment(this.camera.position, fwd, cap);
-        headshot = h.distSq <= (cap.r + 0.12) ** 2 && h.s > WEAPON_SWING.meleeHeadS;
-      }
-      // 팔에 힘이 빠진다 — 다칠수록 근접이 약해진다 (Player.meleeMul)
-      const mul = this.player.meleeMul ?? 1;
-      // 날붙이는 살을 가르는 소리, 둔기는 뼈 소리. 예전에는 소방도끼와 쇠파이프가
-      // 완전히 같은 소리를 냈다 (weapons.js 의 `blade` 표시를 읽는다)
-      z.hit(def.damage * mul * (headshot ? 2.2 : 1), def.stun * mul, headshot,
-        this.player.pos, def.blade ? 'blade' : 'blunt');
-      hitAny = true;
-    }
-
-    // 닿았을 때만 화면이 걸린다. 헛스윙에도 흔들리면 타격의 의미가 사라진다
-    if (hitAny) {
-      this._impact = 1;                      // 무기가 그 자리에서 걸렸다가 튕겨 돌아온다
-      bus.emit(EV.MELEE_HIT, { x: this.player.pos.x, z: this.player.pos.z });
-    } else {
-      // 아무도 못 맞혔으면 **벽을 쳤는지** 본다. 지금까지는 벽이라는 개념이
-      // 근접에 아예 없어서 무기가 벽을 관통해 그냥 지나갔다.
-      // Collision 은 2D AABB 라 높이를 모른다 — 벽으로 등록된 박스만 잡힌다.
-      //
-      // **끝점 하나만 보면 안 된다.** 벽 두께가 0.2m 라 0.85 x 사거리(1.45m) 지점은
-      // 벽을 통째로 지나쳐 버린다 — 실측에서 벽 앞 0.75m 에 서서 휘둘렀는데
-      // 한 번도 안 잡혔다. 무기가 지나가는 경로를 **훑어야** 한다.
-      const px = this.player.pos.x + fx * def.range * WEAPON_SWING.wallProbe;
-      const pz = this.player.pos.z + fz * def.range * WEAPON_SWING.wallProbe;
-      if (this.collision.segmentBlocked(
-        this.player.pos.x, this.player.pos.z, px, pz, WEAPON_SWING.wallProbeStep)) {
-        this._impact = 1;
-        bus.emit(EV.MELEE_CLANG, { x: px, z: pz });
-      }
-    }
-
-    // 타격음은 Zombie.hit() 이 부위·무기별로 낸다 (여기서 또 내면 겹친다)
-    bus.emit(EV.NOISE, {
-      x: this.player.pos.x, z: this.player.pos.z,
-      radius: NOISE.melee, source: 'melee',
-    });
-  }
+  _resolveMelee(def) { return WeaponAttack._resolveMelee(this, def); }
 
   // ───────────────────────── 투척 ─────────────────────────
-  _throw(def) {
-    this.cooldown = def.cooldown;
-    this._swing = 1;
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    const tx = this.player.pos.x + fwd.x * 9;
-    const tz = this.player.pos.z + fwd.z * 9;
-
-    if (def.lure) {
-      // 라디오 — 좀비를 그쪽으로 유인한다 (전투 회피 도구)
-      bus.emit(EV.NOISE, { x: tx, z: tz, radius: def.lureRadius, source: 'lure' });
-      bus.emit(EV.HINT, { text: '라디오를 던졌다', duration: 1.6 });
-    } else {
-      for (const z of this.getZombies()) {
-        if (!z.active || z.state === 'DEAD') continue;
-        const d = Math.hypot(z.pos.x - tx, z.pos.z - tz);
-        if (d <= def.radius) z.hit(def.damage, 0.5, false, { x: tx, z: tz });
-      }
-      bus.emit(EV.NOISE, { x: tx, z: tz, radius: NOISE.melee, source: 'throw' });
-    }
-  }
+  _throw(def) { return WeaponAttack._throw(this, def); }
 
   // ───────────────────────── 재장전 ─────────────────────────
   reload() {
@@ -617,10 +291,7 @@ export class WeaponSystem {
   }
 
   /** 뷰모델 재장전 동작을 처음부터 돌린다. 한 발씩 넣는 무기는 발마다 다시 부른다 */
-  _startReloadAnim(seconds) {
-    this._reloadTotal = seconds;
-    this._clackDone = false;
-  }
+  _startReloadAnim(seconds) { return WeaponViewModel._startReloadAnim(this, seconds); }
 
   _finishReload() {
     const def = this.current;
@@ -663,139 +334,5 @@ export class WeaponSystem {
    * 손맛의 대부분은 모델이 아니라 여기서 나온다 —
    * 예비동작 · 궤적 · 마무리, 그리고 시선을 돌릴 때 무기가 뒤따라오는 관성.
    */
-  _animateViewModel(dt, input) {
-    const easeOut = (t) => 1 - (1 - t) ** 3;
-    const easeIn = (t) => t * t * t;
-    const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
-
-    this._recoil = Math.max(0, this._recoil - dt * 7);
-
-    // 총구 화염은 아주 짧게, 그리고 세기를 조금씩 흔든다 (매번 같으면 스트로브처럼 보인다)
-    if (this._muzzle > 0) {
-      this._muzzle = Math.max(0, this._muzzle - dt);
-      const k = this._muzzle / MUZZLE.duration;
-      this.muzzleLight.intensity = MUZZLE.intensity * k * k * (0.82 + Math.random() * 0.36);
-    } else if (this.muzzleLight.intensity !== 0) {
-      this.muzzleLight.intensity = 0;
-    }
-
-    this._idle += dt;
-    const sp = this.player.speed;
-    this._bob += dt * (sp > 0.5 ? 8.5 : 0);
-
-    // 접촉 반발 — 닿은 자리에서 멎었다가 손 쪽으로 튕겨 돌아온다.
-    // 이게 없으면 살을 치든 허공을 치든 궤적이 100% 같아서, 화면이 흔들려도
-    // "부딪혔다"가 아니라 "휘두르는 중에 화면이 흔들렸다"로 읽힌다.
-    if (this._impact > 0) {
-      this._impact = Math.max(0, this._impact - dt * WEAPON_SWING.impactDecay);
-    }
-
-    // ── 스윙: 예비동작(0~24%) → 타격(24~54%) → 마무리(54~100%) ──
-    let wind = 0, arc = 0;
-    if (this._swingT < this._swingDur) {
-      // 닿는 순간 진행이 느려진다 — 무기가 그 자리에서 걸린다
-      this._swingT += dt * (1 - WEAPON_SWING.impactSlow * this._impact);
-      // 무기가 가장 뻗는 순간에 판정이 들어간다 (예약은 _swingMelee 가 건다)
-      if (this._meleePending && this._swingT >= this._meleeAt) {
-        const d = this._meleePending;
-        this._meleePending = null;
-        this._resolveMelee(d);
-      }
-      const p = Math.min(1, this._swingT / this._swingDur);
-      const w = p < 0.24 ? p / 0.24 : 1;
-      const strike = p < 0.24 ? 0 : Math.min(1, (p - 0.24) / 0.30);
-      const rec = p < 0.54 ? 0 : (p - 0.54) / 0.46;
-      arc = easeIn(strike) * (1 - easeInOut(Math.min(1, rec)));
-      wind = easeOut(w) * (1 - strike);
-    }
-    this._swing = arc;
-    const dir = this._swingDir;
-
-    // ── 사람이 휘두른 궤적 ──
-    // 절차적 사인 곡선은 가감속이 일정해서 "기계가 돈다"로 보인다.
-    // 실제 모션에서 뽑은 곡선을 섞으면 예비동작에서 뜸을 들이고 타격에서 확 빠진다.
-    // 곡선 파일이 없으면 전부 0 이라 기존 절차적 스윙만 남는다 (폴백).
-    let cpx = 0, cpy = 0, cpz = 0, crx = 0, cry = 0, crz = 0;
-    if (WEAPON_SWING.enabled) {
-      const melee = this._swingT < this._swingDur && this._swingCurve;
-      const gun = this._recoil > 0.001 ? getCurve('shooting') : null;
-      if (melee) {
-        const s = sampleCurve(this._swingCurve, this._swingT / this._swingDur);
-        const ps = WEAPON_SWING.posScale * WEAPON_SWING.blend;
-        const rs = WEAPON_SWING.rotScale * WEAPON_SWING.blend;
-        cpx = s.p[0] * ps * dir; cpy = s.p[1] * ps; cpz = s.p[2] * ps;
-        crx = s.e[0] * rs;       cry = s.e[1] * rs * dir; crz = s.e[2] * rs * dir;
-      } else if (gun) {
-        // 반동은 곡선의 앞부분만 쓴다 — 총은 휘두르는 게 아니라 튀었다가 돌아온다
-        const s = sampleCurve(gun, (1 - this._recoil) * 0.5);
-        cpx = s.p[0] * WEAPON_SWING.gunPosScale; cpy = s.p[1] * WEAPON_SWING.gunPosScale;
-        cpz = s.p[2] * WEAPON_SWING.gunPosScale;
-        crx = s.e[0] * WEAPON_SWING.gunRotScale; cry = s.e[1] * WEAPON_SWING.gunRotScale;
-        crz = s.e[2] * WEAPON_SWING.gunRotScale;
-      }
-    }
-
-    // ── 마우스 관성: 시선을 돌리면 무기가 반대로 밀렸다가 따라온다 ──
-    const swayMul = this.player.swayMul ?? 1;
-    if (input) {
-      this._swayX += (-input.mouseDX * 0.0016 * swayMul - this._swayX) * Math.min(1, 14 * dt);
-      this._swayY += (-input.mouseDY * 0.0014 * swayMul - this._swayY) * Math.min(1, 14 * dt);
-    }
-    this._swayX *= 1 - Math.min(1, 6 * dt);
-    this._swayY *= 1 - Math.min(1, 6 * dt);
-    const sx = THREE.MathUtils.clamp(this._swayX, -0.09, 0.09);
-    const sy = THREE.MathUtils.clamp(this._swayY, -0.07, 0.07);
-
-    // ── 걷기 흔들림 + 숨쉬기 ──
-    const spN = Math.min(1, sp / 3);
-    const bobX = Math.sin(this._bob) * 0.014 * spN;
-    const bobY = Math.abs(Math.cos(this._bob)) * 0.012 * spN;
-    const breath = Math.sin(this._idle * 1.5) * 0.004 * (1 - spN) * swayMul;
-
-    // ── 정조준 ──
-    const aimX = this.aiming ? -0.26 : 0;
-    const aimY = this.aiming ? 0.09 : 0;
-    const aimZ = this.aiming ? 0.08 : 0;
-
-    // ── 재장전 동작 ── 총을 내렸다가 올린다. 0 → 1 → 0 으로 한 번 부푼다.
-    // 진행률을 재장전 **남은 시간**에서 뽑으므로 무기마다 길이가 알아서 맞는다
-    // (권총 1.6초 · 못총 2.1초 · 산탄총은 한 발당 0.55초씩 반복).
-    let rl = 0;
-    if (this.reloading > 0 && this._reloadTotal > 0) {
-      const t = Math.min(1, 1 - this.reloading / this._reloadTotal);
-      rl = Math.sin(Math.PI * t ** WEAPON_RELOAD.curve);
-      // 탄창이 들어가는 소리는 **총이 다시 올라오기 시작할 무렵**에 나야 한다.
-      // 시작할 때와 같은 음원을 더 빠르게 돌려 짧고 딱딱한 '철컥'으로 쓴다.
-      if (!this._clackDone && t >= WEAPON_RELOAD.inAt) {
-        this._clackDone = true;
-        bus.emit(EV.SFX, {
-          name: 'reload', volume: WEAPON_RELOAD.inVolume, rate: WEAPON_RELOAD.inRate,
-        });
-      }
-    }
-
-    const R = this.viewRoot;
-    const k = Math.min(1, 14 * dt);
-    R.position.x += (0.26 + aimX + bobX + sx + cpx - R.position.x) * k;
-    R.position.y += (-0.24 + aimY + bobY + breath + sy + cpy
-      - rl * WEAPON_RELOAD.dropY - R.position.y) * k;
-    R.position.z = -0.45 + aimZ + this._recoil * 0.10
-      + wind * 0.06 - arc * 0.16 + cpz                   // 예비동작에 당겼다가 앞으로 내지른다
-      + this._impact * WEAPON_SWING.impactPush           // 부딪히면 손 쪽으로 되튄다
-      + rl * WEAPON_RELOAD.pullZ;                        // 재장전은 몸 쪽으로 당긴다
-
-    // 쉬는 자세 — 축에 딱 맞춰 놓으면 "박스를 들고 있다"로 보인다
-    const rest = this.current.type === 'gun' && this.aiming
-      ? { x: 0, y: 0, z: 0 }
-      : { x: 0.05, y: -0.16, z: 0.10 };
-
-    // 반발은 스윙 진행 방향의 **반대**로 튕긴다 — 그래야 막힌 것으로 보인다
-    R.rotation.x = rest.x + this._recoil * 0.26 - wind * 0.42 + arc * 1.05 + sy * 1.4 + crx
-      - this._impact * WEAPON_SWING.impactPitch
-      + rl * WEAPON_RELOAD.pitch;                        // 총구가 아래로 빠진다
-    R.rotation.y = rest.y + (wind * 0.30 - arc * 0.62) * dir + sx * 1.6 + cry;
-    R.rotation.z = rest.z + (wind * 0.34 - arc * 0.95) * dir + crz
-      + this._impact * WEAPON_SWING.impactRoll * dir
-      + rl * WEAPON_RELOAD.roll;                         // 탄창 쪽이 보이게 눕는다
-  }
+  _animateViewModel(dt, input) { return WeaponViewModel._animateViewModel(this, dt, input); }
 }
