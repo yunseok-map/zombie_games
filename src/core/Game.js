@@ -10,6 +10,7 @@ import { Impact } from '../fx/Impact.js';
 import { Player } from '../player/Player.js';
 import { Flashlight } from '../player/Flashlight.js';
 import { WeaponSystem } from '../weapons/WeaponSystem.js';
+import { WEAPONS } from '../config/weapons.js';
 import { preloadSwingCurves } from '../weapons/SwingCurves.js';
 import { ZombiePool } from '../enemies/ZombiePool.js';
 import { Director } from '../enemies/Director.js';
@@ -29,6 +30,13 @@ import * as hospitalRoof from '../world/stages/hospital_roof.js';
  * 1F 격리병동 → B1 영안실 → 2F 병동 → 3F 수술부 → 옥상(탈출)
  */
 const STAGES = [hospitalA, hospitalB, hospitalC, hospitalD, hospitalRoof];
+
+/**
+ * 관리자 모드 — **URL 에 `?dev=1` 이 있을 때만** 켜진다. (`_devKeys` 참고)
+ * 심사자에게 주는 링크에는 없으므로 실수로 밟히지 않는다. 촬영·검수 전용이다.
+ */
+const DEV = typeof location !== 'undefined'
+  && new URLSearchParams(location.search).has('dev');
 
 /**
  * Game — 시스템 조립과 루프만 담당한다. 게임 규칙은 각 시스템에 있다.
@@ -341,6 +349,44 @@ export class Game {
     };
   }
 
+  /**
+   * ── 관리자 모드 (영상 촬영·검수용) ──
+   *
+   * **`?dev=1` 이 URL 에 있을 때만 켜진다.** 심사자가 받는 링크에는 없으므로
+   * 실수로 밟을 일이 없다. 그냥 키를 열어 두면 심사 중에 눌려서 게임이 망가진다.
+   *
+   *   G  모든 무기 + 탄약 가득 + 카드키 지급
+   *   N  다음 구역으로 (마지막 구역이면 무시)
+   *   I  무적 켜기/끄기 — 촬영 중에 죽으면 테이크가 날아간다
+   *
+   * 영상은 이 모드로 **장비만 갖추고 시작한 뒤 실제로 플레이해서** 찍는다.
+   * 규정이 "실제 플레이 화면 그대로"를 요구하므로 자동 조작으로 찍지 않는다.
+   */
+  _devKeys() {
+    const inp = this.input;
+
+    if (inp.justPressed('KeyG')) {
+      for (const id of Object.keys(WEAPONS)) this.weapons.pickUp(id);
+      for (const id of Object.keys(WEAPONS)) this.weapons.addAmmo(id, 999);
+      this.player.items.add('cardkey');       // 잠긴 문을 전부 연다 (스테이지가 쓰는 유일한 열쇠)
+      bus.emit(EV.HINT, { text: '[DEV] 전 무기·탄약·카드키 지급', duration: 2 });
+    }
+
+    if (inp.justPressed('KeyN')) {
+      if (this.stageIndex < STAGES.length - 1) this._nextStage();
+      else bus.emit(EV.HINT, { text: '[DEV] 마지막 구역이다', duration: 1.5 });
+    }
+
+    if (inp.justPressed('KeyI')) {
+      this._devInvuln = !this._devInvuln;
+      bus.emit(EV.HINT, {
+        text: `[DEV] 무적 ${this._devInvuln ? '켜짐' : '꺼짐'}`, duration: 1.5,
+      });
+    }
+    // 무적은 매 프레임 무적시간을 다시 채워서 만든다 — damage() 를 안 건드려도 된다
+    if (this._devInvuln) this.player._invuln = 1;
+  }
+
   /** 다음 구역으로. 체력·배터리는 이어진다 — 구역을 넘는 게 회복 기회가 되면 긴장이 죽는다 */
   _nextStage() {
     const hp = this.player.hp;
@@ -546,6 +592,7 @@ export class Game {
       hc.zombies = this.pool.all;
       this.hud.update(dt, hc);
       if (this.input.justPressed('Backquote')) this.hud.toggleDebug();
+      if (DEV) this._devKeys();
       const dc = this._dbgCtx;
       dc.input = this.input; dc.player = this.player; dc.dt = dt;
       // 풀을 넘긴다 — activeCount 는 전체 순회라, 숨어 있는 디버그 패널을 위해

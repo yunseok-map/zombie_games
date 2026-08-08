@@ -30,6 +30,7 @@ export default [
         AudioContext: 'readonly', webkitAudioContext: 'readonly',
         Image: 'readonly', Audio: 'readonly', Blob: 'readonly', URL: 'readonly',
         AbortSignal: 'readonly', devicePixelRatio: 'readonly',
+        URLSearchParams: 'readonly',
         localStorage: 'readonly', sessionStorage: 'readonly',
         CustomEvent: 'readonly', Event: 'readonly', ResizeObserver: 'readonly',
         // Node (tools/ 스크립트)
