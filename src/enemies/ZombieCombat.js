@@ -88,6 +88,18 @@ export function hit(z, damage, stun = 0, headshot = false, from = null, kind = '
     });
 
     if (z.hp <= 0) {
+      die(z, kx, kz);
+    } else if (z.state !== 'CHASE') {
+      z.state = 'CHASE';
+      bus.emit(EV.SFX, { name: 'zombie_alert', x: z.pos.x, z: z.pos.z, volume: 0.9 });
+    }
+}
+
+/**
+ * 죽는 순간. `hit()` 과 `burn()` 이 같이 쓴다.
+ * @param kx,kz 쓰러지는 방향(정규화). 불처럼 방향이 없으면 아무 값이나 준다.
+ */
+function die(z, kx, kz) {
       z.state = 'DEAD';
       z.deathTimer = CORPSE.linger;
       // 쓰러지는 자세도 매번 새로 뽑는다 — 고정하면 한 마리가 늘 같은 자세로 죽는다
@@ -120,10 +132,29 @@ export function hit(z, damage, stun = 0, headshot = false, from = null, kind = '
         name: 'zombie_death', x: z.pos.x, z: z.pos.z, volume: DEATH.sfxVolume,
       });
       bus.emit(EV.ZOMBIE_DIED, { x: z.pos.x, z: z.pos.z, type: z.typeKey });
-    } else if (z.state !== 'CHASE') {
-      z.state = 'CHASE';
-      bus.emit(EV.SFX, { name: 'zombie_alert', x: z.pos.x, z: z.pos.z, volume: 0.9 });
-    }
+}
+
+/**
+ * 불에 타는 피해 — **연출 없이 체력만 깎는다.**
+ *
+ * `hit()` 을 대신 부르면 안 된다. 불웅덩이는 0.4초마다 박자를 넣으므로,
+ * 그때마다 넉백·젖힘·핏방울·피격음이 같이 터진다. 결과는 두 가지로 망가진다.
+ *  · 좀비가 영원히 비틀거려 플레이어에게 닿지 못한다 — 화염병이 즉승 버튼이 된다
+ *  · 불에 타는데 피가 튀고 둔기 소리가 난다
+ * 그래서 여기서는 체력·비명·죽음만 다룬다. 불꽃은 Throwables 가 그린다.
+ */
+export function burn(z, damage) {
+  if (!z.active || z.state === 'DEAD') return;
+  z.hp -= damage;
+  if (z.hp <= 0) { die(z, 0, 1); return; }
+  // 타는 동안 가끔 비명. 매 박자마다 지르면 소리가 겹쳐 뭉갠다
+  if (Math.random() < 0.3) {
+    bus.emit(EV.SFX, {
+      name: `zombie_scream_${1 + ((Math.random() * 2) | 0)}`,
+      x: z.pos.x, z: z.pos.z, volume: 0.85,
+    });
+  }
+  if (z.state !== 'CHASE') z.state = 'CHASE';
 }
 
   /**

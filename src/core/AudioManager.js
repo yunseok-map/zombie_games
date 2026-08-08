@@ -69,6 +69,16 @@ const MANIFEST = {
   player_hurt_2: 'sfx/sfx_player_hurt_02.mp3',
   player_hurt_3: 'sfx/sfx_player_hurt_03.mp3',
 
+  // ── 투척·화염병 (2026-08-08) ──────────────────────────────────────────
+  //   throw_whoosh  → WeaponAttack._throw   (던지는 순간)
+  //   molotov_break → Throwables._land      (병이 깨지며 불이 붙는 순간)
+  //   fire_loop     → Throwables._burn      (타는 8초 동안, loop() 로 자리에 물린다)
+  throw_whoosh: 'sfx/sfx_throw_whoosh.mp3',
+  molotov_break: 'sfx/sfx_molotov_break.mp3',
+  fire_loop: 'sfx/sfx_fire_loop.mp3',
+  //   radio_static  → Throwables._land      (라디오가 떨어져 켜지는 순간)
+  radio_static: 'sfx/sfx_radio_static.mp3',
+
   ambience: 'ambience/amb_hospital_hum.mp3',
 };
 
@@ -126,6 +136,35 @@ export class AudioManager {
   }
 
   /**
+   * 청자 기준 거리 감쇠·차폐·저역통과·좌우 패닝을 한 번에 계산한다.
+   * `play()` 와 `loop()` 가 같이 쓴다 — 한쪽만 고치면 일회성 소리와 이어지는 소리의
+   * 거리감이 달라져서, 같은 불웅덩이가 소리마다 다른 곳에 있는 것처럼 들린다.
+   * @returns null 이면 너무 멀어 안 들린다
+   */
+  _spatial(x, z, vol) {
+    const dx = x - this.listener.x;
+    const dz = z - this.listener.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > this.maxAudibleDistance) return null;
+
+    const t = dist / this.maxAudibleDistance;
+    // 역제곱에 가까운 감쇠 — 선형보다 "멀다"가 잘 읽힌다
+    vol *= (1 - t) ** 2 * 0.92 + (1 - t) * 0.08;
+    // 벽 너머면 더 작고 훨씬 먹먹하게. 이게 있어야 "어디선가" 들리는 느낌이 난다
+    const occluded = this.occlusionTest ? this.occlusionTest(x, z) : false;
+    if (occluded) vol *= 0.42;
+    // 거리에 따른 저역 통과 — 고음이 먼저 죽는다. 거리감의 8할이 여기서 나온다
+    const openness = (1 - t) ** 1.6;
+    const freq = Math.max(320, 380 + openness * 17000) * (occluded ? 0.16 : 1);
+    // 좌우 패닝은 청자가 **바라보는 방향** 기준이어야 한다.
+    // 월드 X 로 하면 몸을 돌려도 소리가 같은 쪽에서 난다.
+    const sn = Math.sin(this.listener.yaw), cs = Math.cos(this.listener.yaw);
+    const right = dx * cs - dz * sn;
+    const pan = Math.max(-1, Math.min(1, right / Math.max(dist, 0.6)));
+    return { vol, freq, pan };
+  }
+
+  /**
    * @param {string} name  MANIFEST 키
    * @param {{x?:number, z?:number, volume?:number, rate?:number}} opt
    *        x,z 를 주면 거리 감쇠 + 좌우 패닝이 적용된다.
@@ -141,40 +180,60 @@ export class AudioManager {
     let vol = opt.volume ?? 1;
 
     if (opt.x !== undefined && opt.z !== undefined) {
-      const dx = opt.x - this.listener.x;
-      const dz = opt.z - this.listener.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > this.maxAudibleDistance) return;
-
-      const t = dist / this.maxAudibleDistance;
-      // 역제곱에 가까운 감쇠 — 선형보다 "멀다"가 잘 읽힌다
-      vol *= (1 - t) ** 2 * 0.92 + (1 - t) * 0.08;
-
-      // 벽 너머면 더 작고 훨씬 먹먹하게. 이게 있어야 "어디선가" 들리는 느낌이 난다
-      const occluded = this.occlusionTest ? this.occlusionTest(opt.x, opt.z) : false;
-      if (occluded) vol *= 0.42;
-
-      // 거리에 따른 저역 통과 — 고음이 먼저 죽는다. 거리감의 8할이 여기서 나온다
+      const sp = this._spatial(opt.x, opt.z, vol);
+      if (!sp) return;                               // 너무 멀다
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      const openness = (1 - t) ** 1.6;
-      filter.frequency.value = Math.max(320, 380 + openness * 17000) * (occluded ? 0.16 : 1);
+      filter.frequency.value = sp.freq;
       filter.Q.value = 0.6;
-
-      // 좌우 패닝은 청자가 바라보는 방향 기준이어야 한다.
-      // 월드 X 로 하면 몸을 돌려도 소리가 같은 쪽에서 난다.
-      const s = Math.sin(this.listener.yaw), c = Math.cos(this.listener.yaw);
-      const right = dx * c - dz * s;                 // 청자 기준 오른쪽 성분
       const pan = this.ctx.createStereoPanner();
-      pan.pan.value = Math.max(-1, Math.min(1, right / Math.max(dist, 0.6)));
-
-      gain.gain.value = vol;
+      pan.pan.value = sp.pan;
+      gain.gain.value = sp.vol;
       src.connect(filter); filter.connect(gain); gain.connect(pan); pan.connect(this.masterGain);
     } else {
       gain.gain.value = vol;
       src.connect(gain); gain.connect(this.masterGain);
     }
     src.start(0);
+  }
+
+  /**
+   * 이어지는 소리 — 불웅덩이처럼 **한동안 그 자리에서 나는** 것.
+   *
+   * `play()` 로는 안 된다. 그건 한 번 울리고 끝이라 플레이어가 돌아서거나 멀어져도
+   * 소리가 따라오지 않는다. 불이 8초를 타는 동안 그 위치에서 계속 들려야
+   * "저쪽이 타고 있다"가 귀로 읽힌다.
+   *
+   * 돌려주는 손잡이의 `at(x, z)` 를 **매 프레임 부른다** — 청자가 움직이므로
+   * 불이 제자리에 있어도 감쇠·패닝은 계속 바뀐다.
+   * @returns 손잡이. 파일이 없거나 오디오가 아직이면 null
+   */
+  loop(name, { x, z, volume = 1 }) {
+    if (!this.ready || !this.buffers.has(name)) return null;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buffers.get(name);
+    src.loop = true;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.value = 0.6;
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;              // 첫 at() 이 정한다. 0 에서 시작해야 안 튄다
+    const pan = this.ctx.createStereoPanner();
+    src.connect(filter); filter.connect(gain); gain.connect(pan); pan.connect(this.masterGain);
+    src.start(0);
+
+    const h = {
+      base: volume,
+      at: (nx, nz, scale = 1) => {
+        const sp = this._spatial(nx, nz, h.base * scale);
+        // 너무 멀면 **끄지 않고 볼륨만 0** 으로 둔다. 다시 다가오면 살아나야 한다
+        gain.gain.value = sp ? sp.vol : 0;
+        if (sp) { filter.frequency.value = sp.freq; pan.pan.value = sp.pan; }
+      },
+      stop: () => { try { src.stop(); } catch { /* 이미 멈췄다 */ } },
+    };
+    h.at(x, z);
+    return h;
   }
 
   playAmbience() {

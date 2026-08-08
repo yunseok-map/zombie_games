@@ -134,6 +134,20 @@ export function nailgun() {
   ];
 }
 
+/**
+ * 화염병 — 유리병 · 안에 든 기름 · 목에 감은 천 · 타고 있는 심지.
+ * 심지는 `flame` 재질이라 손전등을 꺼도 혼자 빛난다.
+ */
+export function molotov() {
+  return [
+    P('glass', rod(0.045, 0.20, 0, 0, -0.14, 10)),                // 병 몸통
+    P('accent', rod(0.038, 0.15, 0, 0, -0.13, 8)),                // 안에 든 기름
+    P('glass', rod(0.021, 0.08, 0, 0, -0.28, 8)),                 // 병목
+    P('grip', rod(0.026, 0.06, 0, 0, -0.31, 7)),                  // 감아 놓은 천
+    P('flame', box(0.03, 0.045, 0.03, 0, 0.012, -0.355)),         // 타고 있는 심지
+  ];
+}
+
 /** 라디오 — 소리로 유인한다 */
 export function radio() {
   return [
@@ -155,5 +169,5 @@ export function crowbar() {
 
 /** 무기 id → 빌더. 없으면 WeaponSystem 이 박스로 대체한다 */
 export const WEAPON_MODELS = {
-  pipe, axe, extinguisher, bonesaw, pistol, shotgun, nailgun, radio, crowbar,
+  pipe, axe, extinguisher, bonesaw, pistol, shotgun, nailgun, radio, crowbar, molotov,
 };

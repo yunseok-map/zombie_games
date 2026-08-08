@@ -53,6 +53,12 @@ export class WeaponSystem {
         color: new THREE.Color(0x9fb4a8).multiplyScalar(dim * 1.6),
         roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.55,
       }),
+      // 화염병 심지. **여기만 dim 을 안 곱한다** — 스스로 타는 것이라 눌러 놓으면
+      // 손에 든 게 그냥 병으로 보인다. 손전등을 꺼도 이것만 보여야 맞다.
+      flame: new THREE.MeshStandardMaterial({
+        color: 0xffb055, emissive: 0xff6a1a, emissiveIntensity: 2.6,
+        roughness: 1, metalness: 0,
+      }),
     };
     this._recoil = 0;
     this._swing = 0;

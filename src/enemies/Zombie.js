@@ -215,6 +215,8 @@ export class Zombie {
    *   어디서 맞았든 똑같이 뒤로 젖혀지면 타격이 "닿았다"는 느낌이 안 난다.
    */
   hit(damage, stun = 0, headshot = false, from = null, kind = 'blunt') { return ZombieCombat.hit(this, damage, stun, headshot, from, kind); }
+  /** 불에 타는 피해. 넉백·핏방울·피격음이 없다 (ZombieCombat.burn 주석 참고) */
+  burn(damage) { return ZombieCombat.burn(this, damage); }
 
   update(dt, ctx) {
     if (!this.active) return;

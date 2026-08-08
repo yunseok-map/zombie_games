@@ -80,6 +80,16 @@ JOBS = [
     # 기존 피격음이 한 종류뿐이라 연속으로 맞으면 같은 소리가 반복된다
     ("sfx/sfx_player_hurt_02", "adult male sharp pained grunt, hit hard, air knocked out, very close mic, dry", 1.0, 0.5),
     ("sfx/sfx_player_hurt_03", "adult male short cry of pain, sudden, very close mic, dry", 1.0, 0.5),
+
+    # ── 투척·화염병 (2026-08-08) ────────────────────────────────────────────
+    # 화염병을 되살리면서 필요해진 소리. 여기 등록만 하고 부르는 곳을 안 만들면
+    # 게임에 없는 것이다 — 각각 weapons/Throwables.js 와 WeaponAttack._throw 가 부른다.
+    ("sfx/sfx_throw_whoosh", "underhand throw of a small heavy object through air, short cloth and air whoosh", 1.0, 0.7),
+    # 병이 깨지면서 동시에 확 붙는다. 두 소리를 한 파일에 담아야 타이밍이 안 어긋난다
+    ("sfx/sfx_molotov_break", "glass bottle shatters hard on concrete then gasoline ignites with a deep whoosh of flame", 2.0, 0.6),
+    ("sfx/sfx_fire_loop", "steady burning gasoline fire on concrete floor, crackling flames, seamless loop", 12.0, 0.45),
+    # 라디오는 **소리를 내기 때문에** 좀비를 끈다. 지금까지 그 소리가 없었다
+    ("sfx/sfx_radio_static", "old portable radio clatters on floor and switches on, loud hissing static with garbled voice", 3.0, 0.55),
 ]
 
 

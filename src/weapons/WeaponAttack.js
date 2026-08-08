@@ -330,23 +330,17 @@ export function _resolveMelee(sys, def) {
 }
 
   // ───────────────────────── 투척 ─────────────────────────
+/**
+ * 던진다 — **여기서는 던지기만 한다.** 어디에 떨어지고 무슨 일이 나는지는
+ * `Throwables` 가 정한다 (투사체가 날아가는 동안 프레임이 흐르므로).
+ *
+ * 예전에는 이 함수가 던지는 그 프레임에 **9m 앞에 즉시** 피해와 소음을 만들었다.
+ * 병이 날아가지도, 벽에 막히지도 않았다. 화염병을 컷한 이유가 그것이었다.
+ */
 export function _throw(sys, def) {
     sys.cooldown = def.cooldown;
     sys._swing = 1;
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(sys.camera.quaternion);
-    const tx = sys.player.pos.x + fwd.x * 9;
-    const tz = sys.player.pos.z + fwd.z * 9;
-
-    if (def.lure) {
-      // 라디오 — 좀비를 그쪽으로 유인한다 (전투 회피 도구)
-      bus.emit(EV.NOISE, { x: tx, z: tz, radius: def.lureRadius, source: 'lure' });
-      bus.emit(EV.HINT, { text: '라디오를 던졌다', duration: 1.6 });
-    } else {
-      for (const z of sys.getZombies()) {
-        if (!z.active || z.state === 'DEAD') continue;
-        const d = Math.hypot(z.pos.x - tx, z.pos.z - tz);
-        if (d <= def.radius) z.hit(def.damage, 0.5, false, { x: tx, z: tz });
-      }
-      bus.emit(EV.NOISE, { x: tx, z: tz, radius: NOISE.melee, source: 'throw' });
-    }
+    bus.emit(EV.SFX, { name: 'throw_whoosh', volume: 0.8 });
+    sys.throwables?.throwItem(
+      def, sys.camera, sys.player.pos.x, sys.player.pos.z, sys.camera.position.y);
 }

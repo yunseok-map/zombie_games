@@ -10,6 +10,7 @@ import { Impact } from '../fx/Impact.js';
 import { Player } from '../player/Player.js';
 import { Flashlight } from '../player/Flashlight.js';
 import { WeaponSystem } from '../weapons/WeaponSystem.js';
+import { Throwables } from '../weapons/Throwables.js';
 import { WEAPONS } from '../config/weapons.js';
 import { preloadSwingCurves } from '../weapons/SwingCurves.js';
 import { ZombiePool } from '../enemies/ZombiePool.js';
@@ -78,6 +79,8 @@ export class Game {
     });
     // 구역이 바뀌면 전투 흔적도 사라진다
     bus.on(EV.STAGE_LOADED, () => this.bloodDecals?.clear());
+    // 이전 구역의 불웅덩이·날아가던 병이 다음 구역까지 따라오면 안 된다
+    bus.on(EV.STAGE_LOADED, () => this.throwables?.clear());
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(PLAYER.fov, 1, 0.1, 120);
@@ -104,6 +107,14 @@ export class Game {
       this.camera, this.scene, this.player, this.collision,
       () => this.pool.getActive()
     );
+    // 던진 물건이 실제로 날아가고, 화염병은 불웅덩이를 남긴다.
+    // WeaponSystem 이 던지기만 하고 뒷일은 여기가 맡는다 — 투사체는 여러 프레임을 산다.
+    this.throwables = new Throwables(
+      this.scene, this.collision, () => this.pool.getActive(), this.player
+    );
+    this.weapons.throwables = this.throwables;
+    // 불이 타는 동안 그 자리에서 계속 나는 소리 (AudioManager.loop). 없어도 게임은 돈다
+    this.throwables.audio = this.audio;
     this.interaction = new Interaction();
     this.stageLoader = new StageLoader(
       this.scene, this.collision, this.atmosphere, this.director, this.interaction
@@ -575,6 +586,7 @@ export class Game {
       // 슬롯에 실어야 한다 (fx/Atmosphere.js `_assignSlots`)
       this.atmosphere.update(dt, this.camera);
       this.impact.update(dt);
+      this.throwables.update(dt);
 
       // 상호작용 — 사거리 안 대상이 있으면 안내를 띄우고, E 로 사용한다
       this.interaction.update(dt);
