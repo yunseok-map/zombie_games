@@ -12,7 +12,17 @@
  * **파일이 없어도 게임은 그대로 돌아간다** — 없으면 기존 절차적 스윙으로 떨어진다.
  */
 
-const URL = '/assets/models/swing_curves.json';
+/**
+ * **`BASE_URL` 을 반드시 거쳐야 한다.** 여기만 `/assets/...` 로 박혀 있었고,
+ * 배포본(`/zombie_games/` 아래)에서 **이 파일 하나만 404** 였다 (2026-08-08).
+ *
+ * 왜 안 걸렸나 — 개발 서버는 루트에서 서빙하므로 그대로 열리고, 없는 파일에도
+ * 404 대신 200 을 준다. 게다가 이 모듈은 **폴백이 설계**라(파일이 없으면 절차적
+ * 스윙으로 떨어진다) 에러도 안 난다. 결국 배포본에서만, 조용히,
+ * **모든 근접 공격이 사람 모션 궤적 대신 사인 곡선으로 돌고 있었다.**
+ * index.html 의 같은 형태는 Vite 가 빌드 때 다시 써 주지만 **JS 문자열은 안 고쳐 준다.**
+ */
+const URL = `${import.meta.env.BASE_URL}assets/models/swing_curves.json`;
 
 let curves = null;
 let loading = null;
