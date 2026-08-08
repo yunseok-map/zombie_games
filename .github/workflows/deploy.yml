@@ -40,9 +40,11 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      # 검사 하네스 전용. 게임 빌드와 무관해서 package.json 에 넣지 않았다.
-      - run: npm i --no-save puppeteer-core
-      - name: 자동 검사 (구역 125항목 + 모션 1482프레임)
+      # 임포트 누락은 빌드가 안 잡아 준다 — JS 는 그 줄을 실행할 때까지 모른다.
+      # 실제로 두 번 이 방식으로 결함이 새어 나갔다 (eslint.config.mjs 주석 참고).
+      - name: 임포트 누락 검사 (no-undef)
+        run: npx eslint src tools --quiet
+      - name: 자동 검사 (구역 125항목 + 모션 1482프레임 + 전투 경로)
         if: ${{ inputs.skip_qa != true }}
         env:
           # 러너에 미리 깔린 크롬. 하네스는 GPU 를 안 쓰고 SwiftShader 로 돈다.
