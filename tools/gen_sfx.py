@@ -56,6 +56,30 @@ JOBS = [
     ("sfx/sfx_hit_blunt_01", "heavy steel pipe striking a body, dull bone thud", 1.0, 0.7),
     ("sfx/sfx_hit_blunt_02", "metal pipe cracking bone, sharp snap with wet undertone", 1.0, 0.7),
     ("sfx/sfx_hit_headshot", "bullet impact to skull, sharp crack and wet burst", 1.0, 0.7),
+
+    # ── 1인칭 플레이어 목소리 (2026-08-08) ──────────────────────────────────
+    # 그전까지 플레이어가 내는 소리는 sfx_player_hurt 하나뿐이었다. 좀비는 8종을
+    # 내는데 플레이어는 맞을 때 한 번 끙 하고 마는, 몸이 없는 카메라였다.
+    #
+    # 전부 **가까이서 마이크에 대고 낸 소리**여야 한다 — 1인칭이므로 잔향이 붙으면
+    # 남의 소리로 들린다. 그래서 TONE 의 실내 잔향 대신 'very close mic, dry' 를
+    # 프롬프트마다 직접 넣는다.
+    ("sfx/sfx_player_effort_01", "adult male short sharp exhale of effort swinging a heavy weapon, very close mic, dry, no reverb", 1.0, 0.55),
+    ("sfx/sfx_player_effort_02", "adult male low grunt of exertion, brief, through clenched teeth, very close mic, dry", 1.0, 0.55),
+    ("sfx/sfx_player_effort_03", "adult male hard breathy hut sound while striking, very short, very close mic, dry", 1.0, 0.55),
+    # 물렸을 때 — 게임에서 가장 무서운 순간인데 지금은 완전히 무음이다
+    ("sfx/sfx_player_grabbed", "adult male sudden terrified scream, caught by surprise, panic, very close mic, dry", 1.8, 0.5),
+    ("sfx/sfx_player_struggle_01", "adult male desperate struggling grunts, straining to push something off, very close mic, dry", 1.6, 0.5),
+    ("sfx/sfx_player_struggle_02", "adult male panicked gasping and straining, fighting free, very close mic, dry", 1.6, 0.5),
+    # 지쳤을 때 — 스태미나가 바닥나면 화면에만 표시되고 귀로는 아무것도 안 들렸다
+    ("sfx/sfx_player_breath_01", "adult male heavy exhausted panting, out of breath, very close mic, dry, no reverb", 2.4, 0.45),
+    ("sfx/sfx_player_breath_02", "adult male ragged winded breathing, gasping for air, very close mic, dry, no reverb", 2.4, 0.45),
+    # 크게 다쳤을 때 — 절뚝이는 상태의 신음
+    ("sfx/sfx_player_pain_01", "adult male suppressed pained groan, badly injured, breathing through pain, very close mic, dry", 2.0, 0.5),
+    ("sfx/sfx_player_pain_02", "adult male weak strained wheeze of pain, wounded, very close mic, dry", 2.0, 0.5),
+    # 기존 피격음이 한 종류뿐이라 연속으로 맞으면 같은 소리가 반복된다
+    ("sfx/sfx_player_hurt_02", "adult male sharp pained grunt, hit hard, air knocked out, very close mic, dry", 1.0, 0.5),
+    ("sfx/sfx_player_hurt_03", "adult male short cry of pain, sudden, very close mic, dry", 1.0, 0.5),
 ]
 
 

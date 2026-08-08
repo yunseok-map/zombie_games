@@ -34,6 +34,8 @@ export class Player {
     // 붙잡은 좀비. null 이면 안 물린 상태다. 놓아주는 판단은 **전부 여기서** 한다 —
     // 뿌리치기·시간 초과·좀비의 죽음을 한 곳에서 봐야 어긋날 여지가 없다.
     this.grabbedBy = null;
+    // 근접 스윙이 시점에 주는 기울기. WeaponSystem 이 매 프레임 덮어쓴다.
+    this.swingLook = null;
     this.struggle = 0;         // 0~1. HUD 가 읽는다
     this._grabT = 0;
     this._grabCd = 0;          // 뿌리친 뒤 쿨다운 — 연속으로 물리면 억울하다
@@ -381,10 +383,15 @@ export class Player {
       this.pos.y + this.eyeHeight + bob + shY,
       this.pos.z - lateral * sn2 + this._kickZ * ATTACK.camKick * kk,
     );
+    // 근접을 휘두르면 시점이 같이 간다. WeaponSystem 이 매 프레임 넣어 준다
+    // (없으면 0 — 총만 들었거나 무기 시스템이 아직 안 붙은 검사 상황).
+    const sw = this.swingLook;
+    const swPitch = sw ? sw.pitch : 0, swYaw = sw ? sw.yaw : 0, swRoll = sw ? sw.roll : 0;
+
     this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = this.yaw + this._gunKickYaw;
-    this.camera.rotation.x = this.pitch + shPitch + ATTACK.camKickPitch * kk + this._gunKick;
-    this.camera.rotation.z = this._roll + shRoll;   // 옆걸음 + 부상 + 흔들림
+    this.camera.rotation.y = this.yaw + this._gunKickYaw + swYaw;
+    this.camera.rotation.x = this.pitch + shPitch + ATTACK.camKickPitch * kk + this._gunKick + swPitch;
+    this.camera.rotation.z = this._roll + shRoll + swRoll;   // 옆걸음 + 부상 + 흔들림 + 스윙
   }
 
   /**

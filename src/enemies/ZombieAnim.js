@@ -8,7 +8,7 @@
  */
 
 import * as THREE from 'three';
-import { ZOMBIE, ANIM, KNOCK, CORPSE, DEATH, ATTACK } from '../config/balance.js';
+import { ANIM, KNOCK, CORPSE, ATTACK } from '../config/balance.js';
 
 // 뼈 반동용 임시값 — 매 프레임 만들면 그것만으로 GC 가 돈다 (좀비 14마리 x 뼈 5개)
 const _q = new THREE.Quaternion();

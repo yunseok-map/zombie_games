@@ -1,10 +1,7 @@
 import * as THREE from 'three';
 import { WEAPONS, STARTING_LOADOUT } from '../config/weapons.js';
-import { MUZZLE, NOISE, SURFACE, WEAPON_VIEW, WEAPON_SWING, WEAPON_RELOAD, WALL_IMPACT } from '../config/balance.js';
-import { getCurve, sampleCurve } from './SwingCurves.js';
+import { MUZZLE, SURFACE, WEAPON_RELOAD } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
-import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as WeaponViewModel from './WeaponViewModel.js';
 import * as WeaponAttack from './WeaponAttack.js';
 

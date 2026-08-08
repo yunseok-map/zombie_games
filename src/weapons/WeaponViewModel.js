@@ -9,9 +9,9 @@
  */
 
 import * as THREE from 'three';
-import { WEAPONS } from '../config/weapons.js';
 import { WEAPON_VIEW, WEAPON_SWING, WEAPON_RELOAD, SURFACE, MUZZLE } from '../config/balance.js';
 import { getCurve, sampleCurve } from './SwingCurves.js';
+import { bus, EV } from '../core/EventBus.js';
 import { WEAPON_MODELS, cloneWeaponGLB } from './ViewModels.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -122,12 +122,36 @@ export function _animateViewModel(z, dt, input) {
         z._meleePending = null;
         z._resolveMelee(d);
       }
+      // 휘두르는 소리 — 무기가 가장 빠른 타격 구간에서. 클릭 순간에 내면
+      // 아직 뒤로 당기는 중에 바람 소리가 먼저 난다 (그렇게 돼 있었다).
+      if (!z._whooshDone && z._swingT >= z._swingDur * WEAPON_SWING.whooshAt) {
+        z._whooshDone = true;
+        bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
+      }
+
+      const W = WEAPON_SWING;
       const p = Math.min(1, z._swingT / z._swingDur);
-      const w = p < 0.24 ? p / 0.24 : 1;
-      const strike = p < 0.24 ? 0 : Math.min(1, (p - 0.24) / 0.30);
-      const rec = p < 0.54 ? 0 : (p - 0.54) / 0.46;
-      arc = easeIn(strike) * (1 - easeInOut(Math.min(1, rec)));
+      const w = p < W.windEnd ? p / W.windEnd : 1;
+      const strike = p < W.windEnd ? 0 : Math.min(1, (p - W.windEnd) / W.strikeSpan);
+      const rec = p < W.recStart ? 0 : (p - W.recStart) / (1 - W.recStart);
+      // 따라 나감 — 피크를 조금 넘겼다가 돌아온다. 정확히 1.0 에서 멎으면
+      // 무기가 허공에서 브레이크를 밟은 것처럼 보인다.
+      arc = easeIn(strike) * (1 + W.followThrough * strike)
+          * (1 - easeInOut(Math.min(1, rec)));
       wind = easeOut(w) * (1 - strike);
+    }
+
+    // ── 스윙에 시점이 따라간다 ──
+    // 무기만 84도를 휘두르고 카메라가 1도도 안 움직이면 "손만 움직이는 유령"이 된다.
+    // Player 가 카메라를 조립하므로 여기서는 값만 건네준다. Player.update 가 먼저
+    // 돌기 때문에 한 프레임(16ms) 늦게 반영되는데, 스윙이 480ms 라 보이지 않는다.
+    if (z.player) {
+      const W = WEAPON_SWING, d = z._swingDir;
+      z.player.swingLook = {
+        pitch: wind * W.camWindPitch + arc * W.camArcPitch,
+        yaw: arc * W.camArcYaw * d,
+        roll: arc * W.camArcRoll * d,
+      };
     }
     z._swing = arc;
     const dir = z._swingDir;

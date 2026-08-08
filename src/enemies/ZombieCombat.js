@@ -9,7 +9,7 @@
  */
 
 import * as THREE from 'three';
-import { ZOMBIE, AI, KNOCK, CORPSE, ATTACK, GRAB, DEATH, ANIM, AUDIO } from '../config/balance.js';
+import { KNOCK, CORPSE, ATTACK, GRAB, DEATH, ANIM } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 
   /**

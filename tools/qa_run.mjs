@@ -169,6 +169,58 @@ try {
     }
     log('');
   }
+  // ── 전투 검사 ──
+  // 구역·모션 검사는 **총을 쏘지도 휘두르지도 않는다.** 그래서 발사·타격·재장전
+  // 경로에 있던 오류가 두 번이나 검사를 전부 통과한 채 살아남았다
+  //   · 빗나간 총알이 벽에 닿는 순간 터짐 (지역변수 z 가 인스턴스를 가림)
+  //   · 재장전 도중 터짐 (bus·EV 임포트 누락)
+  // 둘 다 "그 코드를 한 번도 실행하지 않아서" 안 보였던 것이다. 여기서 다 밟는다.
+  if (only !== 'motion') {
+    const r = await page.evaluate(async () => {
+      const g = window.game, W = g.weapons, P = g.player;
+      const errs = [];
+      const run = (label, fn) => { try { fn(); } catch (e) { errs.push(`${label}: ${e.message}`); } };
+      const step = (n, dt = 1 / 60) => {
+        for (let i = 0; i < n; i++) run('뷰모델 갱신', () => W._animateViewModel(dt, null));
+      };
+
+      // 좀비 하나를 눈앞에 세운다 — 맞히는 경로와 빗나가는 경로를 모두 밟기 위해
+      let zb = null;
+      run('좀비 스폰', () => {
+        zb = g.pool.spawnAt?.('shambler', P.pos.x, P.pos.z - 2)
+          ?? g.pool.zombies?.find(z => z.active);
+      });
+
+      for (let slot = 1; slot <= 3; slot++) {
+        run(`무기 ${slot} 전환`, () => W.switchTo(slot));
+        const def = W.current;
+        if (!def) continue;
+        const tag = `${def.id}(${def.type})`;
+        if (def.type === 'gun') {
+          run(`${tag} 탄약 지급`, () => W.addAmmo(def.id, 60));
+          // 위를 보고 쏜다 → 반드시 빗나가서 벽·천장 추적 경로를 탄다
+          P.pitch = -1.2; run(`${tag} 카메라 갱신`, () => P._syncCamera(1 / 60));
+          for (let i = 0; i < 3; i++) { run(`${tag} 발사(빗맞힘)`, () => W.attack()); W.cooldown = 0; step(4); }
+          // 정면으로 쏜다 → 명중 경로
+          P.pitch = 0; run(`${tag} 카메라 갱신`, () => P._syncCamera(1 / 60));
+          for (let i = 0; i < 3; i++) { run(`${tag} 발사(명중)`, () => W.attack()); W.cooldown = 0; step(4); }
+          run(`${tag} 재장전 시작`, () => W.reload());
+          step(200);                       // 재장전이 끝날 때까지 — 중간의 '철컥' 경로를 밟는다
+        } else {
+          for (let i = 0; i < 3; i++) {
+            run(`${tag} 휘두름`, () => W.attack());
+            W.cooldown = 0;
+            step(70);                      // 예비동작 → 타격(판정) → 마무리 전부
+          }
+        }
+      }
+      return { errs, 무기수: Object.keys(W.ammo ?? {}).length };
+    });
+    log('=== 전투 검사 ===');
+    log(`발사·타격·재장전 경로 실행 — 오류 ${r.errs.length}건`);
+    if (r.errs.length) { failed += r.errs.length; r.errs.slice(0, 12).forEach(e => log('  ' + e)); }
+    log('');
+  }
 } finally {
   await browser.close();
   stopServer();

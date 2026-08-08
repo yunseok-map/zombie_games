@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP, STEALTH, ANIM, ATTACK, GRAB, DEATH, AUDIO } from '../config/balance.js';
+import { ZOMBIE, AI, KNOCK, CORPSE, ZOMBIE_STEP, STEALTH, DEATH, AUDIO } from '../config/balance.js';
 import { bus, EV } from '../core/EventBus.js';
 import { requestZombieModel } from './ZombieModel.js';
 import * as ZombieAnim from './ZombieAnim.js';

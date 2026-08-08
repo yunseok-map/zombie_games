@@ -1,17 +1,23 @@
 /**
  * WeaponAttack — 실제로 때리는 부분. 총 발사·히트스캔·벽 추적·근접 휘두름·투척.
  *
- * WeaponSystem 에서 갈라져 나왔다. 시스템 인스턴스가 첫 인자(z)로 들어오고
- * 나머지 인자는 그대로다. WeaponSystem 에 같은 이름의 한 줄 위임이 남아 있다.
+ * WeaponSystem 에서 갈라져 나왔다. 시스템 인스턴스가 첫 인자 `sys` 로 들어오고
+ * 나머지 인자는 그대로다. WeaponSystem 에 같은 이름의 한 줄 위임이 남아 있어
+ * **부르는 쪽은 안 바뀐다.**
  *
- * 좀비 몸을 캡슐로 근사해서 맞히는 판정(capsuleOf · rayVsSegment)도 여기로 같이 왔다 —
+ * **인자 이름이 sys 인 이유** — 이 파일에는 z 좌표를 담는 지역변수 `z` 가 여럿 있다
+ * (`for (const z of zombies)`, `const z = origin.z + ...`). 인스턴스를 `z` 로 받으면
+ * 그 안쪽에서 조용히 가려져 **숫자에 대고 .collision 을 부르게 된다.** 실제로 한 번
+ * 그렇게 만들었고, 빗나간 총알이 벽에 닿는 순간 터지는 상태였다.
+ * **ESLint no-undef 로는 안 잡힌다** — 이름은 정의돼 있고 가리키는 대상만 틀리기 때문이다.
+ *
+ * 좀비 몸을 캡슐로 근사하는 판정(capsuleOf · rayVsSegment)도 여기로 같이 왔다 —
  * 쓰는 곳이 히트스캔과 근접 판정 둘뿐이라 여기 있는 편이 읽기 쉽다.
  */
 
 import * as THREE from 'three';
-import { WEAPONS } from '../config/weapons.js';
-import { MUZZLE, NOISE, SURFACE, WEAPON_SWING, WALL_IMPACT } from '../config/balance.js';
-import { getCurve, sampleCurve } from './SwingCurves.js';
+import { MUZZLE, NOISE, WEAPON_SWING, WALL_IMPACT } from '../config/balance.js';
+import { getCurve } from './SwingCurves.js';
 import { bus, EV } from '../core/EventBus.js';
 
 /**
@@ -65,43 +71,43 @@ function rayVsSegment(o, dir, cap) {
 }
 
   // ───────────────────────── 총기 ─────────────────────────
-export function _fireGun(z, def) {
-    const a = z.ammo[def.id];
+export function _fireGun(sys, def) {
+    const a = sys.ammo[def.id];
     if (!a || a.mag <= 0) {
       bus.emit(EV.HINT, { text: '탄창 비어 있음 — R', duration: 1.2 });
-      z.cooldown = 0.35;
-      if (a && a.reserve > 0) z.reload();
+      sys.cooldown = 0.35;
+      if (a && a.reserve > 0) sys.reload();
       return;
     }
     a.mag--;
-    z.cooldown = def.cooldown;
-    z._recoil = 1;
-    z._muzzle = MUZZLE.duration;    // 총구 화염 — 한순간 복도 전체가 드러난다
+    sys.cooldown = def.cooldown;
+    sys._recoil = 1;
+    sys._muzzle = MUZZLE.duration;    // 총구 화염 — 한순간 복도 전체가 드러난다
 
-    const origin = new THREE.Vector3().copy(z.camera.position);
-    const baseDir = new THREE.Vector3(0, 0, -1).applyQuaternion(z.camera.quaternion);
-    const spread = def.spread * (z.aiming ? 0.45 : 1);
+    const origin = new THREE.Vector3().copy(sys.camera.position);
+    const baseDir = new THREE.Vector3(0, 0, -1).applyQuaternion(sys.camera.quaternion);
+    const spread = def.spread * (sys.aiming ? 0.45 : 1);
 
     // 벽 탄흔은 **한 발에 한 번만** 찾는다. 추적 한 번이 150스텝 x 충돌박스 전체라,
     // 산탄(7발)이 전부 빗나가면 같은 계산을 일곱 번 하게 된다. 눈으로도 같은 자리에
     // 먼지가 일곱 겹으로 쌓여 오히려 나빠진다 — 한 번이 맞다.
-    z._tracedThisShot = false;
+    sys._tracedThisShot = false;
     for (let p = 0; p < (def.pellets ?? 1); p++) {
       const dir = baseDir.clone();
       dir.x += (Math.random() - 0.5) * spread * 2;
       dir.y += (Math.random() - 0.5) * spread * 2;
       dir.z += (Math.random() - 0.5) * spread * 2;
       dir.normalize();
-      z._hitscan(origin, dir, def.range, def.damage, 0.35);
+      sys._hitscan(origin, dir, def.range, def.damage, 0.35);
     }
 
     bus.emit(EV.SFX, { name: 'pistol_fire', volume: def.silenced ? 0.35 : 1 });
     bus.emit(EV.NOISE, {
-      x: z.player.pos.x, z: z.player.pos.z,
+      x: sys.player.pos.x, z: sys.player.pos.z,
       radius: NOISE[def.noise] ?? NOISE.gunshot, source: 'gunshot',
     });
     bus.emit(EV.WEAPON_FIRED, { weapon: def });
-    z._emitAmmo();
+    sys._emitAmmo();
 }
 
   /**
@@ -113,8 +119,8 @@ export function _fireGun(z, def) {
    * 이제 몸을 선분으로 두고 그 둘레를 판정한다. 서 있으면 세로, 엎드리면
    * **바라보는 방향으로** 눕는다.
    */
-export function _hitscan(z, origin, dir, range, damage, stun) {
-    const zombies = z.getZombies();
+export function _hitscan(sys, origin, dir, range, damage, stun) {
+    const zombies = sys.getZombies();
     let best = null, bestT = range, bestS = 0;
 
     for (const z of zombies) {
@@ -125,7 +131,7 @@ export function _hitscan(z, origin, dir, range, damage, stun) {
       if (hit.t < 0 || hit.t > bestT) continue;
       if (hit.distSq > r * r) continue;
       // 벽 뒤면 무효
-      if (z.collision.segmentBlocked(origin.x, origin.z, z.pos.x, z.pos.z)) continue;
+      if (sys.collision.segmentBlocked(origin.x, origin.z, z.pos.x, z.pos.z)) continue;
       best = z; bestT = hit.t; bestS = hit.s;
     }
 
@@ -139,7 +145,7 @@ export function _hitscan(z, origin, dir, range, damage, stun) {
     }
     // 아무도 못 맞혔으면 **세상 어딘가에는 맞았다.** 지금까지는 총구 화염 0.065초
     // 말고는 아무 일도 안 일어나서, 칠흑 속에서 조준이 맞았는지 알 단서가 없었다.
-    z._traceWorld(origin, dir);
+    sys._traceWorld(origin, dir);
 }
 
   /**
@@ -150,9 +156,9 @@ export function _hitscan(z, origin, dir, range, damage, stun) {
    * 사거리를 끊는 이유는 비용이다: 권총 사거리 60m 를 그대로 훑으면 500회가 되는데,
    * 그 너머 탄흔은 어차피 화면에 안 보인다.
    */
-export function _traceWorld(z, origin, dir) {
-    if (z._tracedThisShot) return;     // 산탄 한 발에 한 번 (위 `_fireGun` 주석)
-    z._tracedThisShot = true;
+export function _traceWorld(sys, origin, dir) {
+    if (sys._tracedThisShot) return;     // 산탄 한 발에 한 번 (위 `_fireGun` 주석)
+    sys._tracedThisShot = true;
     const step = WALL_IMPACT.step;
     const n = Math.ceil(WALL_IMPACT.maxRange / step);
     let px = origin.x, py = origin.y, pz = origin.z;
@@ -163,7 +169,7 @@ export function _traceWorld(z, origin, dir) {
       let nx = 0, ny = 0, nz = 0;
       if (y <= 0) { ny = 1; }                              // 바닥
       else if (y >= WALL_IMPACT.ceilingHeight) { ny = -1; }   // 천장
-      else if (z.collision.isBlocked(x, z, 0.02)) {
+      else if (sys.collision.isBlocked(x, z, 0.02)) {
         // 벽 법선은 진행 방향의 반대로 근사한다. 어느 면인지까지 알 필요는 없다 —
         // 먼지가 튀어나오는 방향만 그럴듯하면 된다.
         nx = -dir.x; nz = -dir.z;
@@ -196,32 +202,35 @@ export function _traceWorld(z, origin, dir) {
    *
    * 쿨다운은 여기서 그대로 걸리므로 **연타 리듬은 1프레임도 안 바뀐다.**
    */
-export function _swingMelee(z, def) {
-    z.cooldown = def.cooldown;
+export function _swingMelee(sys, def) {
+    sys.cooldown = def.cooldown;
     // 시간 기반 스윙. 예비동작 → 타격 → 마무리 순서가 있어야 "휘둘렀다"로 읽힌다
-    z._swingT = 0;
-    z._swingDur = Math.min(def.cooldown * 0.92, 0.62);
-    z._swingDir = -z._swingDir;        // 좌우 번갈아 휘두른다
-    z._impact = 0;                        // 지난 스윙의 반발이 남아 있으면 궤적이 끊긴다
+    sys._swingT = 0;
+    sys._swingDur = Math.min(def.cooldown * 0.92, 0.62);
+    sys._swingDir = -sys._swingDir;        // 좌우 번갈아 휘두른다
+    sys._impact = 0;                        // 지난 스윙의 반발이 남아 있으면 궤적이 끊긴다
     // 궤적도 번갈아 쓴다 — 같은 곡선만 반복하면 사람이 휘두르는 느낌이 도로 사라진다
-    z._swingCurve = getCurve(z._swingDir > 0
+    sys._swingCurve = getCurve(sys._swingDir > 0
       ? 'standing_melee_attack_downward'
       : 'standing_melee_attack_backhand');
-    bus.emit(EV.SFX, { name: 'melee_swing', volume: 0.6 });
+    // 휘두르는 소리는 여기서 내지 않는다. 클릭 순간은 무기가 아직 **뒤로 당겨지는**
+    // 중이라 바람 소리가 동작보다 먼저 났다. 뷰모델이 타격 구간에 들어갈 때 낸다
+    // (WEAPON_SWING.whooshAt).
+    sys._whooshDone = false;
 
     // 판정을 접촉 시점으로 예약한다. 상한을 두는 이유는 쿨다운이 긴 무기에서
     // 클릭이 씹힌 느낌이 나지 않게 하기 위해서다.
-    z._meleePending = def;
-    z._meleeAt = Math.min(
-      z._swingDur * WEAPON_SWING.contact, WEAPON_SWING.contactMaxDelay);
+    sys._meleePending = def;
+    sys._meleeAt = Math.min(
+      sys._swingDur * WEAPON_SWING.contact, WEAPON_SWING.contactMaxDelay);
 }
 
   /**
    * 실제 판정. **접촉 시점의 시선·위치**를 쓴다 — 휘두르는 도중 몸을 돌리면
    * 빗나간다. 좀비 공격과 같은 규칙이 되는 것이라 이쪽이 맞다.
    */
-export function _resolveMelee(z, def) {
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(z.camera.quaternion);
+export function _resolveMelee(sys, def) {
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(sys.camera.quaternion);
     /**
      * **바닥을 내려다보면 근접 공격이 통째로 빗나가던 버그** (2026-08-07 수정)
      *
@@ -241,13 +250,13 @@ export function _resolveMelee(z, def) {
     const fwdLen = Math.hypot(fwd.x, fwd.z) || 1;
     const fx = fwd.x / fwdLen, fz = fwd.z / fwdLen;
     const halfArc = Math.cos(THREE.MathUtils.degToRad(def.arcDeg) / 2);
-    const zombies = z.getZombies();
+    const zombies = sys.getZombies();
     let hitAny = false;
 
     for (const z of zombies) {
       if (!z.active || z.state === 'DEAD') continue;
-      const dx = z.pos.x - z.player.pos.x;
-      const dz = z.pos.z - z.player.pos.z;
+      const dx = z.pos.x - sys.player.pos.x;
+      const dz = z.pos.z - sys.player.pos.z;
       const dist = Math.hypot(dx, dz);
       if (dist > def.range + z.def.radius) continue;
       // 발밑에 딱 붙은 개체는 방향이 무의미하다 — 나누면 0으로 나뉘어 판정이 튄다
@@ -256,8 +265,8 @@ export function _resolveMelee(z, def) {
       if (dot < halfArc) continue;
       // **벽 너머는 못 때린다.** 총은 이미 이 규칙을 지키는데(_hitscan) 근접만
       // 빠져 있어서, 문 하나 사이에 두고 붙은 좀비를 쇠파이프로 때릴 수 있었다.
-      if (z.collision.segmentBlocked(
-        z.player.pos.x, z.player.pos.z, z.pos.x, z.pos.z)) continue;
+      if (sys.collision.segmentBlocked(
+        sys.player.pos.x, sys.player.pos.z, z.pos.x, z.pos.z)) continue;
 
       // 근접에도 머리 판정이 있다. 예전에는 세 번째 인자가 **항상 false 하드코딩**이라
       // 도끼로 머리를 찍어도 정강이를 친 것과 데미지·소리·피가 전부 같았다.
@@ -265,22 +274,22 @@ export function _resolveMelee(z, def) {
       let headshot = false;
       if (!close) {
         const cap = capsuleOf(z);
-        const h = rayVsSegment(z.camera.position, fwd, cap);
+        const h = rayVsSegment(sys.camera.position, fwd, cap);
         headshot = h.distSq <= (cap.r + 0.12) ** 2 && h.s > WEAPON_SWING.meleeHeadS;
       }
       // 팔에 힘이 빠진다 — 다칠수록 근접이 약해진다 (Player.meleeMul)
-      const mul = z.player.meleeMul ?? 1;
+      const mul = sys.player.meleeMul ?? 1;
       // 날붙이는 살을 가르는 소리, 둔기는 뼈 소리. 예전에는 소방도끼와 쇠파이프가
       // 완전히 같은 소리를 냈다 (weapons.js 의 `blade` 표시를 읽는다)
       z.hit(def.damage * mul * (headshot ? 2.2 : 1), def.stun * mul, headshot,
-        z.player.pos, def.blade ? 'blade' : 'blunt');
+        sys.player.pos, def.blade ? 'blade' : 'blunt');
       hitAny = true;
     }
 
     // 닿았을 때만 화면이 걸린다. 헛스윙에도 흔들리면 타격의 의미가 사라진다
     if (hitAny) {
-      z._impact = 1;                      // 무기가 그 자리에서 걸렸다가 튕겨 돌아온다
-      bus.emit(EV.MELEE_HIT, { x: z.player.pos.x, z: z.player.pos.z });
+      sys._impact = 1;                      // 무기가 그 자리에서 걸렸다가 튕겨 돌아온다
+      bus.emit(EV.MELEE_HIT, { x: sys.player.pos.x, z: sys.player.pos.z });
     } else {
       // 아무도 못 맞혔으면 **벽을 쳤는지** 본다. 지금까지는 벽이라는 개념이
       // 근접에 아예 없어서 무기가 벽을 관통해 그냥 지나갔다.
@@ -289,36 +298,36 @@ export function _resolveMelee(z, def) {
       // **끝점 하나만 보면 안 된다.** 벽 두께가 0.2m 라 0.85 x 사거리(1.45m) 지점은
       // 벽을 통째로 지나쳐 버린다 — 실측에서 벽 앞 0.75m 에 서서 휘둘렀는데
       // 한 번도 안 잡혔다. 무기가 지나가는 경로를 **훑어야** 한다.
-      const px = z.player.pos.x + fx * def.range * WEAPON_SWING.wallProbe;
-      const pz = z.player.pos.z + fz * def.range * WEAPON_SWING.wallProbe;
-      if (z.collision.segmentBlocked(
-        z.player.pos.x, z.player.pos.z, px, pz, WEAPON_SWING.wallProbeStep)) {
-        z._impact = 1;
+      const px = sys.player.pos.x + fx * def.range * WEAPON_SWING.wallProbe;
+      const pz = sys.player.pos.z + fz * def.range * WEAPON_SWING.wallProbe;
+      if (sys.collision.segmentBlocked(
+        sys.player.pos.x, sys.player.pos.z, px, pz, WEAPON_SWING.wallProbeStep)) {
+        sys._impact = 1;
         bus.emit(EV.MELEE_CLANG, { x: px, z: pz });
       }
     }
 
     // 타격음은 Zombie.hit() 이 부위·무기별로 낸다 (여기서 또 내면 겹친다)
     bus.emit(EV.NOISE, {
-      x: z.player.pos.x, z: z.player.pos.z,
+      x: sys.player.pos.x, z: sys.player.pos.z,
       radius: NOISE.melee, source: 'melee',
     });
 }
 
   // ───────────────────────── 투척 ─────────────────────────
-export function _throw(z, def) {
-    z.cooldown = def.cooldown;
-    z._swing = 1;
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(z.camera.quaternion);
-    const tx = z.player.pos.x + fwd.x * 9;
-    const tz = z.player.pos.z + fwd.z * 9;
+export function _throw(sys, def) {
+    sys.cooldown = def.cooldown;
+    sys._swing = 1;
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(sys.camera.quaternion);
+    const tx = sys.player.pos.x + fwd.x * 9;
+    const tz = sys.player.pos.z + fwd.z * 9;
 
     if (def.lure) {
       // 라디오 — 좀비를 그쪽으로 유인한다 (전투 회피 도구)
       bus.emit(EV.NOISE, { x: tx, z: tz, radius: def.lureRadius, source: 'lure' });
       bus.emit(EV.HINT, { text: '라디오를 던졌다', duration: 1.6 });
     } else {
-      for (const z of z.getZombies()) {
+      for (const z of sys.getZombies()) {
         if (!z.active || z.state === 'DEAD') continue;
         const d = Math.hypot(z.pos.x - tx, z.pos.z - tz);
         if (d <= def.radius) z.hit(def.damage, 0.5, false, { x: tx, z: tz });
@@ -326,4 +335,3 @@ export function _throw(z, def) {
       bus.emit(EV.NOISE, { x: tx, z: tz, radius: NOISE.melee, source: 'throw' });
     }
 }
-
