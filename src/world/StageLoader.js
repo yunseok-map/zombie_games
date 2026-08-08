@@ -362,6 +362,48 @@ export class StageLoader {
         g.rotateX(Math.PI / 2); g.translate(cx, WALL_H, cz);
         bucket('ceiling').push(g);
       },
+      /**
+       * 방 하나 — 바닥 + 천장 + 벽 네 장을 한 번에.
+       *
+       * 구역 파일마다 계단실·병실을 만들 때 같은 다섯 줄을 반복해서 쓰고 있었다.
+       * `open` 에 트인 면을 적어 그쪽 벽을 뺀다 ('n' = -Z, 's' = +Z, 'w' = -X, 'e' = +X).
+       *   room(0, 6, 9, 8, { open: 's' })        // 남쪽이 복도로 트인 계단실
+       *   room(cx, cz, w, 7, { open: 'we' })     // 좌우가 트인 통과 칸
+       * `t` 는 벽 두께 (기본 0.2). 벽을 뺀 면은 충돌도 안 생긴다.
+       */
+      room: (cx, cz, w, d, { open = '', t = 0.2 } = {}) => {
+        ctx.addFloor(cx, cz, w, d);
+        ctx.addCeiling(cx, cz, w, d);
+        if (!open.includes('w')) ctx.addWall(cx - w / 2, cz, t, d);
+        if (!open.includes('e')) ctx.addWall(cx + w / 2, cz, t, d);
+        if (!open.includes('n')) ctx.addWall(cx, cz - d / 2, w, t);
+        if (!open.includes('s')) ctx.addWall(cx, cz + d / 2, w, t);
+      },
+
+      /**
+       * 문 구멍이 뚫린 직선 벽 — 한 줄로.
+       *
+       * 이중 루프로 직접 쓰던 것이다(구역 B·C 에 같은 모양이 있었다).
+       * 축을 따라 z0 → z1 로 가면서 `doors` 위치마다 폭 `gap` 만큼 비운다.
+       *   wallWithDoors('z', -2.5, 4, 30, [10, 22])   // x=-2.5 벽, z=10·22 에 문
+       *   wallWithDoors('x', 3, -8, 8, [0])           // z=3 벽, x=0 에 문
+       * 남는 조각이 1cm 미만이면 만들지 않는다 — 그런 벽은 보이지도 않으면서
+       * 충돌 박스만 하나 더 만든다.
+       */
+      wallWithDoors: (axis, fixed, a0, a1, doors = [], { gap = 1.6, t = 0.2 } = {}) => {
+        const put = (mid, len) => {
+          if (len <= 0.01) return;
+          if (axis === 'z') ctx.addWall(fixed, mid, t, len);
+          else ctx.addWall(mid, fixed, len, t);
+        };
+        let cur = a0;
+        for (const d of [...doors].sort((p, q) => p - q)) {
+          put(cur + (d - gap / 2 - cur) / 2, d - gap / 2 - cur);
+          cur = d + gap / 2;
+        }
+        put(cur + (a1 - cur) / 2, a1 - cur);
+      },
+
       /** 소품 — 충돌 등록됨 (h 는 높이) */
       addProp: (cx, cz, w, h, d, color) => {
         const g = fitBoxUV(new THREE.BoxGeometry(w, h, d), w, h, d, SURFACE.propTile);

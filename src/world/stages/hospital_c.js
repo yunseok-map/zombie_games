@@ -37,7 +37,8 @@ export function surfaceAt(x, z) {
 export function build(ctx) {
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
           scatterDebris, addProp3D, addPropGLB, addSign, addSearchable, addWeapon,
-          addLever, addDoor, triggerWave, setLights } = ctx;
+          addLever, addDoor, triggerWave, setLights,
+          room, wallWithDoors } = ctx;
 
   let _s = 40517;
   const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -47,10 +48,7 @@ export function build(ctx) {
   };
 
   // ───────── 진입 계단실 (B1 에서 올라온다) ─────────
-  addFloor(0, ENTRY_Z, 9, 8); addCeiling(0, ENTRY_Z, 9, 8);
-  addWall(-4.5, ENTRY_Z, WALL_T, 8);
-  addWall(4.5, ENTRY_Z, WALL_T, 8);
-  addWall(0, ENTRY_Z - 4, 9, WALL_T);
+  room(0, ENTRY_Z, 9, 8, { open: 's', t: WALL_T });      // 남쪽이 복도로 트여 있다
   addProp3D('stairs', 0, ENTRY_Z - 3.4, 0, { args: [6.0, 6], collide: [6.0, 1.1] });
   addLight(0, 2.85, ENTRY_Z, 'steady', 0x2e7a4a);
   addSign(12, 0, 2.35, ENTRY_Z - 3.9, 0, 0.9, 0.36, true);
@@ -67,10 +65,8 @@ export function build(ctx) {
 
   // 복도 벽 — 병실마다 문 구멍 하나
   for (const sx of [-1, 1]) {
-    let z = HALL_Z0;
+    wallWithDoors('z', sx * HALL_HALF, HALL_Z0, HALL_Z1, WARD_Z, { gap: 1.7, t: WALL_T });
     for (const dz of WARD_Z) {
-      const seg = dz - 0.85 - z;
-      if (seg > 0.1) addWall(sx * HALL_HALF, z + seg / 2, WALL_T, seg);
       addProp3D('doorFrame', sx * HALL_HALF, dz, Math.PI / 2, { args: [1.7, 2.1, 0.3] });
       // 문짝 — 틀만 있으면 구멍처럼 보인다. 방마다 다른 각도로 열어 두고
       // 일부는 아예 뜯겨 바닥에 있다. 열린 각도가 다르면 복도가 반복으로 안 느껴진다.
@@ -83,10 +79,7 @@ export function build(ctx) {
         addProp3D('doorPanel', sx * HALL_HALF, dz + 0.85, Math.PI / 2 + sx * ajar,
           { args: [1.65, 2.05] });
       }
-      z = dz + 0.85;
     }
-    const last = HALL_Z1 - z;
-    if (last > 0.1) addWall(sx * HALL_HALF, z + last / 2, WALL_T, last);
     for (const cz of [7, 15, 25, 35, 43]) trim(sx * (HALL_HALF - 0.12), cz, 6, false);
   }
 
@@ -256,10 +249,7 @@ export function build(ctx) {
     '계단실 문', '무전을 전부 켜야 한다');
 
   // ───────── 탈출 계단실 (3F 로) ─────────
-  addFloor(0, EXIT_Z, 9, 8); addCeiling(0, EXIT_Z, 9, 8);
-  addWall(-4.5, EXIT_Z, WALL_T, 8);
-  addWall(4.5, EXIT_Z, WALL_T, 8);
-  addWall(0, EXIT_Z + 4, 9, WALL_T);
+  room(0, EXIT_Z, 9, 8, { open: 'n', t: WALL_T });       // 북쪽이 복도로 트여 있다
   addWall(-(HALL_HALF + gap / 2), HALL_Z1, gap, WALL_T);
   addWall(HALL_HALF + gap / 2, HALL_Z1, gap, WALL_T);
   addProp3D('stairs', 0, EXIT_Z + 3.5, Math.PI, { args: [6.0, 6], collide: [6.0, 1.1] });

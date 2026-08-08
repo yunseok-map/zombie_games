@@ -37,7 +37,8 @@ export function build(ctx) {
   // 하나도 못 쓰고 캐비닛을 3단으로 쌓아 흉내내고 있었다. (PROGRESS.md 함정 참고)
   const { addWall, addFloor, addCeiling, addLight, addSpawn, addBlood, addWallBlood,
           scatterDebris, addProp3D, addPropGLB, addSign, addSearchable, addWeapon, addLever,
-          triggerWave, setMood, setLights } = ctx;
+          triggerWave, setMood, setLights,
+          wallWithDoors } = ctx;
 
   let _s = 90211;
   const rnd = () => ((_s = (_s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -67,17 +68,12 @@ export function build(ctx) {
   // 통로 벽 — 방으로 들어가는 문 구멍 2개씩 남긴다
   const doors = [10, 22];
   for (const sx of [-1, 1]) {
-    let z = HALL_Z0;
+    wallWithDoors('z', sx * HALL_HALF, HALL_Z0, HALL_Z1, doors, { t: WALL_T });
     for (const dz of doors) {
-      const segA = dz - 0.8 - z;
-      if (segA > 0.1) addWall(sx * HALL_HALF, z + segA / 2, WALL_T, segA);
       addProp3D('doorFrame', sx * HALL_HALF, dz, Math.PI / 2, { args: [1.6, 2.1, 0.3] });
       addProp3D('doorFallen', sx * HALL_HALF - sx * 0.8, dz + 0.3, Math.PI / 2 + sx * 0.4,
         { args: [1.5, 2.05] });                       // B1 의 문은 전부 뜯겨 있다
-      z = dz + 0.8;
     }
-    const last = HALL_Z1 - z;
-    if (last > 0.1) addWall(sx * HALL_HALF, z + last / 2, WALL_T, last);
     trim(sx * (HALL_HALF - 0.12), 8, 7, false);
     trim(sx * (HALL_HALF - 0.12), 26, 7, false);
   }
