@@ -116,8 +116,9 @@ export class Zombie {
     // **공격 판정을 ATTACK 보다 먼저 본다.** 선 자세 공격 클립을 쓰면 modelYOffset(-0.62)
     // 때문에 몸이 바닥 아래로 묻힌다 (tools/qa_motion.js 가 잡았다).
     if (this.def.crawler) {
-      if (this.state === 'ATTACK' || this.state === 'GRAB') return 'crawl';
-      return this._moveSpeed > 0.15 ? 'crawl' : 'crawlIdle';
+      // 멈춰 있어도 crawl 을 쓴다 — crawl_idle 은 무릎 꿇은 자세라 다리가 바닥에
+      // 잠긴다 (ANIM.crawlerIdleSpeed 주석에 실측값). 대신 느리게 돌린다.
+      return 'crawl';
     }
     // 물고 있는 동안도 공격 클립을 쓴다 — 느리게 돌려 매달려 버둥거리는 것처럼 보인다
     if (this.state === 'ATTACK' || this.state === 'GRAB') return 'attack';
@@ -194,7 +195,8 @@ export class Zombie {
         ANIM.moveMinSpeed, ANIM.moveMaxSpeed);
     } else if (next && key === 'crawl') {
       // 포복체의 공격은 기는 동작을 빠르게 돌린 것이다 (엎드린 공격 클립이 없다)
-      next.timeScale = (this.state === 'ATTACK' ? ANIM.crawlerAttackSpeed : 1) * this._jitter;
+      next.timeScale = (this.state === 'ATTACK' ? ANIM.crawlerAttackSpeed
+        : this._moveSpeed > 0.15 ? 1 : ANIM.crawlerIdleSpeed) * this._jitter;
     } else if (next && key === 'hit') {
       // hit_01 은 2.6초짜리라 스턴(1.4초) 안에 절반만 나오고 잘린다.
       // 플린치 시간에 맞춰 압축해서 동작이 끝까지 보이게 한다.
