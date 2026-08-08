@@ -166,10 +166,18 @@ export function build(ctx) {
           // 뽑아서 던져 둔 링거대. 봉쇄하느라 방에서 끌어낸 것이다.
           addProp3D('ivStand', wallX - sx * 0.5, doorZ + 1.05, 0, { collide: [0.34, 0.34] });
           addBlood(wallX - sx * 0.62, doorZ - 0.5, 0.7, 'drag', 0.012);
+          // 문틀에 비스듬히 기대 놓은 대기 의자 — 급히 쌓아 올린 바리케이드다.
+          // 벽에서 0.46m 안쪽까지만 나온다(복도 반폭 2m, 가장 좁은 통로 1.1m 유지).
+          addProp3D('chairRow', wallX - sx * 0.46, doorZ - 1.35, wallYaw + sx * 0.28,
+            { args: [2], collide: [0.5, 1.1] });
         } else {
           // 문을 등지고 밀어붙인 수납장. 안에서 밀지 못하게 대 놓은 것이다.
           addProp3D('cabinet', wallX - sx * 0.42, doorZ - 0.55, wallYaw,
             { collide: [0.55, 0.9] });
+          // 그 위로 넘어뜨려 얹은 처치 카트. 수납장만으로는 "밀어 둔 가구" 로 읽힌다.
+          addProp3D('cart', wallX - sx * 0.44, doorZ + 0.85, wallYaw + sx * 0.5,
+            { collide: [0.6, 0.6] });
+          addBlood(wallX - sx * 0.7, doorZ + 1.5, 0.65, 'drag', 0.012);
         }
       } else {
         addProp3D('doorPanel', wallX, doorZ + DOOR_W / 2, wallYaw + sx * ajar,
