@@ -2,12 +2,21 @@
 #
 # dist/ 는 저장소에 커밋하지 않는다(.gitignore). 여기서 매번 새로 굽는다.
 # 그래야 "커밋된 dist 가 소스보다 낡아서 심사자만 옛날 게임을 보는" 사고가 안 난다.
+#
+# **검사를 통과해야 배포된다.** 예전에는 빌드만 성공하면 그대로 나갔다 — 게임이
+# 깨져도 깨진 채로 심사자에게 갔다는 뜻이다. 이제 자동 검사 125항목 + 모션
+# 1482프레임을 먼저 돌리고, 통과할 때만 build 로 넘어간다.
 name: 배포 (GitHub Pages)
 
 on:
   push:
     branches: [master]
   workflow_dispatch:      # 손으로도 돌릴 수 있게
+    inputs:
+      skip_qa:
+        description: '검사를 건너뛰고 배포한다 (비상용 — CI 환경 문제로 검사가 막혔을 때만)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,7 +29,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 게이트. 여기가 빨간불이면 build 는 아예 시작하지 않는다.
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      # 검사 하네스 전용. 게임 빌드와 무관해서 package.json 에 넣지 않았다.
+      - run: npm i --no-save puppeteer-core
+      - name: 자동 검사 (구역 125항목 + 모션 1482프레임)
+        if: ${{ inputs.skip_qa != true }}
+        env:
+          # 러너에 미리 깔린 크롬. 하네스는 GPU 를 안 쓰고 SwiftShader 로 돈다.
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node tools/qa_run.mjs
+      - name: 검사를 건너뛴 이유를 로그에 남긴다
+        if: ${{ inputs.skip_qa == true }}
+        run: echo "::warning::검사를 건너뛰고 배포한다. 배포본이 검증되지 않았다."
+
   build:
+    needs: qa
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
