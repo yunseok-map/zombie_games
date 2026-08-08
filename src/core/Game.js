@@ -153,20 +153,106 @@ export class Game {
    * **풀에 든 좀비는 숨어 있어서 traverseVisible 에 안 잡힌다** — 잠깐 보이게 해서
    * 같이 굽는다. 안 그러면 첫 좀비가 나타나는 순간 똑같이 튄다.
    */
-  _precompile() {
+  /**
+   * @param warm 한 바퀴 돌며 미리 그릴 것인가 (`_warmupFrames`).
+   *   **타이틀 화면에서는 끈다.** 타이틀은 같은 1구역을 느리게 훑는 연출이라
+   *   거기서 구워지는 것이 어차피 플레이용과 같고, 시작을 누르면 `restart()` 가
+   *   다시 굽는다 — 즉 켜 두면 **같은 일을 두 번** 하면서 그 시간이 통째로
+   *   **로딩 막대 뒤에 붙는다**(실측 초기 로딩 4.8초 → 11.3초).
+   *   타이틀에서 안 구우면 그 비용은 연출이 도는 동안 저절로 흩어진다.
+   */
+  _precompile(warm = true) {
     const hidden = [];
     for (const z of (this.pool?.all ?? [])) {
       if (z.group && !z.group.visible) { hidden.push(z.group); z.group.visible = true; }
     }
     try {
       this.renderer.compile(this.scene, this.camera);
+      if (warm) this._warmupFrames();
     } catch { /* 실패해도 게임은 돌아간다 — 첫 프레임에 굽힐 뿐이다 */ }
     for (const g of hidden) g.visible = false;
   }
 
+  /**
+   * 카메라를 제자리에서 한 바퀴 돌리며 몇 프레임 그려 둔다.
+   *
+   * **`renderer.compile()` 만으로는 부족하다.** 그것은 화면에 그리는 재질만 굽고,
+   * **그림자 패스가 쓰는 깊이 재질**(MeshDepthMaterial)은 그 물체가 손전등 원뿔에
+   * **처음 들어오는 프레임**에 따로 컴파일된다. 그래서 구역을 열고 시야를 크게 돌리면
+   * 그 각도에서 한 번씩 튀었다 — 사용자 보고 "화면 전환 크게 할 때마다 조금씩 끊긴다".
+   *
+   * 실측(구역 이동 직후 한 바퀴): 셰이더 프로그램 75 → 83, 그때마다 78~234ms.
+   * 같은 자리를 두 번째로 돌면 조용하다 — **처음 보는 것에만 드는 비용**이라는 뜻이다.
+   * 그래서 그 비용을 **로딩 중으로 옮긴다.** 총량은 같지만 플레이 중에는 안 보인다.
+   *
+   * 손전등을 강제로 켜는 이유: 꺼져 있으면 그림자 패스를 건너뛰므로
+   * (`FLASHLIGHT.shadowWhenOff`) 깊이 재질이 하나도 안 구워진다.
+   *
+   * **반드시 `post.render` 로 굽는다 — `renderer.render` 로 구우면 헛수고가 섞인다.**
+   * three 의 프로그램 캐시 키에는 **출력 색공간**이 들어간다. 캔버스에 바로 그리면
+   * `srgb` 로, 후처리 렌더타깃에 그리면 `srgb-linear` 로 구워져 **서로 다른 프로그램**이
+   * 된다. 실제로 캔버스로 구웠더니 그림자 깊이 재질(색공간과 무관)은 전부 잡혔는데
+   * B1 의 유리 재질 하나만 계속 남아서, 그 구역에 들어가 150도를 볼 때 82~140ms 튀었다.
+   */
+  _warmupFrames() {
+    const cam = this.camera;
+    const fl = this.flashlight;
+    const rot = cam.rotation.clone();
+    const wasOn = fl?.on;
+    const auto = this.renderer.shadowMap.autoUpdate;
+    if (fl) fl.on = true;
+    this.renderer.shadowMap.autoUpdate = true;
+    cam.rotation.order = 'YXZ';
+
+    // **아주 작게 그린다.** 컴파일되는 프로그램은 해상도와 무관한데, 풀 해상도로 36프레임을
+    // 그리면(게다가 4096² 그림자 패스까지) 구역 전환이 통째로 멈춘다 — 실측으로
+    // 로딩이 7초에서 44초가 됐고 검사 회차가 타임아웃으로 죽었다.
+    // 픽셀만 줄이고 **훑는 각도와 렌더 경로는 그대로 둔다.**
+    const size = new THREE.Vector2();
+    this.renderer.getSize(size);
+    const dpr = this.renderer.getPixelRatio();
+    const shadow = fl?.light?.shadow;
+    const shadowWas = shadow ? shadow.mapSize.x : 0;
+    this.renderer.setPixelRatio(PERF.warmupPixelRatio);
+    this.post?.setSize(size.x, size.y);
+    if (shadow) {
+      // mapSize 를 바꾸면 기존 뎁스 텍스처를 버려야 새 크기로 다시 잡힌다
+      shadow.mapSize.setScalar(PERF.warmupShadowSize);
+      shadow.map?.dispose(); shadow.map = null;
+    }
+    const n = PERF.warmupSteps;
+    // **피치마다 한 바퀴씩 돈다.** 한 바퀴를 돌면서 피치를 같이 돌리면 각도와 피치가
+    // 짝지어져 버려서, "그 각도를 다른 피치로만 본" 조합이 남는다 — 실제로 그렇게 해서
+    // 컴파일이 8회에서 1회로 줄고 마지막 하나가 남았다(150도, 94ms).
+    // 천장·바닥은 벽과 재질이 다르므로 위아래도 각각 훑어야 한다.
+    for (const pitch of [0, -PERF.warmupPitch, PERF.warmupPitch]) {
+      for (let i = 0; i < n; i++) {
+        cam.rotation.y = rot.y + (i / n) * Math.PI * 2;
+        cam.rotation.x = pitch;
+        cam.updateMatrixWorld(true);
+        fl?.update(PERF.warmupDt);
+        this.renderer.shadowMap.needsUpdate = true;
+        // 게임과 같은 경로로 그린다 (위 주석 참고). 후처리가 아직 없으면 그냥 렌더한다.
+        if (this.post) this.post.render(PERF.warmupDt);
+        else this.renderer.render(this.scene, cam);
+      }
+    }
+    cam.rotation.copy(rot);
+    cam.updateMatrixWorld(true);
+    // 원래 크기로 되돌린다. 그림자 맵도 다시 버려야 4096² 로 새로 잡힌다
+    if (shadow) {
+      shadow.mapSize.setScalar(shadowWas);
+      shadow.map?.dispose(); shadow.map = null;
+    }
+    this.renderer.setPixelRatio(dpr);
+    this.post?.setSize(size.x, size.y);
+    this.renderer.shadowMap.autoUpdate = auto;
+    if (fl) fl.on = wasOn;
+  }
+
   startAttract() {
     this.stageLoader.load(STAGES[0]);
-    this._precompile();
+    this._precompile(false);   // 타이틀에서는 굽지 않는다 (위 주석)
     this.pool.despawnAll();
     this.flashlight.on = true;
     this.flashlight.battery = FLASHLIGHT.maxBattery;
