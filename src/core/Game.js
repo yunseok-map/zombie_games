@@ -454,16 +454,20 @@ export class Game {
     const pending = this.interaction.list.filter((e) => e.event && !e.used);
     if (pending.length) {
       for (const e of pending) this.interaction.use(e, state);
-      bus.emit(EV.HINT, { text: `[DEV] 사건 해결 — ${pending.length}개 작동`, duration: 2 });
-      return;
+      return;   // 안내는 레버가 알아서 낸다 (아래 주석)
     }
     const sl = this.stageLoader;
     if (!sl.exit && sl.exitPending) {
       sl.exit = sl.exitPending;
       bus.emit(EV.OBJECTIVE, { text: '헬기 도착 — 난간 쪽으로' });
-      bus.emit(EV.HINT, { text: '[DEV] 출구 개방 — 난간 쪽으로', duration: 3 });
       return;
     }
+    /**
+     * **성공했을 때는 `[DEV]` 문구를 내지 않는다.** 이 키는 촬영용인데, 누를 때마다
+     * 화면에 관리자 문구가 떠서 **영상에 그대로 찍힌다.** 레버가 원래 내보내는 안내
+     * ("신호탄 발사 — 90초 버텨라")와 목표 갱신이 이미 나오므로 그걸로 충분하고,
+     * 그쪽이 화면에 어울린다. 아무 일도 안 일어났을 때만 이유를 알려준다.
+     */
     bus.emit(EV.HINT, { text: '[DEV] 해결할 사건이 없다', duration: 1.5 });
   }
 
