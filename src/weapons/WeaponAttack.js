@@ -130,8 +130,19 @@ export function _hitscan(sys, origin, dir, range, damage, stun) {
       const hit = rayVsSegment(origin, dir, cap);
       if (hit.t < 0 || hit.t > bestT) continue;
       if (hit.distSq > r * r) continue;
-      // 벽 뒤면 무효
-      if (sys.collision.segmentBlocked(origin.x, origin.z, z.pos.x, z.pos.z)) continue;
+      /**
+       * 벽 뒤면 무효.
+       *
+       * **사선의 가장 낮은 지점**을 같이 넘긴다 — 총구(≈1.5m)와 맞는 지점 중
+       * 낮은 쪽이다. 그보다 낮은 충돌 박스는 총알이 **위로 지나간다.**
+       * 넘기지 않던 시절에는 충돌 박스에 높이가 없어서, 넘어진 자판기(0.9m)나
+       * 벤치(0.5m) 같은 무릎 높이 물건이 **보이지 않는 벽**이 되어 그 너머의
+       * 좀비를 쏠 수 없었다. 낮은 쪽을 쓰는 것이 안전한 방향이다 —
+       * 실제로 막혀야 하는 사격을 통과시키지 않는다.
+       */
+      const shotY = Math.min(origin.y, origin.y + dir.y * hit.t);
+      if (sys.collision.segmentBlocked(
+        origin.x, origin.z, z.pos.x, z.pos.z, undefined, shotY)) continue;
       best = z; bestT = hit.t; bestS = hit.s;
     }
 

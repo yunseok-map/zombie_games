@@ -109,13 +109,20 @@ export function _updateAnim(z, dt) {
     } else if (next && key === 'crawl') {
       // 포복체는 자세가 하나뿐이라 **배속으로 상태를 표현한다.**
       // 맞는 동안을 가장 먼저 본다 — 공격 중에 맞아도 반응이 보여야 한다.
-      // 맞는 동안에는 **지터를 곱하지 않는다.** 개체마다 ±8% 가 흔들리면 하한(0.40)을
-      // 밑도는 개체가 생겨 늘어짐으로 잡힌다. 움찔하는 속도는 전부 같아도 된다.
+      //
+      // **멈춰 있을 때와 맞는 동안에는 지터를 곱하지 않는다.** 지터는 개체마다
+      // 0.85~1.15 인데, 이 두 경우는 배속 자체가 하한(ANIM.moveMinSpeed = 0.40)
+      // 바로 위라서 지터가 작게 걸린 개체는 그대로 하한을 밑돈다 — 화면에서
+      // 슬로모션으로 기어간다. 실제로 배회 중 멈춘 포복체가 x0.30 으로 90프레임
+      // 잡혔다 (2026-08-09, tools/qa_motion.js). 움찔·정지 속도는 전부 같아도 된다.
       if (z.stun > 0 || z.flinch > 0) next.timeScale = ANIM.crawlerHitSpeed;
-      else {
-        next.timeScale = (z.state === 'ATTACK' ? ANIM.crawlerAttackSpeed
-          : z._moveSpeed > 0.15 ? 1 : ANIM.crawlerIdleSpeed) * z._jitter;
-      }
+      else if (z.state === 'ATTACK') next.timeScale = ANIM.crawlerAttackSpeed * z._jitter;
+      else if (z._moveSpeed > 0.15) next.timeScale = z._jitter;
+      else next.timeScale = ANIM.crawlerIdleSpeed;
+      // 걷기/달리기와 같은 밴드에 가둔다. 위의 어느 분기가 나중에 바뀌어도
+      // 하한 밑으로는 못 내려간다 — 이 검사를 두 번 우회당했다.
+      next.timeScale = THREE.MathUtils.clamp(
+        next.timeScale, ANIM.moveMinSpeed, ANIM.moveMaxSpeed);
     } else if (next && key === 'hit') {
       // hit_01 은 2.6초짜리라 스턴(1.4초) 안에 절반만 나오고 잘린다.
       // 플린치 시간에 맞춰 압축해서 동작이 끝까지 보이게 한다.

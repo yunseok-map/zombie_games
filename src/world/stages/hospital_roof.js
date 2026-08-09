@@ -87,10 +87,26 @@ export function build(ctx) {
   for (const [x, z, r] of [[-9.5, 11, 0.2], [9.5, 15, -0.3]]) {
     addPropGLB('prop_morgue_lockers', x, z, r, { collide: [3.3, 2.4] });
   }
-  // 자판기 — 옥상 휴게 공간이 있었다는 흔적
-  for (const [x, z] of [[-3.6, 8.5], [4.5, 8.0], [-2.0, 22.5]]) {
-    addProp3D('vendingMachine', x, z, rnd() * 6.28, { collide: [1.2, 1.0] });
-  }
+  /**
+   * 옥상 휴게 공간이 있었다는 흔적 — 자판기 · 벤치.
+   *
+   * **하나는 눕혀 둔다.** 세 대가 나란히 서 있으면 "배치했다"로 읽히는데,
+   * 한 대가 넘어져 있으면 여기서 무슨 일이 있었는지가 읽힌다.
+   * `roll` 을 주면 GLB 대신 절차적 자판기가 쓰인다 (StageLoader.addProp3D).
+   */
+  addProp3D('vendingMachine', -3.6, 8.5, 0.35, { collide: [1.2, 1.0] });
+  addProp3D('vendingMachine', 4.5, 8.0, -0.5, { collide: [1.2, 1.0] });
+  // 넘어진 자판기. h=1.85 를 눕히면 몸통 중심이 roll 축을 따라 +x 로 0.925 밀리고,
+  // 두께의 절반(w/2=0.45)만큼 띄워야 정확히 바닥에 닿는다.
+  // yaw(0.22)까지 돌린 실제 중심은 (+0.90, -0.20) 이라 충돌 박스도 그리로 옮긴다 —
+  // 부호를 반대로 넣으면 **허공에서 막히고 자판기는 통과된다.**
+  addProp3D('vendingMachine', -1.4, 22.9, 0.22, {
+    roll: -Math.PI / 2, y: 0.45, collide: [1.95, 1.1], collideAt: [0.9, -0.2],
+  });
+  // 쏟아져 나온 것들 — 넘어진 자판기 앞에만 잔해를 몰아 준다
+  scatterDebris(0.6, 23.4, 3.0, 2.4, 1.1);
+  addPropGLB('prop_bench', -6.8, 8.2, 0.12, { collide: [1.6, 0.6] });
+  addPropGLB('prop_bench', 7.4, 10.6, Math.PI / 2 + 0.2, { collide: [0.6, 1.6] });
   addPropGLB('prop_panel', -DECK_HALF + 0.45, 10, Math.PI / 2, { collide: [0.5, 0.3] });
   addPropGLB('prop_panel', DECK_HALF - 0.45, 17, -Math.PI / 2, { collide: [0.5, 0.3] });
   // 바리케이드는 문 정면에 두지 않는다 — 나오자마자 시야가 막혀서 방향을 잃는다
@@ -106,6 +122,41 @@ export function build(ctx) {
   for (const [x, z] of [[-7, 9], [5, 13], [-1, 20], [8, 23]]) {
     addProp3D('rubblePile', x, z, rnd() * 6.28, { collide: [1.4, 0.9] });
   }
+
+  /**
+   * ── 여기까지 환자를 올렸다는 흔적 ──
+   *
+   * 옥상이 마지막 구역인데 지금까지는 "설비 + 잔해"뿐이라 **병원 옥상이 아니라
+   * 그냥 옥상**으로 보였다. 아래 네 층에서 본 물건들이 여기 올라와 있어야
+   * 사람들이 환자를 데리고 올라왔다가 실패했다는 것이 읽힌다.
+   * 전부 넘어져 있거나 버려진 상태다 — 정돈된 물건은 하나도 두지 않는다.
+   */
+  addProp3D('gurneyToppled', -5.4, 13.6, 0.9, { collide: [1.6, 1.1] });
+  addProp3D('gurneyToppled', 3.2, 24.6, -2.1, { collide: [1.6, 1.1] });
+  addProp3D('ivStandFallen', -4.2, 12.2, 1.7);
+  addProp3D('ivStandFallen', 6.8, 22.4, -0.4);
+  // 뒤집힌 휠체어 — 1F 병실과 같은 방식(roll + y)으로 옆으로 넘어뜨린다
+  addProp3D('wheelchair', 2.6, 18.4, rnd() * 6.28, { roll: Math.PI / 2 - 0.12, y: 0.3 });
+  // 급히 끌어다 쌓은 의자 줄. 하나는 넘어져 있다
+  addProp3D('chairRow', -8.6, 19.2, 0.1, { args: [3], collide: [0.7, 1.9] });
+  // 눕히면 원래 **폭**(±0.24)이 높이가 된다. 0.42 로 두면 18cm 떠 버린다.
+  // 살짝 잠기는 쪽으로 잡는다 — 떠 있는 것은 눈에 띄고 잠긴 것은 안 띈다.
+  addProp3D('chairRow', -7.2, 24.6, 1.5, { args: [2], roll: Math.PI / 2, y: 0.22 });
+  // 계단탑 문짝이 뜯겨 앞마당에 떨어져 있다 — 무언가가 밀고 나왔다
+  addProp3D('doorFallen', 1.9, 3.4, 0.55, { args: [2.0, 2.05] });
+  addProp3D('extinguisher', -2.4, 4.6, 1.2, { roll: Math.PI / 2 - 0.2, y: 0.09 });
+  // 옥상 설비 — 환기 유닛. 있어야 할 것이 없으면 옥상으로 안 보인다
+  addPropGLB('prop_ventilator', -12.2, 7.4, 0.3, { collide: [1.0, 0.8] });
+  addPropGLB('prop_ventilator', 11.8, 24.2, -0.4, { collide: [1.0, 0.8] });
+  addPropGLB('prop_trolley', 5.8, 19.8, 2.4, { collide: [0.7, 0.5] });
+  addPropGLB('prop_mop_bucket', -10.4, 21.0, 0.4, { collide: [0.5, 0.5] });
+
+  // 여기서 끌려간 흔적. 설비 구역은 지금까지 피 한 방울 없이 깨끗했다
+  addBlood(-5.0, 14.6, 2.2, 'drag');
+  addBlood(2.2, 23.8, 1.6);
+  addBlood(-8.2, 20.0, 1.3, 'splatter');
+  addWallBlood(-DECK_HALF + 0.17, 1.15, 13.0, Math.PI / 2, 1.6, 'handprint');
+  addWallBlood(DECK_HALF - 0.17, 1.3, 21.0, -Math.PI / 2, 1.8);
   scatterDebris(0, 15, DECK_HALF * 2 - 3, 18, 0.3);
   addLight(-9, 3.4, 12, 'flicker', 0x53402a);
   addLight(8, 3.4, 20, 'pulse', 0x3a4a58);

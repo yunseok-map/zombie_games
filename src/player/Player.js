@@ -28,6 +28,12 @@ export class Player {
     this._bobPhase = 0;
     this._stepAccum = 0;
     this._invuln = 0;
+    /**
+     * 관리자 무적 (`?dev=1` + Alt+I). **피격 무적시간(`_invuln`)과 다른 것이다** —
+     * 그쪽은 연속 피격을 막는 짧은 창이고, 물림 피해는 일부러 그것을 무시한다.
+     * 이건 촬영·검수용이라 체력이 깎이는 **모든** 경로를 막는다.
+     */
+    this.godMode = false;
     this._exhausted = false;   // 스태미나 0 찍으면 일정선까지 회복해야 다시 달림
 
     // ── 물림 ──
@@ -174,9 +180,12 @@ export class Player {
     const pull = Math.max(0, Math.abs(d) - GRAB.lookFree) * Math.sign(d);
     this.yaw += pull * Math.min(1, GRAB.lookLerp * dt);
 
-    // 지속 피해 — **무적시간을 무시한다.** 물린 채로 안 깎이면 위협이 아니다
-    this.hp = Math.max(0, this.hp - GRAB.dps * dt);
-    if (this.hp <= 0) { this._endGrab(false); this._die(); return; }
+    // 지속 피해 — **무적시간을 무시한다.** 물린 채로 안 깎이면 위협이 아니다.
+    // (관리자 무적만 예외다. damage() 를 안 거치는 이 경로까지 막아야 무적이 된다)
+    if (!this.godMode) {
+      this.hp = Math.max(0, this.hp - GRAB.dps * dt);
+      if (this.hp <= 0) { this._endGrab(false); this._die(); return; }
+    }
 
     // 몸부림 — 물려 있는 내내 일정 간격으로. 비명 한 번만 지르고 조용해지면
     // 붙잡힌 것이 아니라 잠깐 놀란 것으로 읽힌다.
@@ -204,7 +213,7 @@ export class Player {
     }
     if (this._grabT >= GRAB.maxSeconds) {
       // 시간 초과 — 큰 피해를 주고 놓아준다. 억울하지만 무한 루프보다는 낫다
-      this.hp = Math.max(0, this.hp - GRAB.breakDamage);
+      if (!this.godMode) this.hp = Math.max(0, this.hp - GRAB.breakDamage);
       this.addShake(SHAKE.hurt);
       this._endGrab(false);
       if (this.hp <= 0) this._die();
@@ -437,7 +446,7 @@ export class Player {
    *   어둠 속에서 뒤에서 맞으면 방향을 모른 채 죽는다 — 그건 공포가 아니라 억울함이다.
    */
   damage(amount, from = null) {
-    if (!this.alive || this._invuln > 0) return;
+    if (!this.alive || this.godMode || this._invuln > 0) return;
     this.hp = Math.max(0, this.hp - amount);
     this._invuln = PLAYER.invulnAfterHit;
     this.addShake(SHAKE.hurt);

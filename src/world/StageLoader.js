@@ -469,15 +469,32 @@ export class StageLoader {
         }
         const build = BUILDERS[kind];
         if (!build) { console.warn('[stage] 없는 소품:', kind); return; }
+        // 충돌 박스 높이는 **만든 지오메트리에서 그대로 잰다.** 손으로 적으면
+        // 넘어뜨리거나 크기를 바꿀 때 같이 안 고쳐진다.
+        let topY = 0;
         for (const { mat, geo } of build(...(opts.args ?? []))) {
           fitGenericUV(geo, SURFACE.propTile);        // 회전 전에 — 로컬 크기 기준
           if (opts.roll) geo.rotateZ(opts.roll);      // 넘어짐·기울어짐
           if (opts.pitch) geo.rotateX(opts.pitch);
           if (yaw) geo.rotateY(yaw);
           geo.translate(x, opts.y ?? 0, z);
+          geo.computeBoundingBox();
+          if (geo.boundingBox.max.y > topY) topY = geo.boundingBox.max.y;
           bucket(mat).push(geo);
         }
-        if (opts.collide) this.collision.addBox(x, z, opts.collide[0], opts.collide[1]);
+        /**
+         * @param opts.collideAt [dx, dz] 충돌 박스를 소품 좌표에서 이만큼 옮긴다.
+         *
+         * **넘어뜨린 소품에 필요하다.** `roll` 은 원점을 기준으로 돌리므로, 세워져
+         * 있던 물건을 눕히면 무게중심이 옆으로 밀린다 (자판기 h=1.85 를 눕히면
+         * 0.925m). 박스는 소품 좌표에 중심을 잡으니 그대로 두면 **보이는 곳과
+         * 막히는 곳이 어긋난다** — 허공에서 막히고 물체는 통과된다.
+         */
+        if (opts.collide) {
+          const [dx, dz] = opts.collideAt ?? [0, 0];
+          this.collision.addBox(x + dx, z + dz, opts.collide[0], opts.collide[1],
+            opts.collideH ?? topY);
+        }
       },
 
       /**
@@ -489,7 +506,13 @@ export class StageLoader {
         if (!propModels.place(name, x, opts.y ?? 0, z, yaw)) {
           console.warn('[stage] 없는 GLB 소품:', name); return;
         }
-        if (opts.collide) this.collision.addBox(x, z, opts.collide[0], opts.collide[1]);
+        // 절차적 소품과 같다 — GLB 의 실제 윗면 높이를 충돌 박스에 넘긴다.
+        // 그래야 벤치·양동이 위로 지나는 총알이 통과한다.
+        const topY = (opts.y ?? 0) + propModels.topY(name);
+        if (opts.collide) {
+          this.collision.addBox(x, z, opts.collide[0], opts.collide[1],
+            opts.collideH ?? topY);
+        }
       },
 
       /**

@@ -11,12 +11,18 @@ export class Collision {
 
   /**
    * 중심(cx,cz) 기준 폭 w, 깊이 d 박스 추가.
+   *
+   * @param h 박스 **윗면 높이(m)**. 기본은 무한 — 벽처럼 끝까지 막는다.
+   *   낮은 물건(넘어진 자판기 0.9m, 벤치 0.5m)에 이 값을 주면 **그 위로 지나가는
+   *   총알은 통과한다.** 안 주던 시절에는 무릎 높이 잔해가 보이지 않는 벽이 되어
+   *   그 너머의 좀비를 쏠 수 없었다. 이동은 여전히 막는다 — 넘어갈 수단이 없다.
    * @returns 박스 객체. `box.enabled = false` 로 끄면 통과할 수 있다 (문 열기용).
    */
-  addBox(cx, cz, w, d) {
+  addBox(cx, cz, w, d, h = Infinity) {
     const box = {
       minX: cx - w / 2, maxX: cx + w / 2,
       minZ: cz - d / 2, maxZ: cz + d / 2,
+      h,
       enabled: true,
     };
     this.boxes.push(box);
@@ -62,9 +68,15 @@ export class Collision {
   }
 
   /** (x,z) 가 벽 안인가 — 스폰 지점 검증용 */
-  isBlocked(x, z, r = 0.3) {
+  /**
+   * @param y 이 높이를 지나가는 것인가. 주면 **그보다 낮은 박스는 무시한다**
+   *   (총알이 넘어진 자판기 위로 지나가는 경우). 안 주면 예전과 똑같이 전부 막는다 —
+   *   플레이어 이동·좀비 경로는 높이를 안 넘기므로 동작이 바뀌지 않는다.
+   */
+  isBlocked(x, z, r = 0.3, y = null) {
     for (const b of this.boxes) {
       if (!b.enabled) continue;
+      if (y !== null && b.h <= y) continue;
       if (x > b.minX - r && x < b.maxX + r && z > b.minZ - r && z < b.maxZ + r) return true;
     }
     return false;
@@ -75,14 +87,15 @@ export class Collision {
    * 일정 간격 샘플링 — **간격이 벽 두께보다 크면 벽을 건너뛴다.**
    * 벽 두께가 0.2m 이므로 기본값은 그보다 작아야 한다. (0.5 로 두면 벽 너머가 다 보인다)
    */
-  segmentBlocked(x0, z0, x1, z1, step = 0.14) {
+  /** @param y `isBlocked` 와 같다 — 이 높이보다 낮은 박스는 무시한다 */
+  segmentBlocked(x0, z0, x1, z1, step = 0.14, y = null) {
     const dx = x1 - x0, dz = z1 - z0;
     const dist = Math.hypot(dx, dz);
     if (dist < 1e-4) return false;
     const n = Math.max(1, Math.ceil(dist / step));
     for (let i = 1; i <= n; i++) {
       const t = i / n;
-      if (this.isBlocked(x0 + dx * t, z0 + dz * t, 0.05)) return true;
+      if (this.isBlocked(x0 + dx * t, z0 + dz * t, 0.05, y)) return true;
     }
     return false;
   }

@@ -59,6 +59,26 @@ class PropModelLibrary {
 
   has(name) { return this.protos.has(name); }
 
+  /**
+   * GLB 소품의 **윗면 높이(m)**. 충돌 박스에 넘겨서 그 위로 지나는 총알이
+   * 통과하게 한다 (Collision.addBox 의 h). 모델마다 한 번만 재고 캐시한다.
+   */
+  topY(name) {
+    const proto = this.protos.get(name);
+    if (!proto) return Infinity;
+    if (proto.topY === undefined) {
+      let top = 0;
+      const b = new THREE.Box3();
+      for (const part of proto.parts) {
+        if (!part.geo.boundingBox) part.geo.computeBoundingBox();
+        b.copy(part.geo.boundingBox).applyMatrix4(part.matrix);
+        if (b.max.y > top) top = b.max.y;
+      }
+      proto.topY = top;
+    }
+    return proto.topY;
+  }
+
   /** 게임 시작 전에 한 번. 실패해도 게임은 돌아간다 — 절차적 소품으로 되돌아간다. */
   async preload() {
     if (this.loaded) return;
