@@ -4,6 +4,7 @@
 Vite + Three.js, 외부 엔진 없음. NHN GAME X AI HACKATHON (NAN 2026) 사전 과제 제출작.
 
 **▶ 플레이: https://yunseok-map.github.io/zombie_games/**
+**▶ 플레이 영상: https://www.youtube.com/watch?v=vDHR5LWBffE**
 
 봉쇄된 격리병원에서 깨어난다. 1F 격리병동 → B1 영안실 → 2F 병동 → 3F 수술부 →
 옥상까지 다섯 구역을 지나 헬기를 부르는 것이 목표다.
@@ -24,7 +25,7 @@ Node 20 이상. 처음 실행 시 좀비·무기·소품 GLB 를 받느라 로�
 |---|---|
 | `npm run dev` | 개발 서버 |
 | `npm run build` | `dist/` 로 정적 빌드 |
-| `npm run lint` | 임포트 누락 검사 (ESLint `no-undef`) |
+| `npm run lint` | ESLint. 경고 하나도 허용하지 않는다 (`--max-warnings 0`) |
 | `npm run qa` | 자동 검사 — 구역 125항목 + 모션 1482프레임 + 전투 경로 |
 | `npm run qa:dist` | 빌드한 뒤 **`dist/` 를 실제로 띄워** 게임이 시작되는지 확인 |
 | `npm run verify` | lint → 사운드 배선 → QA 를 한 번에 |
@@ -120,7 +121,7 @@ src/
 에셋을 살 예산이 없어서 **AI 생성 + CC0/CC BY 에셋**으로 채웠다.
 어떤 도구로 무엇을 만들었고 라이선스가 무엇인지는 **`ASSETS.md` 에 전부 기록**돼 있다.
 
-- **효과음·앰비언스 50종** — ElevenLabs Sound Effects
+- **효과음·앰비언스 54종** — ElevenLabs Sound Effects
 - **좀비 본체 4종 + 애니메이션 30클립** — Mixamo (Adobe) 28 · Sketchfab (CC BY) 2
 - **소품 GLB 25개 · 무기 GLB 4개** — Sketchfab (CC BY 4.0) · Kenney (CC0)
 - **표면·사이니지 텍스처** — ambientCG (CC0) · Python 절차 생성 (`tools/gen_*.py`)
@@ -143,6 +144,18 @@ CC BY 에셋의 제작자 22명은 **게임 안 크레딧 화면**에도 전원 
 | `SETUP.md` | 다른 PC 에서 개발 환경 세우기 |
 | `CLAUDE.md` | 이 저장소에서 작업할 때의 강제 규칙 |
 | `docs/notes/` | 개인 작업 메모 (제출물과 무관) |
+
+### 해커톤 제출물
+
+| 제출물 | 파일 |
+|---|---|
+| 1. 플레이 가능한 빌드 + 전체 소스 | 이 저장소 · [GitHub Pages](https://yunseok-map.github.io/zombie_games/) |
+| 2. 플레이 동영상 | https://www.youtube.com/watch?v=vDHR5LWBffE |
+| 3. 게임 소개 및 설명 | [`docs/제출3_게임소개.pdf`](docs/) · 원본 `docs/submission_game_overview.html` |
+| 4. AI 활용 기술 문서 | [`docs/제출4_AI활용기술.pdf`](docs/) · 원본 `docs/submission_ai_tech.html` |
+| 5. 팀원 롤 기술서 | 개인 참여라 해당 없음 |
+
+PDF 는 HTML 원본에서 `npm run pdf` 로 다시 만든다 — 내용을 고칠 때는 **HTML 을 고친다.**
 
 `PROGRESS.md` 의 "알려진 함정" 절은 같은 실수를 두 번 하지 않으려고 남긴 것이라
 이 프로젝트에서 가장 실용적인 문서다.
