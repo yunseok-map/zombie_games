@@ -197,13 +197,43 @@ export function build(ctx) {
   const after = (sec, fn) => timers.push(setTimeout(fn, sec * 1000));
 
   addLever(0, PAD_Z - 7.0, 0, '신호탄', () => {
-    setLights('pulse', 1.4);
-    bus.emit(EV.SFX, { name: 'flashlight', volume: 1.0 });
+    /**
+     * ── 쏘는 순간 ──────────────────────────────────────────────────
+     * 예전에는 여기가 `setLights('pulse')` 한 줄과 **손전등 클릭음**이 전부였다.
+     * 다섯 구역을 지나 도달한 마지막 사건인데 화면에서는 아무 일도 안 일어났다.
+     *
+     * 셋으로 나눈다 — 쏜다(0초) · 위에서 터진다(boomDelay) · 하늘이 물든다.
+     * 발사와 폭발 사이에 간격이 있어야 "쏘아 올렸다"로 읽힌다. 한 번에 터뜨리면
+     * 그냥 큰 총소리다.
+     */
+    bus.emit(EV.SFX, { name: 'flare_launch', volume: 1.0 });
+    bus.emit(EV.SHAKE, { amount: R.launchShake });
+
+    after(R.boomDelay, () => {
+      bus.emit(EV.SFX, { name: 'flare_boom', volume: R.boomVolume });
+      bus.emit(EV.SHAKE, { amount: R.boomShake });
+      // 조명은 **터질 때** 바뀐다. 쏠 때 바뀌면 소리보다 빛이 먼저 온다
+      setLights('pulse', 1.4);
+      setMood({ ...meta.mood, ...R.flareTint });
+    });
+    // 신호탄이 다 타면 원래 밤으로 돌아간다. meta.mood 를 통째로 넘겨야 한다 —
+    // 빠뜨린 값은 applyStageMood 가 기본으로 되돌려서 달빛이 꺼진다
+    after(R.boomDelay + R.flareTintSeconds, () => setMood(meta.mood));
 
     // 주기적으로 몰려온다. 시간이 갈수록 패드 쪽으로 몰리도록 웨이브가 겹친다.
     for (let t = R.waveEvery; t < R.holdSeconds; t += R.waveEvery) {
       after(t, () => triggerWave(R.waveSize));
     }
+
+    // 헬기가 **멀리서부터** 다가온다. 버티는 동안 로터 소리가 커지는 것이
+    // "조금만 더"를 만든다. 소리는 헬리패드 쪽에서 난다 — 어디를 봐야 할지 알려준다.
+    R.heliCueAt.forEach((left, i) => {
+      if (left >= R.holdSeconds) return;
+      after(R.holdSeconds - left, () => bus.emit(EV.SFX, {
+        name: 'heli_distant', x: 0, z: PAD_Z, volume: R.heliCueVolume[i] ?? 1,
+      }));
+    });
+
     bus.emit(EV.OBJECTIVE, { text: `헬기가 올 때까지 ${R.holdSeconds}초 버텨라` });
     for (const left of R.warnAt) {
       if (left >= R.holdSeconds) continue;
@@ -214,14 +244,27 @@ export function build(ctx) {
     }
     after(R.holdSeconds - 6, () => triggerWave(R.finalWave));
 
+    // 로터 소리가 **도착보다 먼저** 덮친다. 소리가 먼저 와야 헬기가 날아온 것이지,
+    // 목표 문구와 동시에 나면 UI 가 알려주는 것이 된다.
+    after(Math.max(0, R.holdSeconds - R.heliArriveLead), () => bus.emit(EV.SFX, {
+      name: 'heli_arrive', x: 0, z: PAD_Z, volume: R.heliArriveVolume,
+    }));
+
     // 헬기 도착 — 그제야 탈출 지점이 열린다
     after(R.holdSeconds, () => {
-      setMood({ ambientIntensity: 0.4, fogDensity: 0.018 });
+      setMood(R.arriveMood);          // 값 전체를 넘긴다 (world.js arriveMood 주석)
       setLights('steady', 1.8);
       bus.emit(EV.OBJECTIVE, { text: '헬기 도착 — 난간 쪽으로' });
       bus.emit(EV.HINT, { text: '헬기 도착 — 난간 쪽으로', duration: 6 });
       setExit({ x: 0, z: EXIT_Z + 1.2, radius: 2.4 });
     });
+    // 난간까지 뛰어가는 동안 로터가 계속 돌아야 한다. 파일이 8초라 그보다 짧은
+    // 간격으로 겹쳐 튼다 — 끊기면 헬기가 사라진 것처럼 들린다.
+    for (let i = 1; i <= R.heliRepeats; i++) {
+      after(R.holdSeconds - R.heliArriveLead + R.heliRepeatEvery * i, () => bus.emit(EV.SFX, {
+        name: 'heli_arrive', x: 0, z: PAD_Z, volume: R.heliArriveVolume,
+      }));
+    }
 
     return `신호탄 발사 — ${R.holdSeconds}초 버텨라`;
   }, '쏘기');

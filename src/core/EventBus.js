@@ -54,5 +54,9 @@ export const EV = {
   // B1 발전기 복구. **구역을 넘어 남는 유일한 상태**라 이벤트로 알린다 —
   // 위층은 이걸 받아 비상등을 켠 채로 시작한다 (stages/*.js 의 meta.poweredMood)
   POWER_RESTORED: 'power:restored',
+  // 화면을 흔든다 { amount } — 0~1. 전투가 아닌 **사건**이 몸으로 느껴져야 할 때만
+  // 쓴다 (옥상 신호탄이 머리 위에서 터지는 순간). 전투 흔들림은 이 이벤트를 쓰지
+  // 않는다 — WEAPON_FIRED·MELEE_HIT 처럼 이미 있는 사건에 Player 가 직접 붙어 있다.
+  SHAKE: 'fx:shake',
   SFX: 'sfx',                     // { name, x, z, volume }
 };

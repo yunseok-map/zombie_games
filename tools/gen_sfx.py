@@ -15,7 +15,14 @@ API = "https://api.elevenlabs.io/v1/sound-generation"
 # 모든 프롬프트에 붙는 톤 고정 문구 (ASSETS.md §3 과 같은 역할)
 TONE = "abandoned quarantine hospital, cold concrete interior, dry close-mic recording, no music"
 
-# (경로, 프롬프트, 길이초, prompt_influence)
+# 옥상은 **실내가 아니다.** 기본 톤의 "cold concrete interior" 를 그대로 붙이면
+# 뻥 뚫린 하늘에서 나야 할 소리가 복도에서 나는 소리가 된다. 이 톤을 쓰는 것은
+# 지금은 옥상 피날레 네 개뿐이다.
+TONE_ROOF = ("open rooftop at night, wide outdoor space with no walls, night wind, "
+             "no interior reverb, no music")
+
+# (경로, 프롬프트, 길이초, prompt_influence[, 톤])
+# 다섯 번째 항목을 주면 그 줄만 다른 톤을 쓴다 (안 주면 TONE).
 JOBS = [
     ("sfx/sfx_footstep_concrete_01", "single footstep on gritty concrete floor, boot sole, soft scuff", 1.0, 0.7),
     ("sfx/sfx_footstep_concrete_02", "single footstep on gritty concrete floor, boot heel, slight grit crunch", 1.0, 0.7),
@@ -90,6 +97,25 @@ JOBS = [
     ("sfx/sfx_fire_loop", "steady burning gasoline fire on concrete floor, crackling flames, seamless loop", 12.0, 0.45),
     # 라디오는 **소리를 내기 때문에** 좀비를 끈다. 지금까지 그 소리가 없었다
     ("sfx/sfx_radio_static", "old portable radio clatters on floor and switches on, loud hissing static with garbled voice", 3.0, 0.55),
+
+    # ── 옥상 피날레 (2026-08-09) ────────────────────────────────────────────
+    # 마지막 장면인데 소리가 없었다. 신호탄은 **손전등 클릭음**을 돌려 쓰고 있었고
+    # (sfx_flashlight_click), 헬기는 아예 파일이 없어서 조명만 바뀌고 끝났다.
+    # 이 게임에서 가장 큰 사건이 가장 조용했다.
+    #
+    # 발사와 폭발을 **두 파일로 나눈다.** 한 파일에 담으면 터지는 시점이 고정되어
+    # 화면흔들림·조명과 못 맞춘다. 쏘고 0.9초 뒤에 위에서 터지는 간격이 있어야
+    # "쏘아 올렸다"로 읽힌다.
+    ("sfx/sfx_flare_launch", "signal flare pistol fired straight up into the sky, hollow metallic thump then a hissing burning trail rising away", 1.6, 0.65, TONE_ROOF),
+    # **"crack" 을 앞세우면 저역이 안 실린다.** 첫 판은 그렇게 썼다가 200Hz 아래
+    # 에너지가 13% 밖에 안 나왔다 — 권총(26%)보다 얇았고, 전체 에너지의 98% 가
+    # 앞 1.2초에 몰려서 쿠구우궁이 아니라 '탕' 이었다 (scratchpad/sfxcheck.mjs).
+    # 그래서 프롬프트에서 고음 파열을 빼고 **저역과 긴 꼬리**만 주문한다.
+    ("sfx/sfx_flare_boom",   "deep booming detonation high in the night sky, heavy low sub-bass thunder rolling outward and echoing away for several seconds, long slow decaying rumble, no sharp high-frequency crack", 6.0, 0.42, TONE_ROOF),
+    # 헬기는 **도착하기 한참 전부터** 들려야 한다. 버티는 동안 멀리서 로터 소리가
+    # 커지는 것이 "조금만 더"를 만든다. 도착음만 있으면 90초가 그냥 견디는 시간이다.
+    ("sfx/sfx_heli_distant", "military helicopter rotor thumping far away in the distance, thin and muffled by distance, slowly getting closer", 6.0, 0.5, TONE_ROOF),
+    ("sfx/sfx_heli_arrive",  "helicopter hovering low directly overhead, heavy rotor wash beating the air, turbine whine, powerful downdraft buffeting and rattling loose debris on concrete", 8.0, 0.55, TONE_ROOF),
 ]
 
 
@@ -102,9 +128,9 @@ def read_key():
     raise SystemExit(".env.local 에 ELEVENLABS_API_KEY 가 없다")
 
 
-def generate(key, prompt, seconds, influence):
+def generate(key, prompt, seconds, influence, tone=TONE):
     body = json.dumps({
-        "text": f"{prompt}. {TONE}",
+        "text": f"{prompt}. {tone}",
         "duration_seconds": seconds,
         "prompt_influence": influence,
     }).encode()
@@ -119,7 +145,9 @@ def main():
     force = "--force" in sys.argv
     key = read_key()
     ok = fail = skip = 0
-    for rel, prompt, seconds, influence in JOBS:
+    for job in JOBS:
+        rel, prompt, seconds, influence = job[:4]
+        tone = job[4] if len(job) > 4 else TONE
         out = os.path.join(ROOT, "public", "assets", "audio", rel + ".mp3")
         os.makedirs(os.path.dirname(out), exist_ok=True)
         if os.path.exists(out) and not force:
@@ -128,7 +156,7 @@ def main():
             continue
         for attempt in range(3):
             try:
-                data = generate(key, prompt, seconds, influence)
+                data = generate(key, prompt, seconds, influence, tone)
                 if not data.startswith(b"ID3") and data[:2] != b"\xff\xfb":
                     raise RuntimeError(f"MP3 가 아님: {data[:40]!r}")
                 with open(out, "wb") as f:

@@ -79,6 +79,15 @@ const MANIFEST = {
   //   radio_static  → Throwables._land      (라디오가 떨어져 켜지는 순간)
   radio_static: 'sfx/sfx_radio_static.mp3',
 
+  // ── 옥상 피날레 (2026-08-09) ──────────────────────────────────────────
+  // 전부 stages/hospital_roof.js 의 신호탄 레버가 시간차로 부른다.
+  // 발사와 폭발이 따로인 이유: 한 파일이면 터지는 시점이 고정되어 화면흔들림·
+  // 조명과 못 맞춘다. 쏘고 EVENTS.roof.boomDelay 뒤에 위에서 터진다.
+  flare_launch: 'sfx/sfx_flare_launch.mp3',
+  flare_boom: 'sfx/sfx_flare_boom.mp3',
+  heli_distant: 'sfx/sfx_heli_distant.mp3',
+  heli_arrive: 'sfx/sfx_heli_arrive.mp3',
+
   ambience: 'ambience/amb_hospital_hum.mp3',
 };
 

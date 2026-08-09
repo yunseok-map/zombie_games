@@ -546,6 +546,7 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | |
 | sfx_{pistol_fire,flashlight_click,axe_swing,axe_hit_flesh,reload_pistol,player_hurt}.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | |
 | amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | 20초 루프 (API 최대 길이 22초) |
+| sfx_{flare_launch,flare_boom,heli_distant,heli_arrive}.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | 옥상 피날레 4종 (2026-08-09). 이것들만 **야외 톤**으로 생성한다 — 기본 톤의 "cold concrete interior" 를 붙이면 뻥 뚫린 옥상에서 나야 할 소리가 복도에서 난다 (`tools/gen_sfx.py` 의 `TONE_ROOF`) |
 | zombie_shambler.glb | **Mixamo** (Adobe) | Free | 무제한 · 표기 불요 | 여성 좀비 캐릭터 + 애니메이션 **30클립**. 6k tri / 1024 WebP |
 | zombie_nurse.glb / zombie_surgeon.glb | **Mixamo** (Adobe) | Free | 무제한 · 표기 불요 | 방호복·수술복 본체. surgeon 은 클립을 nurse 에서 빌린다 |
 | walk_05 · crawl_02 (클립) | **Sketchfab** — OSCAR CREATIVO / Beer Game Maker | CC BY 4.0 | 가능 (표기 의무) | 걷기·포복 변형. 메시는 안 쓰고 애니메이션만 (§4-C) |

@@ -71,6 +71,8 @@ export class Player {
     bus.on(EV.ZOMBIE_HIT, ({ headshot }) => {
       if (headshot) this.addShake(SHAKE.headshot);
     });
+    // 전투가 아닌 사건이 몸으로 와야 할 때 (옥상 신호탄 폭발). 값은 부르는 쪽이 정한다
+    bus.on(EV.SHAKE, ({ amount }) => this.addShake(amount));
   }
 
   addShake(v) { this._trauma = Math.min(1, this._trauma + v); }
