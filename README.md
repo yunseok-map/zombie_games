@@ -121,7 +121,7 @@ src/
 어떤 도구로 무엇을 만들었고 라이선스가 무엇인지는 **`ASSETS.md` 에 전부 기록**돼 있다.
 
 - **효과음·앰비언스 50종** — ElevenLabs Sound Effects
-- **좀비 본체 4종 + 애니메이션 27클립** — Mixamo (Adobe)
+- **좀비 본체 4종 + 애니메이션 30클립** — Mixamo (Adobe) 28 · Sketchfab (CC BY) 2
 - **소품 GLB 25개 · 무기 GLB 4개** — Sketchfab (CC BY 4.0) · Kenney (CC0)
 - **표면·사이니지 텍스처** — ambientCG (CC0) · Python 절차 생성 (`tools/gen_*.py`)
 

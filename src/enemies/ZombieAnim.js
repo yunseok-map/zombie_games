@@ -18,21 +18,21 @@ const _tmp = new THREE.Vector3();
   /** 상태 → 클립 종류 */
 export function _animKey(z) {
     if (z.state === 'DEAD') return 'death';
+    /**
+     * 기어다니는 개체는 **서는 동작이 하나도 없다.** 이동·정지·공격·피격·포효 전부
+     * 엎드린 클립(`crawl`)으로 처리한다. 선 자세 클립을 쓰면 modelYOffset(-0.62)
+     * 때문에 몸이 바닥 아래로 묻히거나, 반대로 **엎드려 있던 것이 벌떡 일어선다.**
+     *
+     * 이 분기가 `death` 바로 다음에 와야 한다. 예전에는 `hit`·`scream` 이 위에
+     * 있어서 각각 따로 새어 나갔다 —
+     *   · scream: 발견한 포복체의 가장 낮은 뼈가 -0.50m (3F 40회 중 6회)
+     *   · hit: **때리면 일어나서 맞았다** (2026-08-09 플레이 중 발견)
+     * 하나씩 예외를 다는 대신 분기를 통째로 위로 올려서 다시 안 새게 한다.
+     * 소리는 그대로 난다 — `_screamTimer`·피격음은 클립이 아니라 사건에 걸린다.
+     */
+    if (z.def.crawler) return 'crawl';
     if (z.stun > 0 || z.flinch > 0) return 'hit';
-    // 발견 순간의 포효. **기어다니는 개체는 제외한다** — 이것도 선 자세 클립이라
-    // 아래 crawler 분기가 막는 것과 똑같이 몸이 바닥 아래로 묻힌다. 그 분기를 만들 때
-    // scream 이 위에 있어서 같이 안 고쳐졌다. 실측: 플레이어를 발견한 포복체의
-    // 가장 낮은 뼈가 **-0.50m** (3F 40회 순회 중 6회, 전부 클립 scream).
-    // 소리는 그대로 난다 — `_screamTimer` 는 클립이 아니라 발견 시점에 걸린다.
-    if (z._screamTimer > 0 && !z.def.crawler) return 'scream';
-    // 기어다니는 개체는 서는 동작이 없다 — 이동/정지/공격 전부 엎드린 클립을 쓴다.
-    // **공격 판정을 ATTACK 보다 먼저 본다.** 선 자세 공격 클립을 쓰면 modelYOffset(-0.62)
-    // 때문에 몸이 바닥 아래로 묻힌다 (tools/qa_motion.js 가 잡았다).
-    if (z.def.crawler) {
-      // 멈춰 있어도 crawl 을 쓴다 — crawl_idle 은 무릎 꿇은 자세라 다리가 바닥에
-      // 잠긴다 (ANIM.crawlerIdleSpeed 주석에 실측값). 대신 느리게 돌린다.
-      return 'crawl';
-    }
+    if (z._screamTimer > 0) return 'scream';
     // 물고 있는 동안도 공격 클립을 쓴다 — 느리게 돌려 매달려 버둥거리는 것처럼 보인다
     if (z.state === 'ATTACK' || z.state === 'GRAB') return 'attack';
     if (z.state === 'CHASE') return 'run';
@@ -107,9 +107,15 @@ export function _updateAnim(z, dt) {
         (z._moveSpeed / Math.max(ref, 0.1)) * z._jitter,
         ANIM.moveMinSpeed, ANIM.moveMaxSpeed);
     } else if (next && key === 'crawl') {
-      // 포복체의 공격은 기는 동작을 빠르게 돌린 것이다 (엎드린 공격 클립이 없다)
-      next.timeScale = (z.state === 'ATTACK' ? ANIM.crawlerAttackSpeed
-        : z._moveSpeed > 0.15 ? 1 : ANIM.crawlerIdleSpeed) * z._jitter;
+      // 포복체는 자세가 하나뿐이라 **배속으로 상태를 표현한다.**
+      // 맞는 동안을 가장 먼저 본다 — 공격 중에 맞아도 반응이 보여야 한다.
+      // 맞는 동안에는 **지터를 곱하지 않는다.** 개체마다 ±8% 가 흔들리면 하한(0.40)을
+      // 밑도는 개체가 생겨 늘어짐으로 잡힌다. 움찔하는 속도는 전부 같아도 된다.
+      if (z.stun > 0 || z.flinch > 0) next.timeScale = ANIM.crawlerHitSpeed;
+      else {
+        next.timeScale = (z.state === 'ATTACK' ? ANIM.crawlerAttackSpeed
+          : z._moveSpeed > 0.15 ? 1 : ANIM.crawlerIdleSpeed) * z._jitter;
+      }
     } else if (next && key === 'hit') {
       // hit_01 은 2.6초짜리라 스턴(1.4초) 안에 절반만 나오고 잘린다.
       // 플린치 시간에 맞춰 압축해서 동작이 끝까지 보이게 한다.

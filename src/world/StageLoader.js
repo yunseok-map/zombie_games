@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SURFACE, LOOT, CORPSE, SCATTER, KEY_ITEM_GLOW } from '../config/balance.js';
+import { WEAPONS } from '../config/weapons.js';
 import { bus, EV } from '../core/EventBus.js';
 import { Scatter, BloodDecals } from './Scatter.js';
 import { BUILDERS, signPlate } from './Props.js';
@@ -296,7 +297,18 @@ export class StageLoader {
     this.interaction.add({
       x, z, radius: 1.6, once: true, mesh: m,
       prompt: () => `[E]  ${label} 줍기`,
-      onUse: ({ weapons }) => (weapons.pickUp(id) ? `${label} 획득` : null),
+      onUse: ({ weapons }) => {
+        if (!weapons.pickUp(id)) return null;
+        /**
+         * 던지는 무기는 **주운 것만으로는 용도를 모른다.** 근접·총기는 쓰면 바로
+         * 알지만, 라디오는 던져도 눈에 보이는 일이 안 일어난다(소리로 끌어모은다).
+         * 실제로 "라디오 역할이 뭔지 모르겠다"는 보고가 나왔다 — 그래서 획득 안내와
+         * **따로**, 조금 더 길게 설명을 한 번 띄운다. 문구는 config/weapons.js 에 있다.
+         */
+        const usage = WEAPONS[id]?.usage;
+        if (usage) bus.emit(EV.HINT, { text: `${label} — ${usage}`, duration: 6 });
+        return `${label} 획득`;
+      },
     });
   }
 

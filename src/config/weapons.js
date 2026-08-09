@@ -74,7 +74,10 @@ export const WEAPONS = {
    */
   molotov: {
     id: 'molotov', label: '화염병', type: 'throw', slot: 3,
-    charges: 2,              // 라디오(3)보다 귀하다. 이건 지형을 잠그는 결정타다
+    charges: 2,
+    // 주웠을 때 한 번 띄우는 설명. **이게 없으면 플레이어가 용도를 모른다** —
+    // 던지는 무기는 아이콘만 봐서는 무슨 일이 일어나는지 알 수 없다.
+    usage: '던지면 깨지면서 불바다가 된다 — 좁은 길목을 잠글 때 쓴다',              // 라디오(3)보다 귀하다. 이건 지형을 잠그는 결정타다
     cooldown: 1.2,
     noise: 'interact',
     viewColor: 0x2c4a2e, viewScale: [0.1, 0.24, 0.1],
@@ -83,6 +86,7 @@ export const WEAPONS = {
     id: 'radio', label: '라디오', type: 'throw', slot: 3,
     // 개수가 있어야 도구가 된다. 무한이면 이것 하나로 게임 전체를 우회할 수 있다
     charges: 3,
+    usage: '던지면 소리로 좀비를 그쪽에 끌어모은다 — 싸우지 않고 지나갈 때 쓴다',
     damage: 0, cooldown: 1.0, radius: 0, fuse: 0.6,
     lure: true, lureRadius: 30, lureDuration: 12,   // 좀비를 유인한다
     noise: 'interact', viewColor: 0x554e46, viewScale: [0.16, 0.1, 0.08],

@@ -131,8 +131,26 @@ export function boardedDoor(w = 1.3) {
  * 병상. variant 로 어질러진 정도를 바꾼다 — 열두 개가 전부 반듯하면 폐병원이 아니다.
  * 0 정돈 · 1 이불이 뭉쳐 흘러내림 · 2 매트리스가 어긋남 · 3 매트리스가 바닥으로 떨어짐
  */
+const BED_W = 0.92, BED_L = 2.0, BED_FY = 0.56, MAT_T = 0.13;
+
+/**
+ * `bed()` 가 만드는 면의 **실측 높이·위치**. 침대 위에 뭔가(핏자국·소품) 올릴 때
+ * 이 값을 쓴다. 숫자를 부르는 쪽에 베끼면 침대 모양을 고칠 때 같이 안 고쳐진다 —
+ * 실제로 그래서 1F 병실 핏자국이 **63cm 공중에 떠 있었다** (2026-08-09).
+ *
+ * `fallen*` 은 변형 3 전용이다. 그 방의 매트리스는 침대 위가 아니라 **옆 바닥**에
+ * 떨어져 있고, 프롭 안에서 항상 `+x` 로 밀려 있다(구역이 침대를 회전 없이 놓는다).
+ */
+export const BED = {
+  mattressTop: BED_FY + 0.1 + MAT_T / 2,   // 0.725 — 변형 0·1·2 의 매트리스 윗면
+  springTop: BED_FY + 0.04 + 0.01,         // 0.610 — 변형 3 의 드러난 스프링 판
+  fallenTop: 0.08 + MAT_T / 2,             // 0.145 — 바닥에 떨어진 매트리스 윗면
+  fallenDX: BED_W * 0.95,                  // 0.874 — 침대 중심에서 옆으로
+  fallenDZ: -0.15,
+};
+
 export function bed(variant = 0) {
-  const w = 0.92, l = 2.0, fy = 0.56;
+  const w = BED_W, l = BED_L, fy = BED_FY;
   const parts = [
     P('enamel', box(w, 0.07, l, 0, fy, 0)),
     P('enamel', box(w, 0.55, 0.06, 0, fy + 0.3, -l / 2)),                // 헤드보드
@@ -144,8 +162,9 @@ export function bed(variant = 0) {
 
   if (variant === 3) {
     // 매트리스가 침대 옆 바닥에 떨어져 있다
-    const g = new THREE.BoxGeometry(w - 0.06, 0.13, l - 0.16);
-    g.rotateY(0.28); g.rotateZ(0.06); g.translate(w * 0.95, 0.08, -0.15);
+    const g = new THREE.BoxGeometry(w - 0.06, MAT_T, l - 0.16);
+    g.rotateY(0.28); g.rotateZ(0.06);
+    g.translate(BED.fallenDX, BED.fallenTop - MAT_T / 2, BED.fallenDZ);
     parts.push(P('fabric', g));
     parts.push(P('metal', box(w - 0.1, 0.02, l - 0.2, 0, fy + 0.04, 0)));   // 드러난 스프링 판
     return parts;
@@ -153,9 +172,9 @@ export function bed(variant = 0) {
 
   const off = variant === 2 ? 0.18 : 0;
   const rot = variant === 2 ? 0.09 : 0;
-  const mat = new THREE.BoxGeometry(w - 0.06, 0.13, l - 0.16);
+  const mat = new THREE.BoxGeometry(w - 0.06, MAT_T, l - 0.16);
   if (rot) mat.rotateY(rot);
-  mat.translate(off, fy + 0.1, 0);
+  mat.translate(off, BED.mattressTop - MAT_T / 2, 0);
   parts.push(P('fabric', mat));
   parts.push(P('fabric', box(w - 0.1, 0.06, 0.5, off, fy + 0.19, -l / 2 + 0.35, rot)));  // 베개
 

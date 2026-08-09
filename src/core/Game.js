@@ -375,27 +375,27 @@ export class Game {
    * **`?dev=1` 이 URL 에 있을 때만 켜진다.** 심사자가 받는 링크에는 없으므로
    * 실수로 밟을 일이 없다. 그냥 키를 열어 두면 심사 중에 눌려서 게임이 망가진다.
    *
-   *   Ctrl+G  모든 무기 + 탄약 가득 + 카드키 지급
-   *   Ctrl+M  다음 구역으로 (마지막 구역이면 무시)
-   *   Ctrl+I  무적 켜기/끄기 — 촬영 중에 죽으면 테이크가 날아간다
+   *   Alt+G  모든 무기 + 탄약 가득 + 카드키 지급
+   *   Alt+M  다음 구역으로 (마지막 구역이면 무시)
+   *   Alt+I  무적 켜기/끄기 — 촬영 중에 죽으면 테이크가 날아간다
    *
    * **Ctrl 조합인 이유**: 맨 G·N·I 는 플레이 중에 손이 미끄러지면 그냥 눌린다.
    * `?dev=1` 이 이미 1차 방벽이지만, 그 링크로 남에게 보여 줄 때도 안전해야 한다.
    *
    * 조합을 고를 때 걸린 것 두 가지 —
-   *  · **Ctrl+N 은 못 쓴다.** 크롬이 새 창을 열고 페이지에 키를 넘기지 않는다
+   *  · **N 은 못 쓴다.** 크롬이 새 창을 열고 페이지에 키를 넘기지 않는다
    *    (preventDefault 로도 못 막는 예약 조합: N·T·W). 그래서 다음 구역은 M 이다.
-   *  · Ctrl 은 이미 **웅크리기**다 (Player.js). 조합을 누르는 동안 잠깐 웅크려지는데,
-   *    한 프레임짜리라 촬영에 지장이 없어 그대로 둔다.
+   *  · **Ctrl 은 쓰면 안 된다.** Ctrl 은 웅크리기다(Player.js). 처음엔 한 프레임이라
+   *    괜찮을 줄 알았는데, 조합을 누를 때마다 실제로 화면이 내려앉았다. 그래서 **Alt** 다.
    *
    * 영상은 이 모드로 **장비만 갖추고 시작한 뒤 실제로 플레이해서** 찍는다.
    * 규정이 "실제 플레이 화면 그대로"를 요구하므로 자동 조작으로 찍지 않는다.
    */
   _devKeys() {
     const inp = this.input;
-    // Ctrl 을 **누르고 있는 동안**만 조합을 받는다. 좌우 어느 쪽이든 된다.
+    // Alt 를 **누르고 있는 동안**만 조합을 받는다. 좌우 어느 쪽이든 된다.
     // 이 게이트는 **조합 처리에만** 건다 — 아래 무적 유지는 매 프레임 돌아야 한다.
-    if (inp.down('ControlLeft') || inp.down('ControlRight')) {
+    if (inp.down('AltLeft') || inp.down('AltRight')) {
       if (inp.justPressed('KeyG')) {
         for (const id of Object.keys(WEAPONS)) this.weapons.pickUp(id);
         for (const id of Object.keys(WEAPONS)) this.weapons.addAmmo(id, 999);

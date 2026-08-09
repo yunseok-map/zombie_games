@@ -1,4 +1,5 @@
 import { makeRng } from '../rng.js';
+import { BED } from '../Props.js';
 
 /**
  * 구역 A — 1F 로비 · 응급실 (SPEC.md §3)
@@ -205,22 +206,34 @@ export function build(ctx) {
       const bx = roomCx + sx * 1.4;
       // 침대 흐트러짐 — 0 정돈 / 1 이불 뭉침 / 2 매트리스 어긋남 / 3 매트리스 바닥
       const bv = (i * 3 + side * 2) % 4;
-      /** 침대 위 핏자국 — 매트리스 윗면(y≈0.63)에 얹는다 */
-      const bedBlood = (x, z, size) => addBlood(x, z, size, null, 0.635);
+      /**
+       * 침대 핏자국 — **자국을 얹을 면이 변형마다 다르다.**
+       *
+       * 예전에는 높이를 `0.635` 로 박아 놓고 모든 변형에 똑같이 썼는데, 그 값은
+       * 매트리스 **속**이고(윗면은 0.725) 변형 3 은 매트리스가 아예 **옆 바닥**에
+       * 떨어져 있다(윗면 0.145). 그래서 그 방들의 자국이 **49~63cm 공중에 떠 있었다.**
+       * 게다가 옆으로 밀 때 `sx` 를 곱해서, 왼쪽 방에서는 매트리스 **반대쪽** 허공에
+       * 찍혔다 — 침대는 좌우 어느 방이든 회전 없이 놓이므로 항상 `+x` 다.
+       * 높이·오프셋은 `Props.BED` 가 침대 지오메트리에서 직접 내보낸다.
+       */
+      const bedBlood = (bedX, bedZ, size, variant, dz = 0) => (variant === 3
+        ? addBlood(bedX + BED.fallenDX, bedZ + BED.fallenDZ,
+          Math.min(size, 0.8), null, BED.fallenTop + 0.003)
+        : addBlood(bedX, bedZ + dz, size, null, BED.mattressTop + 0.003));
 
       if (preset === 0) {
         addProp3D('bed', bx, zc - 1.6, 0, { collide: [0.95, 2.05], args: [bv] });
         addProp3D('bed', bx, zc + 1.6, 0, { collide: [0.95, 2.05], args: [(bv + 2) % 4] });
         addProp3D('ivStand', roomCx - sx * 1.9, zc - 1.2, 0);
         addProp3D('curtain', roomCx + sx * 0.2, zc, Math.PI / 2, { args: [1.9, 1.95] });
-        bedBlood(bx, zc - 1.9, 1.0);
+        bedBlood(bx, zc - 1.6, 0.8, bv, -0.3);          // 머리맡 침대(zc-1.6) 위
       } else if (preset === 1) {
         addProp3D('bed', bx, zc, 0, { collide: [0.95, 2.05], args: [bv] });
         addProp3D('cabinet', roomCx, zc + 2.4, Math.PI, { collide: [0.75, 0.5] });
         roomSearch(roomCx, zc + 2.0, '서랍장');
         // 링거대가 넘어져 있다
         addProp3D('ivStandFallen', bx - sx * 0.9, zc - 1.3, rnd() * 6.28);
-        bedBlood(bx, zc + 0.2, 1.25);
+        bedBlood(bx, zc, 0.9, bv, 0.2);
         addBlood(bx - sx * 0.85, zc + 1.1, 1.5, 'drag');       // 침대에서 끌려나간 자국
       } else if (preset === 2) {
         addProp3D('examTable', roomCx, zc - 2.0, 0, { args: [3.6, 0.6], collide: [3.6, 0.65] });
@@ -240,7 +253,7 @@ export function build(ctx) {
           { roll: Math.PI / 2 - 0.15, y: 0.3 });
         addProp3D('cart', roomCx, zc - 2.4, rnd() * 6.28, { collide: [0.7, 0.5] });
         roomSearch(roomCx, zc - 2.0, '처치 카트');
-        bedBlood(bx + sx * 0.9, zc - 1.5, 1.3);                // 바닥에 떨어진 매트리스 위
+        bedBlood(bx, zc - 1.5, 0.8, 3);                        // 바닥에 떨어진 매트리스 위
       }
       // 병실 벽 핏자국 — 절반 정도만. 전부 넣으면 무뎌진다
       if ((i + side) % 3 === 0) {

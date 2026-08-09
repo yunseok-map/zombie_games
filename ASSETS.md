@@ -542,18 +542,18 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | floor_tile_hospital_{color,normal,rough}.webp | ambientCG (Tiles040) | CC0 | 가능 | 색 1024 · 노멀/러프 512 WebP, AO를 color에 55% 합성 (`tools/gen_surfaces.py`) |
 | ceiling_panel_office_{color,normal,rough}.webp | ambientCG (OfficeCeiling001) | CC0 | 가능 | 색 1024 · 노멀/러프 512 WebP, AO를 color에 55% 합성 (`tools/gen_surfaces.py`) |
 | decal_blood_{pool,splatter,drag}.webp | 절차적 생성 (numpy/PIL 스크립트) | 자체 제작 | 가능 | fBm 노이즈 기반. 저작권 이슈 없음 |
-| sfx_footstep_concrete_01~04.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 발소리 4종 |
-| sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
-| sfx_{pistol_fire,flashlight_click,axe_swing,axe_hit_flesh,reload_pistol,player_hurt}.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | |
-| amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 확인 필요 | 20초 루프 (API 최대 길이 22초) |
-| zombie_shambler.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 여성 좀비 캐릭터 + 애니메이션 **30클립**. 6k tri / 1024 WebP |
-| zombie_nurse.glb / zombie_surgeon.glb | **Mixamo** (Adobe) | Free | 확인 필요 | 방호복·수술복 본체. surgeon 은 클립을 nurse 에서 빌린다 |
+| sfx_footstep_concrete_01~04.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | 발소리 4종 |
+| sfx_zombie_{idle_groan_01,alert,attack,death}.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | |
+| sfx_{pistol_fire,flashlight_click,axe_swing,axe_hit_flesh,reload_pistol,player_hurt}.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | |
+| amb_hospital_hum.mp3 | **ElevenLabs** Sound Effects | Free | 비상업 한정 | 20초 루프 (API 최대 길이 22초) |
+| zombie_shambler.glb | **Mixamo** (Adobe) | Free | 무제한 · 표기 불요 | 여성 좀비 캐릭터 + 애니메이션 **30클립**. 6k tri / 1024 WebP |
+| zombie_nurse.glb / zombie_surgeon.glb | **Mixamo** (Adobe) | Free | 무제한 · 표기 불요 | 방호복·수술복 본체. surgeon 은 클립을 nurse 에서 빌린다 |
 | walk_05 · crawl_02 (클립) | **Sketchfab** — OSCAR CREATIVO / Beer Game Maker | CC BY 4.0 | 가능 (표기 의무) | 걷기·포복 변형. 메시는 안 쓰고 애니메이션만 (§4-C) |
 | zombie_cop.glb | **Sketchfab** — LasquetiSpice | CC BY 4.0 | 가능 (표기 의무) | 경찰 본체. 클립은 nurse 것을 빌린다 (§4-C) |
-| props/prop_standing_body.glb | **Sketchfab** — doublesob | CC BY 4.0 | 가능 (표기 의무) | 병실 구석에 서 있는 시신. 150k → 5k tri (§4-C) |
-| models/swing_curves.json | **Mixamo** (Adobe) 모션에서 추출 · 2026-08-05 | Free | 확인 필요 | 사람 근접공격 3종(Backhand / Downward / Shooting)에서 **오른손 궤적만** 뽑아 구운 곡선. 5.7KB. 메시·스켈레톤은 안 들어간다 — 손 위치·회전을 28표본으로 정규화한 숫자만 있다 (`tools/extract_swing.py`) |
+| props/prop_standing_body.glb | **Sketchfab** — doublesob | CC BY 4.0 | 가능 (표기 의무) | 병실 구석에 서 있는 시신. 150k → **20k** tri (5k 로는 유리 파편으로 보였다 — §4-C) |
+| models/swing_curves.json | **Mixamo** (Adobe) 모션에서 추출 · 2026-08-05 | Free | 무제한 · 표기 불요 | 사람 근접공격 3종(Backhand / Downward / Shooting)에서 **오른손 궤적만** 뽑아 구운 곡선. 5.7KB. 메시·스켈레톤은 안 들어간다 — 손 위치·회전을 28표본으로 정규화한 숫자만 있다 (`tools/extract_swing.py`) |
 | weapon_axe.glb | **Kenney** Survival Kit | CC0 | 가능 | 나머지 무기는 절차적 생성 (SF 광선총은 세계관에 안 맞아 제외). 원본이 참조하던 아틀라스 `Textures/colormap.png` 는 킷에 딸린 공용 팔레트라 저장소에 없다 — 매 로드마다 404 가 나서 **GLB 안의 텍스처 참조를 제거**했다. 색은 원래도 안 붙었고 `WEAPON_VIEW.colorMul`(0.12)이 그 민무늬 상태 기준이라 화면은 그대로다 |
-| ~~weapon_molotov.glb~~ | **Kenney** Survival Kit | CC0 | — | **미사용.** 화염병은 컷했다(불꽃·화상 미구현). 파일은 남겨 뒀지만 게임이 읽지 않는다 |
+| ~~weapon_molotov.glb~~ | **Kenney** Survival Kit | CC0 | — | **파일 미사용** (게임이 읽지 않는다). 화염병 자체는 2026-08-08 에 되살렸지만, 병·심지·헝겊을 **절차적으로 생성**한다 — 어둠 속 손에 쥔 물건이라 실루엣만 읽히면 되고, 불빛을 받는 유리 재질을 코드로 잡는 편이 나았다 (`weapons/ViewModels.js`) |
 | prop_{enamel,metal,fabric}_*.webp | ambientCG (PaintedMetal013 / Metal038 / Fabric045) | CC0 | 가능 | 소품 PBR |
 | ui/title_keyart.webp | **Higgsfield** (nano_banana_2) 생성 · 2026-08-05 | 유료 크레딧 | 가능 | 타이틀 배경 키아트. 1376×768 WebP q84, 59KB. 프롬프트에 `no real-world logos, no brand names, fictional signage only` 포함, 인물·글자 없음 (CLAUDE.md §2) |
 
@@ -568,8 +568,14 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 > 브라우저 Web Audio 는 MP3 를 전부 디코딩하므로 게임 동작은 동일하다. MP3 특허는 2017년 만료.
 > 생성 스크립트는 `gen_sfx.py` (`.env.local` 의 키를 읽는다. 이미 있는 파일은 건너뛴다).
 
-> **제출 전 확인**: ElevenLabs 무료 플랜의 상업적 이용 조건을 약관에서 확인하고 위 표의
-> "상업 이용" 칸을 채울 것. 무료 플랜은 어트리뷰션을 요구하는 경우가 있다.
+> **약관 확인 완료 (2026-08-08).** ElevenLabs 무료 플랜은 약관상 **비상업 용도로 한정**된다
+> (*"if you access or use our Services free of charge ... you may only use the Services for
+> non-commercial purposes."*). 다만 **산출물 자체의 권리는 유·무료 구분 없이 생성자에게** 있다
+> (*"you retain all rights in and to your Output"*). 본 제출물은 판매·인앱결제·광고가 일절 없는
+> 무료 웹 게임이므로 그 조건 안에 있다. 상업 배포하게 되면 **유료 플랜에서 다시 생성해 교체**한다
+> — 라이선스는 생성 시점의 플랜을 따르므로 사후 업그레이드로 소급되지 않는다.
+> Mixamo 는 로열티 없음·상업 무제한·표기 불요이며 **원본 파일의 재판매만** 금지다.
+> 근거 약관 원문은 `docs/submission_ai_tech.html` §6-4 에 있다.
 
 > 데칼 생성 스크립트는 `gen_blood.py` (BRIGHT 인자로 전체 밝기 조절).
 > **주의**: 출력은 반드시 sRGB 인코딩(`^(1/2.2)`)해야 한다. 선형 값을 그대로 쓰면
