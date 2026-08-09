@@ -8,8 +8,10 @@
  * **Ctrl 을 쓰면 안 된다** — Ctrl 은 웅크리기다(Player.update). 조합을 누를 때마다
  * 플레이어가 같이 앉아 버려서 화면이 내려간다. 그래서 Alt 로 옮겼다.
  * **Alt+N·T·W 류를 넣어도 소용없다** — 크롬이 예약해서 페이지로 오지도 않는다.
+ * **Alt+F·E·D 도 못 쓴다** — F·E 는 크롬 메뉴, D 는 주소창 포커스다. preventDefault
+ * 보다 브라우저 가속키가 먼저 먹는다. 그래서 "사건 해결"은 F 가 아니라 **K** 다.
  */
-const DEV_COMBOS = ['KeyG', 'KeyM', 'KeyI'];
+const DEV_COMBOS = ['KeyG', 'KeyM', 'KeyI', 'KeyK'];
 
 export class Input {
   constructor(canvas) {

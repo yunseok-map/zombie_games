@@ -381,6 +381,7 @@ export class Game {
    *   Alt+G  모든 무기 + 탄약 가득 + 카드키 지급
    *   Alt+M  다음 구역으로 (마지막 구역이면 무시)
    *   Alt+I  무적 켜기/끄기 — 촬영 중에 죽으면 테이크가 날아간다
+   *   Alt+K  이 구역의 사건을 즉시 해결 (`_devSolveStage`)
    *
    * **Ctrl 조합인 이유**: 맨 G·N·I 는 플레이 중에 손이 미끄러지면 그냥 눌린다.
    * `?dev=1` 이 이미 1차 방벽이지만, 그 링크로 남에게 보여 줄 때도 안전해야 한다.
@@ -417,6 +418,8 @@ export class Game {
           text: `[DEV] 무적 ${this._devInvuln ? '켜짐' : '꺼짐'}`, duration: 1.5,
         });
       }
+
+      if (inp.justPressed('KeyK')) this._devSolveStage();
     }
     /**
      * **`_invuln` 을 채우는 방식은 통하지 않는다.** 예전에는 매 프레임
@@ -426,6 +429,42 @@ export class Game {
      * 피격 무적시간(`_invuln`)의 밸런스는 그대로 두고 관리자 무적만 따로 막는다.
      */
     this.player.godMode = !!this._devInvuln;
+  }
+
+  /**
+   * **이 구역의 사건을 지금 해결한다** (Alt+K) — 촬영용.
+   *
+   * 다섯 구역이 전부 "레버를 찾아서 작동시켜라" 구조다. 촬영할 때는 어두운 층에서
+   * 레버 위치를 외워 두고 걸어가야 해서, 보여 주고 싶은 장면(전투·연출)에 닿기 전에
+   * 테이크가 길어진다. 특히 **옥상 신호탄**은 마지막 구역이라 Alt+M 으로도 못 건넌다.
+   *
+   * 누를 때마다 한 단계씩 나아간다:
+   *   1) 아직 안 쓴 사건 레버가 있으면 → 전부 작동시킨다 (거리 무시)
+   *   2) 다 썼는데 출구가 아직 안 열렸으면 → 지금 연다 (옥상 헬기 대기 90초 건너뛰기)
+   *
+   * **`event` 표시가 붙은 것만 고른다.** 수납장·문도 `noisy` 라서 그걸로 고르면
+   * 온 층의 서랍이 다 열리고 전리품이 바닥에 쏟아진다.
+   *
+   * 웨이브·타이머는 **평소와 똑같이 걸린다** — 레버를 실제로 당긴 것과 같은 경로로
+   * `Interaction.use` 를 부르기 때문이다. 즉 사건을 건너뛰는 게 아니라 **가는 시간만**
+   * 건너뛴다. 영상은 규정상 실제 플레이여야 하므로 이 선을 넘지 않는다.
+   */
+  _devSolveStage() {
+    const state = { player: this.player, flashlight: this.flashlight, weapons: this.weapons };
+    const pending = this.interaction.list.filter((e) => e.event && !e.used);
+    if (pending.length) {
+      for (const e of pending) this.interaction.use(e, state);
+      bus.emit(EV.HINT, { text: `[DEV] 사건 해결 — ${pending.length}개 작동`, duration: 2 });
+      return;
+    }
+    const sl = this.stageLoader;
+    if (!sl.exit && sl.exitPending) {
+      sl.exit = sl.exitPending;
+      bus.emit(EV.OBJECTIVE, { text: '헬기 도착 — 난간 쪽으로' });
+      bus.emit(EV.HINT, { text: '[DEV] 출구 개방 — 난간 쪽으로', duration: 3 });
+      return;
+    }
+    bus.emit(EV.HINT, { text: '[DEV] 해결할 사건이 없다', duration: 1.5 });
   }
 
   /** 다음 구역으로. 체력·배터리는 이어진다 — 구역을 넘는 게 회복 기회가 되면 긴장이 죽는다 */

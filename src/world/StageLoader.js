@@ -554,6 +554,11 @@ export class StageLoader {
         }
         this.interaction.add({
           x, z, radius: 2.0, once: true, noisy: true,
+          // **이 구역을 진행시키는 것이 무엇인지 표시해 둔다.** 다섯 구역의 사건이
+          // 전부 레버다 — B1 발전기 3 · 2F 무전기 4 · 3F 무영등 2 · 옥상 신호탄 1.
+          // 관리자 모드의 "사건 즉시 해결"(Alt+K)이 이 표시만 보고 찾는다. 수납장·문도
+          // noisy 라서 그걸로 고르면 온 층의 서랍이 다 열린다.
+          event: true,
           prompt: () => `[E]  ${label} ${verb}`,
           onUse: () => { pulled.done = true; return onPull?.() ?? `${label} 작동`; },
         });
