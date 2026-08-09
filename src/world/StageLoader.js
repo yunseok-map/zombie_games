@@ -110,6 +110,10 @@ export class StageLoader {
     this.group = null;
     this.spawnPoints = [];
     this.exit = null;
+    // B1 발전기를 살리면 그 뒤로 여는 구역은 `meta.poweredMood` 를 얹은 채로 열린다.
+    // 구역 로드보다 먼저 서 있어야 하는 상태라 여기서 받는다 (load() 가 읽는다).
+    this._power = false;
+    bus.on(EV.POWER_RESTORED, () => { this._power = true; });
 
     // 좀비가 죽은 자리에 핏자국을 남긴다. 시체는 30초 뒤 사라지지만 자국은 남아서
     // "여기서 싸웠다"가 지도처럼 읽힌다 — 되돌아왔을 때 길을 아는 단서가 된다.
@@ -310,6 +314,24 @@ export class StageLoader {
         return `${label} 획득`;
       },
     });
+  }
+
+  /**
+   * B1 발전기를 살렸는가. **구역을 넘어 남는 유일한 상태**다.
+   * 새 판을 시작하면 Game.restart 가 되돌린다.
+   */
+  get powerRestored() { return this._power ?? false; }
+  set powerRestored(v) { this._power = !!v; }
+
+  /**
+   * 등록된 비상등 전부의 모드·밝기를 바꾼다.
+   * **광원을 새로 만들거나 지우지 않는다** — 개수가 바뀌면 씬 전체가 재컴파일된다
+   * (fx/Atmosphere.js 의 고정 슬롯 구조).
+   */
+  _setLights(mode, scale = 1) {
+    for (const e of this.atmosphere.emergencyLights) {
+      e.mode = mode; e.base = e.base * scale; e.value = 1;
+    }
   }
 
   /** 소품은 벽과 같은 맵을 쓰고 색만 다르게 — 재질이 늘어나도 텍스처는 안 늘어난다 */
@@ -524,11 +546,7 @@ export class StageLoader {
       /** 구역 분위기 전환 (전원 복구 등) */
       setMood: (mood) => this.atmosphere.applyStageMood(mood),
       /** 등록된 비상등 전부의 모드·밝기를 바꾼다 */
-      setLights: (mode, scale = 1) => {
-        for (const e of this.atmosphere.emergencyLights) {
-          e.mode = mode; e.base = e.base * scale; e.value = 1;
-        }
-      },
+      setLights: (mode, scale = 1) => this._setLights(mode, scale),
 
       /** 명패·포스터·표지. slot 은 아틀라스 칸 번호 (0~15), glow 면 자체발광 */
       /**
@@ -636,7 +654,22 @@ export class StageLoader {
     propModels.flush(this.group);
 
     this.scatter.finalize(this.group);
-    this.atmosphere.applyStageMood(stage.meta.mood ?? {});
+    /**
+     * **B1 에서 발전기를 살렸으면 위층도 그 상태로 시작한다.**
+     *
+     * 예전에는 구역마다 자기 `mood` 만 적용해서, 지하에서 전원을 복구하고 올라가면
+     * 2F 가 다시 칠흑이었다 — 플레이어에게는 방금 한 일이 없던 일이 된다.
+     * 그렇다고 B1 만큼(앰비언트 1.15) 밝히면 손전등이 필요 없어져 게임이 무너지므로,
+     * 구역이 직접 정한 `poweredMood` 로 **조금만** 올린다.
+     */
+    const powered = this.powerRestored ? stage.meta.poweredMood : null;
+    this.atmosphere.applyStageMood({ ...(stage.meta.mood ?? {}), ...(powered ?? {}) });
+    if (powered && stage.meta.poweredBoost) {
+      // **모드는 건드리지 않는다.** 등마다 steady·flicker·pulse 를 따로 정해 둔 것이
+      // 그 층의 인상이다 — 전부 flicker 로 덮으면 전기가 온 게 아니라 조명이
+      // 고장 난 것처럼 보인다. 전기가 왔다는 것은 **밝기**로만 말한다.
+      for (const e of this.atmosphere.emergencyLights) e.base *= stage.meta.poweredBoost;
+    }
     this.director?.setStage(this.spawnPoints, stage.meta.typeWeights);
     // exit 가 없는 구역도 있다 — 사건이 끝나야 열린다 (옥상). ctx.setExit 으로 연다.
     this.exit = result.exit ?? null;

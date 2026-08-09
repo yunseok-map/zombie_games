@@ -26,6 +26,9 @@ export const meta = {
   objective: '수술실 무영등 2개에 전원을 넣어라',
   // 수술등이 아직 몇 개 살아 있어 A~C 중 가장 밝다. 대신 그림자가 길다.
   mood: { fogDensity: 0.05, fogColor: 0x070808, ambientIntensity: 0.045 },
+  // 2F 와 같은 이유로 살짝만 올린다 (hospital_c.js 의 poweredMood 주석 참고)
+  poweredMood: { ambientIntensity: 0.09, fogDensity: 0.044 },
+  poweredBoost: 1.3,
   typeWeights: { shambler: 4, listener: 3, crawler: 2 },
 };
 

@@ -51,5 +51,8 @@ export const EV = {
   HINT: 'hint',                   // { text, duration }
   OBJECTIVE: 'objective',         // { text } — 계속 떠 있는 "지금 할 일". HINT 와 달리 안 사라진다
   STAGE_LOADED: 'stage:loaded',
+  // B1 발전기 복구. **구역을 넘어 남는 유일한 상태**라 이벤트로 알린다 —
+  // 위층은 이걸 받아 비상등을 켠 채로 시작한다 (stages/*.js 의 meta.poweredMood)
+  POWER_RESTORED: 'power:restored',
   SFX: 'sfx',                     // { name, x, z, volume }
 };

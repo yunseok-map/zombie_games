@@ -326,6 +326,9 @@ export class Game {
     this.stageIndex = cp ? cp.index : 0;
     this.weapons.viewRoot.visible = true;   // 시작 화면에서 숨겨 놓았다
     this.pool.despawnAll();
+    // 전원은 **구역을 넘어 남는 유일한 상태**라 새 판에서 반드시 되돌린다.
+    // 체크포인트로 2F 이상에서 재개하는 것은 이미 B1 을 끝냈다는 뜻이라 켜 둔 채 시작한다.
+    this.stageLoader.powerRestored = cp ? cp.index > 1 : false;
     const stage = STAGES[this.stageIndex];
     const start = this.stageLoader.load(stage);
     this.player.surfaceAt = this.stageLoader.surfaceAt;

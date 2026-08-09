@@ -200,6 +200,9 @@ export function build(ctx) {
     setLights('steady', 1.6);
     bus.emit(EV.SFX, { name: 'flashlight', volume: 0.9 });
     bus.emit(EV.OBJECTIVE, { text: '전원 복구 — 계단실로' });
+    // **위층까지 알린다.** 여기서만 밝아지고 2F 가 다시 칠흑이면 방금 한 일이
+    // 없던 일이 된다. 위층은 각자 meta.poweredMood 만큼만 밝아진다.
+    bus.emit(EV.POWER_RESTORED, {});
     setTimeout(() => {
       bus.emit(EV.HINT, { text: '계단실로 — 전부 몰려온다', duration: 4 });
       triggerWave(GENERATOR.waveOnComplete);

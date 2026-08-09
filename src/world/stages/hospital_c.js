@@ -26,6 +26,11 @@ export const meta = {
   objective: '병실의 무전기 4대를 켜라',
   // B1 보다는 밝지만 여전히 어둡다. 점멸이 주인공이라 기본 조도를 낮게 둔다.
   mood: { fogDensity: 0.055, fogColor: 0x060709, ambientIntensity: 0.035 },
+  // B1 에서 발전기를 살리고 올라왔다면 이 층 비상등에도 전기가 온다.
+  // **B1 만큼 밝히지 않는다**(거기는 1.15). 위층 배선은 절반쯤 죽어 있다는 설정이고,
+  // 무엇보다 손전등이 필요 없어지면 이 게임의 공포가 통째로 사라진다.
+  poweredMood: { ambientIntensity: 0.10, fogDensity: 0.048 },
+  poweredBoost: 1.35,     // 비상등 밝기 배수. 모드(점멸/맥동)는 그대로 둔다
   typeWeights: { shambler: 4, listener: 2, crawler: 2 },
 };
 
@@ -225,6 +230,8 @@ export function build(ctx) {
   // 무전기는 병실 안쪽에 있어서, 켜려면 커튼 뒤가 안 보이는 방으로 들어가야 한다.
   const W = EVENTS.ward;
   let radios = 0;
+  // 아직 안 켠 무전기 위치. 아래 잡음 타이머가 여기서 하나를 골라 울린다.
+  const silentRadios = []; 
   const onRadio = () => {
     radios++;
     if (radios < W.radioCount) {
@@ -242,8 +249,26 @@ export function build(ctx) {
   // 병실 4곳(좌우 번갈아). 안쪽 벽에 붙여 둔다.
   [[-1, WARD_Z[0]], [1, WARD_Z[1]], [-1, WARD_Z[2]], [1, WARD_Z[3]]]
     .forEach(([side, cz], i) => {
-      addLever(side * (ROOM_X - 0.5), cz - 1.2, side * Math.PI / 2, `무전기 ${i + 1}`, onRadio);
+      const x = side * (ROOM_X - 0.5), z = cz - 1.2;
+      const spot = { x, z };
+      silentRadios.push(spot);
+      addLever(x, z, side * Math.PI / 2, `무전기 ${i + 1}`, () => {
+        // 켜진 무전기는 더 이상 부르지 않는다
+        const at = silentRadios.indexOf(spot);
+        if (at >= 0) silentRadios.splice(at, 1);
+        return onRadio();
+      });
     });
+
+  /**
+   * 안 켠 무전기의 잡음. **길잡이가 아니라 단서다** — 어느 쪽에서 나는지만 알려 주고
+   * 방은 직접 찾게 둔다. 벽 뒤면 먹먹해지므로 가까워질수록 또렷해진다.
+   */
+  const staticTimer = setInterval(() => {
+    if (!silentRadios.length) return;
+    const s = silentRadios[Math.floor(Math.random() * silentRadios.length)];
+    bus.emit(EV.SFX, { name: 'radio_static', x: s.x, z: s.z, volume: W.staticVolume });
+  }, W.staticEvery * 1000);
   // 무전 4대를 다 켜야 열리는 문. 카드키가 아니라 진행도로 열린다.
   addDoor(0, HALL_Z1, HALL_HALF * 2, WALL_T, () => radios >= W.radioCount,
     '계단실 문', '무전을 전부 켜야 한다');
@@ -262,5 +287,7 @@ export function build(ctx) {
   return {
     playerStart: { x: 0, z: ENTRY_Z - 1.2, yaw: Math.PI },
     exit: { x: 0, z: EXIT_Z + 2.2, radius: 2.2 },
+    // **반드시 끊는다.** 안 끊으면 다음 구역·죽은 뒤에도 잡음이 계속 울린다.
+    onUnload: () => clearInterval(staticTimer),
   };
 }
