@@ -4,7 +4,7 @@
 Vite + Three.js, 외부 엔진 없음. NHN GAME X AI HACKATHON (NAN 2026) 사전 과제 제출작.
 
 **▶ 플레이: https://yunseok-map.github.io/zombie_games/**
-**▶ 플레이 영상: https://www.youtube.com/watch?v=vDHR5LWBffE**
+**▶ 플레이 영상: https://www.youtube.com/watch?v=TH71shPSNqs**
 
 봉쇄된 격리병원에서 깨어난다. 1F 격리병동 → B1 영안실 → 2F 병동 → 3F 수술부 →
 옥상까지 다섯 구역을 지나 헬기를 부르는 것이 목표다.
@@ -150,7 +150,7 @@ CC BY 에셋의 제작자 22명은 **게임 안 크레딧 화면**에도 전원 
 | 제출물 | 파일 |
 |---|---|
 | 1. 플레이 가능한 빌드 + 전체 소스 | 이 저장소 · [GitHub Pages](https://yunseok-map.github.io/zombie_games/) |
-| 2. 플레이 동영상 | https://www.youtube.com/watch?v=vDHR5LWBffE |
+| 2. 플레이 동영상 | https://www.youtube.com/watch?v=TH71shPSNqs |
 | 3. 게임 소개 및 설명 | [`docs/제출3_게임소개.pdf`](docs/) · 원본 `docs/submission_game_overview.html` |
 | 4. AI 활용 기술 문서 | [`docs/제출4_AI활용기술.pdf`](docs/) · 원본 `docs/submission_ai_tech.html` |
 | 5. 팀원 롤 기술서 | 개인 참여라 해당 없음 |
