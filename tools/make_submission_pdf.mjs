@@ -21,7 +21,7 @@
  *      — 마지막 쪽이 비는 것은 문서 끝이라 정상이다. 판정에서 뺀다.
  */
 import { createRequire } from 'node:module';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -31,15 +31,23 @@ const { PDFDocument } = require('pdf-lib');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
+/**
+ * 완성된 PDF 는 **`제출/` 한 곳에만** 둔다. 원본 HTML 은 `docs/` 에 남는다.
+ * 두 곳에 같은 PDF 가 있으면 어느 쪽을 올려야 하는지 헷갈리고, 한쪽만 갱신되면
+ * **낡은 것을 제출하게 된다.** 파일 이름은 접수 폼의 항목 이름을 그대로 따랐다.
+ */
+const OUT = path.join(ROOT, '제출');
 const CHROME = process.env.CHROME_PATH
   || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
 const TARGETS = [
-  { html: 'submission_game_overview.html', pdf: '제출3_게임소개.pdf',
-    label: '제출물 3 — 게임 소개', marginMm: 14 },
-  { html: 'submission_ai_tech.html', pdf: '제출4_AI활용기술.pdf',
-    label: '제출물 4 — AI 활용 기술', marginMm: 13 },
+  { html: 'submission_game_overview.html', pdf: 'QUARANTINE_No3_게임소개및설명문서.pdf',
+    label: '게임 소개 및 설명 문서', marginMm: 14 },
+  { html: 'submission_ai_tech.html', pdf: 'QUARANTINE_No3_AI활용기술문서.pdf',
+    label: 'AI 활용 기술 문서', marginMm: 13 },
 ];
+
+await mkdir(OUT, { recursive: true });
 
 const browser = await puppeteer.launch({
   executablePath: CHROME,
@@ -81,7 +89,7 @@ for (const t of TARGETS) {
     return out;
   });
 
-  const outPath = path.join(DOCS, t.pdf);
+  const outPath = path.join(OUT, t.pdf);
   await page.pdf({
     path: outPath,
     format: 'A4',

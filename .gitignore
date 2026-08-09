@@ -13,6 +13,18 @@ fbx_src/
 # ambientCG 원본 (CC0). 49MB 라 저장소에 넣지 않는다 — tools/gen_surfaces.py 주석의 URL 로 다시 받는다
 tools/source_textures/*.zip
 
+# Sketchfab 소품 **원본** 109MB. 게임은 이걸 안 읽는다 — tools/import_props.py 가
+# public/assets/models/props/ 로 변환한 결과만 쓴다. 출처 URL 과 변환 수치(배율·삼각형·
+# 텍스처)는 ASSETS.md §4 에 전부 있으므로 다시 받아서 재변환할 수 있다.
+tools/source_models/
+
+# import_props.py 가 변환할 때마다 다시 그리는 미리보기 PNG. 산출물이지 입력이 아니다
+tools/preview/
+
+# 파이썬 바이트코드
+__pycache__/
+*.pyc
+
 # tools/check_pdf_layout.mjs 가 확인용으로 뽑는 PDF 쪽 이미지. 언제든 다시 만들 수 있다
 docs/pdf_pages/
 

@@ -20,7 +20,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = path.join(ROOT, 'docs');
-const FILES = ['제출3_게임소개.pdf', '제출4_AI활용기술.pdf'];
+// PDF 는 make_submission_pdf.mjs 와 **같은 곳**을 본다. 한쪽만 고치면 낡은 파일을 검사한다
+const OUT = path.join(ROOT, '제출');
+const FILES = ['QUARANTINE_No3_게임소개및설명문서.pdf', 'QUARANTINE_No3_AI활용기술문서.pdf'];
 
 const WANT = process.argv.slice(2).map(Number).filter(Boolean);
 const SHOTS = path.join(DOCS, 'pdf_pages');
@@ -29,7 +31,7 @@ if (WANT.length) await mkdir(SHOTS, { recursive: true });
 const LIMIT = 22;   // 하단 22% 이상 비면 눈에 띈다
 
 for (const f of FILES) {
-  const doc = await pdf(path.join(DOCS, f), { scale: 0.8 });
+  const doc = await pdf(path.join(OUT, f), { scale: 0.8 });
   const rows = [];
   const buffers = [];
   for await (const buf of doc) buffers.push(buf);

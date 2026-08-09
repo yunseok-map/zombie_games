@@ -144,18 +144,23 @@ CC BY 에셋의 제작자 22명은 **게임 안 크레딧 화면**에도 전원 
 | `SETUP.md` | 다른 PC 에서 개발 환경 세우기 |
 | `CLAUDE.md` | 이 저장소에서 작업할 때의 강제 규칙 |
 | `docs/notes/` | 개인 작업 메모 (제출물과 무관) |
+| `제출/` | **접수 폼에 올릴 PDF 2개** + 올리는 방법 |
 
 ### 해커톤 제출물
 
-| 제출물 | 파일 |
-|---|---|
-| 1. 플레이 가능한 빌드 + 전체 소스 | 이 저장소 · [GitHub Pages](https://yunseok-map.github.io/zombie_games/) |
-| 2. 플레이 동영상 | https://www.youtube.com/watch?v=TH71shPSNqs |
-| 3. 게임 소개 및 설명 | [`docs/제출3_게임소개.pdf`](docs/) · 원본 `docs/submission_game_overview.html` |
-| 4. AI 활용 기술 문서 | [`docs/제출4_AI활용기술.pdf`](docs/) · 원본 `docs/submission_ai_tech.html` |
-| 5. 팀원 롤 기술서 | 개인 참여라 해당 없음 |
+**[`제출/`](제출/) 폴더에 올릴 파일이 그대로 들어 있다.** 접수 폼의 항목 이름과 파일
+이름을 1:1로 맞춰 두었고, 같은 폴더의 `README.md` 가 어느 칸에 무엇을 올리는지 적어 놨다.
 
-PDF 는 HTML 원본에서 `npm run pdf` 로 다시 만든다 — 내용을 고칠 때는 **HTML 을 고친다.**
+| 접수 폼 항목 | 올릴 것 |
+|---|---|
+| 플레이 가능한 빌드 + 전체 소스 | 이 저장소 · [GitHub Pages](https://yunseok-map.github.io/zombie_games/) |
+| 플레이 동영상 | https://www.youtube.com/watch?v=TH71shPSNqs (60초) |
+| 게임 소개 및 설명 문서 | `제출/QUARANTINE_No3_게임소개및설명문서.pdf` (8쪽) |
+| AI 활용 기술 문서 | `제출/QUARANTINE_No3_AI활용기술문서.pdf` (16쪽) |
+| 팀 소개 문서 | 1인 개발이라 해당 없음 |
+
+PDF 원본은 `docs/submission_*.html` 이고 `npm run pdf` 로 다시 뽑는다 —
+**고칠 때는 PDF 가 아니라 HTML 을 고친다.**
 
 `PROGRESS.md` 의 "알려진 함정" 절은 같은 실수를 두 번 하지 않으려고 남긴 것이라
 이 프로젝트에서 가장 실용적인 문서다.

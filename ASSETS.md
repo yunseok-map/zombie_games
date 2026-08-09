@@ -529,8 +529,13 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 (삼각형 334,808 중 대부분) 노드 이름으로 수술등·수술대만 뽑아낼 수 없다. 3F 수술실은
 영안실 팩의 해부대·무영등으로 대체했다.
 
-**원본 보관 위치**: `tools/source_models/` (98MB). `public/` 밖이라 빌드에 실리지 않는다.
-재변환하려면 `blender --background --python tools/import_props.py -- [이름]`.
+**원본은 저장소에 없다** (2026-08-09). `tools/source_models/` 에 109MB 를 두고 있었는데
+게임도 빌드도 읽지 않는 입력 파일이라 `.gitignore` 로 뺐다. 위 표에 원본 파일명·배율·
+결과 수치가 있고 §4-B 에 Sketchfab 주소가 있으므로 **다시 받아 재변환할 수 있다** —
+`tools/source_models/` 에 내려받은 뒤
+`blender --background --python tools/import_props.py -- [이름]`.
+
+변환 결과 미리보기(`tools/preview/*.png`)도 같은 이유로 뺐다. 변환할 때마다 다시 그려진다.
 
 ---
 
@@ -554,7 +559,7 @@ Blender 로 필요한 오브젝트만 분리해 개별 GLB 로 재출력한다.
 | props/prop_standing_body.glb | **Sketchfab** — doublesob | CC BY 4.0 | 가능 (표기 의무) | 병실 구석에 서 있는 시신. 150k → **20k** tri (5k 로는 유리 파편으로 보였다 — §4-C) |
 | models/swing_curves.json | **Mixamo** (Adobe) 모션에서 추출 · 2026-08-05 | Free | 무제한 · 표기 불요 | 사람 근접공격 3종(Backhand / Downward / Shooting)에서 **오른손 궤적만** 뽑아 구운 곡선. 5.7KB. 메시·스켈레톤은 안 들어간다 — 손 위치·회전을 28표본으로 정규화한 숫자만 있다 (`tools/extract_swing.py`) |
 | weapon_axe.glb | **Kenney** Survival Kit | CC0 | 가능 | 나머지 무기는 절차적 생성 (SF 광선총은 세계관에 안 맞아 제외). 원본이 참조하던 아틀라스 `Textures/colormap.png` 는 킷에 딸린 공용 팔레트라 저장소에 없다 — 매 로드마다 404 가 나서 **GLB 안의 텍스처 참조를 제거**했다. 색은 원래도 안 붙었고 `WEAPON_VIEW.colorMul`(0.12)이 그 민무늬 상태 기준이라 화면은 그대로다 |
-| ~~weapon_molotov.glb~~ | **Kenney** Survival Kit | CC0 | — | **파일 미사용** (게임이 읽지 않는다). 화염병 자체는 2026-08-08 에 되살렸지만, 병·심지·헝겊을 **절차적으로 생성**한다 — 어둠 속 손에 쥔 물건이라 실루엣만 읽히면 되고, 불빛을 받는 유리 재질을 코드로 잡는 편이 나았다 (`weapons/ViewModels.js`) |
+| ~~weapon_molotov.glb~~ | **Kenney** Survival Kit | CC0 | — | **저장소에 없다** (지웠다). 화염병 자체는 2026-08-08 에 되살렸지만, 병·심지·헝겊을 **절차적으로 생성**한다 — 어둠 속 손에 쥔 물건이라 실루엣만 읽히면 되고, 불빛을 받는 유리 재질을 코드로 잡는 편이 나았다 (`weapons/ViewModels.js`) |
 | prop_{enamel,metal,fabric}_*.webp | ambientCG (PaintedMetal013 / Metal038 / Fabric045) | CC0 | 가능 | 소품 PBR |
 | ui/title_keyart.webp | **Higgsfield** (nano_banana_2) 생성 · 2026-08-05 | 유료 크레딧 | 가능 | 타이틀 배경 키아트. 1376×768 WebP q84, 59KB. 프롬프트에 `no real-world logos, no brand names, fictional signage only` 포함, 인물·글자 없음 (CLAUDE.md §2) |
 
